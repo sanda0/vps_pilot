@@ -1,0 +1,16 @@
+{
+  "Commands": [
+    {
+      "Label": "React",
+      "Color": "cyan",
+      "CmdStr": "pnpm dev",
+      "ExecPath": "./client"
+    },
+    {
+      "Label": "Go",
+      "Color": "blue",
+      "CmdStr": "air",
+      "ExecPath": "./server"
+    }
+  ]
+}
