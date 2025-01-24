@@ -3,7 +3,7 @@
     {
       "Label": "React",
       "Color": "cyan",
-      "CmdStr": "pnpm dev",
+      "CmdStr": "bun dev",
       "ExecPath": "./client"
     },
     {
