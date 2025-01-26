@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type CronJob struct {
 	gorm.Model
+	ServerID    uint
 	Name        string
 	Description string
 	Schedule    string
