@@ -1,1 +1,41 @@
 package handlers
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/sanda0/vps_pilot/dto"
+	"github.com/sanda0/vps_pilot/services"
+)
+
+type AuthHandler interface {
+	Login(c *gin.Context)
+}
+
+type authHandler struct {
+	userService services.UserService
+}
+
+// Login implements AuthHandler.
+func (a *authHandler) Login(c *gin.Context) {
+	form := dto.UserLoginDto{}
+	if err := c.ShouldBindJSON(&form); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	userResponse, err := a.userService.Login(form)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.SetCookie("__tkn__", userResponse.Token, 3600, "/", "", true, true)
+
+	c.JSON(200, gin.H{"data": userResponse})
+
+}
+
+func NewAuthHandler(userService services.UserService) AuthHandler {
+	return &authHandler{
+		userService: userService,
+	}
+}
