@@ -31,12 +31,14 @@ func (a *authHandler) Profile(c *gin.Context) {
 func (a *authHandler) Login(c *gin.Context) {
 	form := dto.UserLoginDto{}
 	if err := c.ShouldBindJSON(&form); err != nil {
+		c.SetCookie("__tkn__", "", -1, "/", "", true, true)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	userResponse, err := a.userService.Login(form)
 	if err != nil {
+		c.SetCookie("__tkn__", "", -1, "/", "", true, true)
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}

@@ -27,6 +27,7 @@ func Run(port string) {
 	userHandler := handlers.NewAuthHandler(userService)
 
 	server := gin.Default()
+	server.Use(middleware.CORSMiddleware())
 
 	//routes
 	api := server.Group("/api/v1")
@@ -36,7 +37,7 @@ func Run(port string) {
 		auth.POST("/login", userHandler.Login)
 	}
 
-	dashbaord := api.Group("/dashboard")
+	dashbaord := api.Group("/")
 	dashbaord.Use(middleware.JwtAuthMiddleware())
 	{
 		dashbaord.GET("/profile", userHandler.Profile)

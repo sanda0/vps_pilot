@@ -11,16 +11,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ExtractToken(c *gin.Context) string {
-	// get token from cookie
-	cookie, err := c.Request.Cookie("__tkn__")
+// func ExtractToken(c *gin.Context) string {
+// 	// get token from cookie
+// 	cookie, err := c.Request.Cookie("__tkn__")
 
-	if err == nil {
-		return cookie.Value
+// 	if err == nil {
+// 		return cookie.Value
+// 	}
+
+// 	return ""
+
+// }
+
+func ExtractTokenFromHeader(c *gin.Context) string {
+	bearerToken := c.Request.Header.Get("Authorization")
+	if len(bearerToken) > 7 && bearerToken[:7] == "Bearer " {
+		return bearerToken[7:]
 	}
-
 	return ""
-
 }
 
 func GenerateToken(user_id uint) (string, error) {
@@ -41,7 +49,7 @@ func GenerateToken(user_id uint) (string, error) {
 }
 
 func TokenValid(c *gin.Context) error {
-	tokenString := ExtractToken(c)
+	tokenString := ExtractTokenFromHeader(c)
 	_, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -57,7 +65,7 @@ func TokenValid(c *gin.Context) error {
 
 func ExtractTokenID(c *gin.Context) (uint, error) {
 
-	tokenString := ExtractToken(c)
+	tokenString := ExtractTokenFromHeader(c)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
