@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sanda0/vps_pilot/common"
 	"github.com/sanda0/vps_pilot/handlers"
+	"github.com/sanda0/vps_pilot/middleware"
 	"github.com/sanda0/vps_pilot/repositories"
 	"github.com/sanda0/vps_pilot/services"
 )
@@ -33,6 +34,12 @@ func Run(port string) {
 	auth := api.Group("/auth")
 	{
 		auth.POST("/login", userHandler.Login)
+	}
+
+	dashbaord := api.Group("/dashboard")
+	dashbaord.Use(middleware.JwtAuthMiddleware())
+	{
+		dashbaord.GET("/profile", userHandler.Profile)
 	}
 
 	server.Run(":8000")

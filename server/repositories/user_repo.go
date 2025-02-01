@@ -7,10 +7,21 @@ import (
 
 type UserRepo interface {
 	GetByEmail(email string) (*models.User, error)
+	GetUserByID(id uint) (*models.User, error)
 }
 
 type userRepo struct {
 	db *gorm.DB
+}
+
+// GetUserByID implements UserRepo.
+func (u *userRepo) GetUserByID(id uint) (*models.User, error) {
+	var user models.User
+	result := u.db.First(&user, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
 }
 
 // GetByEmail implements UserRepo.

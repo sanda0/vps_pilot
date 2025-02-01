@@ -8,10 +8,23 @@ import (
 
 type AuthHandler interface {
 	Login(c *gin.Context)
+	Profile(c *gin.Context)
 }
 
 type authHandler struct {
 	userService services.UserService
+}
+
+// Profile implements AuthHandler.
+func (a *authHandler) Profile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	user, err := a.userService.Profile(userID.(uint))
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"data": user})
 }
 
 // Login implements AuthHandler.
