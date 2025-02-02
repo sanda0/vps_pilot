@@ -2,9 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sanda0/vps_pilot/db"
@@ -13,23 +10,7 @@ import (
 	"github.com/sanda0/vps_pilot/services"
 )
 
-func Run(port string) {
-
-	//init db
-	con, err := sql.Open("postgres", fmt.Sprintf("dbname=%s password=%s user=%s host=%s sslmode=require",
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_HOST"),
-	))
-
-	if err != nil {
-		panic(err)
-	}
-
-	//init ctx
-	ctx := context.Background()
-	repo := db.NewRepo(con)
+func Run(ctx context.Context, repo *db.Repo, port string) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)

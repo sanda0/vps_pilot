@@ -1,12 +1,19 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/sanda0/vps_pilot/cmd/app"
 	"github.com/sanda0/vps_pilot/cmd/cli"
+	"github.com/sanda0/vps_pilot/db"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -15,8 +22,22 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	// conn := common.Conn{}
-	// conn.Migrate()
+
+	//init db
+	con, err := sql.Open("postgres", fmt.Sprintf("dbname=%s password=%s user=%s host=%s sslmode=require",
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_HOST"),
+	))
+
+	if err != nil {
+		panic(err)
+	}
+
+	//init ctx
+	ctx := context.Background()
+	repo := db.NewRepo(con)
 
 	port := flag.String("port", "8080", "port to listen on")
 	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
@@ -24,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	if *createSuperuser {
-		cli.CreateSuperuser()
+		cli.CreateSuperuser(ctx, repo)
 		return
 	}
 
@@ -36,6 +57,6 @@ func main() {
 		return
 	}
 
-	app.Run(*port)
+	app.Run(ctx, repo, *port)
 
 }
