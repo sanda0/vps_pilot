@@ -70,7 +70,7 @@ export function NavMain({
                 </CollapsibleContent>
               </SidebarMenuItem>
             </Collapsible> :
-            <SidebarMenuItem>
+            <SidebarMenuItem key={item.title}>
               <a href={item.url}>
                 <SidebarMenuButton >
                   {item.icon && <item.icon />}

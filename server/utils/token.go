@@ -31,7 +31,7 @@ func ExtractTokenFromHeader(c *gin.Context) string {
 	return ""
 }
 
-func GenerateToken(user_id uint) (string, error) {
+func GenerateToken(user_id int32) (string, error) {
 	token_lifespan, err := strconv.Atoi(os.Getenv("TOKEN_LIFESPAN")) // in minutes
 	if err != nil {
 		log.Println("token life span error: ", err)
@@ -63,7 +63,7 @@ func TokenValid(c *gin.Context) error {
 	return nil
 }
 
-func ExtractTokenID(c *gin.Context) (uint, error) {
+func ExtractTokenID(c *gin.Context) (int32, error) {
 
 	tokenString := ExtractTokenFromHeader(c)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -82,7 +82,7 @@ func ExtractTokenID(c *gin.Context) (uint, error) {
 		if err != nil {
 			return 0, err
 		}
-		return uint(userID), nil
+		return int32(userID), nil
 	}
 	return 0, nil
 }

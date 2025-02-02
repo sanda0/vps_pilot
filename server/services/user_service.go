@@ -1,41 +1,42 @@
 package services
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/sanda0/vps_pilot/db"
 	"github.com/sanda0/vps_pilot/dto"
-	"github.com/sanda0/vps_pilot/models"
-	"github.com/sanda0/vps_pilot/repositories"
 	"github.com/sanda0/vps_pilot/utils"
 )
 
 type UserService interface {
 	Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, error)
-	Profile(id uint) (*models.User, error)
+	Profile(id int32) (*db.User, error)
 }
 
 type userService struct {
-	userRepo repositories.UserRepo
+	repo *db.Repo
+	ctx  context.Context
 }
 
 // Profile implements UserService.
-func (u *userService) Profile(id uint) (*models.User, error) {
-	user, err := u.userRepo.GetUserByID(id)
+func (u *userService) Profile(id int32) (*db.User, error) {
+	user, err := u.repo.Queries.FindUserById(u.ctx, int32(id))
 	if err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 // Login implements UserService.
 func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, error) {
-	user, err := u.userRepo.GetByEmail(form.Email)
+	user, err := u.repo.Queries.FindUserByEmail(u.ctx, form.Email)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := utils.VerifyPassword(form.Password, user.Password); err != nil {
+	if err := utils.VerifyPassword(form.Password, user.PasswordHash); err != nil {
 		return nil, err
 
 	}
@@ -57,8 +58,9 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 	return response, nil
 }
 
-func NewUserService(userRepo repositories.UserRepo) UserService {
+func NewUserService(ctx context.Context, repo *db.Repo) UserService {
 	return &userService{
-		userRepo: userRepo,
+		repo: repo,
+		ctx:  ctx,
 	}
 }

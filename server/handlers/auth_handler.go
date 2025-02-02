@@ -18,7 +18,7 @@ type authHandler struct {
 // Profile implements AuthHandler.
 func (a *authHandler) Profile(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	user, err := a.userService.Profile(userID.(uint))
+	user, err := a.userService.Profile(userID.(int32))
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return

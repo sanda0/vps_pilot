@@ -6,7 +6,7 @@ type UserLoginDto struct {
 }
 
 type UserLoginResponseDto struct {
-	ID       uint   `json:"id"`
+	ID       int32  `json:"id"`
 	Email    string `json:"email"`
 	Token    string `json:"token"`
 	Username string `json:"username"`

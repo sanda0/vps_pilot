@@ -1,27 +1,38 @@
 package app
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+
 	"github.com/gin-gonic/gin"
-	"github.com/sanda0/vps_pilot/common"
+	"github.com/sanda0/vps_pilot/db"
 	"github.com/sanda0/vps_pilot/handlers"
 	"github.com/sanda0/vps_pilot/middleware"
-	"github.com/sanda0/vps_pilot/repositories"
 	"github.com/sanda0/vps_pilot/services"
 )
 
 func Run(port string) {
 
 	//init db
-	conn := common.Conn{}
-	db := conn.Connect()
-	defer conn.Close()
-	conn.Migrate()
+	con, err := sql.Open("postgres", fmt.Sprintf("dbname=%s password=%s user=%s host=%s sslmode=require",
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_HOST"),
+	))
 
-	//init repositories
-	userRepo := repositories.NewUserRepo(db)
+	if err != nil {
+		panic(err)
+	}
+
+	//init ctx
+	ctx := context.Background()
+	repo := db.NewRepo(con)
 
 	//init services
-	userService := services.NewUserService(userRepo)
+	userService := services.NewUserService(ctx, repo)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
