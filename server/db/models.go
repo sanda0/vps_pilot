@@ -6,7 +6,20 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
+
+type Node struct {
+	ID        int32           `json:"id"`
+	Name      sql.NullString  `json:"name"`
+	Ip        string          `json:"ip"`
+	CpuCores  int32           `json:"cpu_cores"`
+	CpuGhz    sql.NullFloat64 `json:"cpu_ghz"`
+	Memory    sql.NullInt32   `json:"memory"`
+	Disk      sql.NullInt32   `json:"disk"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
 
 type User struct {
 	ID           int32        `json:"id"`

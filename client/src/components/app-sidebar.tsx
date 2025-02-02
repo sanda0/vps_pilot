@@ -43,8 +43,8 @@ const data = {
   ,
   navMain: [
     {
-      title: "Servers",
-      url: "/servers",
+      title: "Nodes",
+      url: "/nodes",
       icon: SquareTerminal,
     },
     {

@@ -23,7 +23,7 @@ func (a *authHandler) Profile(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-
+	user.PasswordHash = ""
 	c.JSON(200, gin.H{"data": user})
 }
 
