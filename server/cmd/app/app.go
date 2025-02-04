@@ -49,6 +49,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		nodes := dashbaord.Group("/nodes")
 		{
 			nodes.GET("", nodeHander.GetNodes)
+			nodes.PUT("/change-name", nodeHander.UpdateName)
 		}
 	}
 

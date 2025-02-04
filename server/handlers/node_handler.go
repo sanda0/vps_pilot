@@ -10,10 +10,26 @@ import (
 
 type NodeHandler interface {
 	GetNodes(c *gin.Context)
+	UpdateName(c *gin.Context)
 }
 
 type nodeHandler struct {
 	nodeService services.NodeService
+}
+
+// UpdateName implements NodeHandler.
+func (n *nodeHandler) UpdateName(c *gin.Context) {
+	form := dto.NodeNameUpdateDto{}
+	if err := c.ShouldBindJSON(&form); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	node, err := n.nodeService.UpdateName(form.NodeId, form.Name)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": node})
 }
 
 // GetNodes implements NodeHandler.
