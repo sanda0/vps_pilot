@@ -32,6 +32,8 @@ type AddNodeDiskInfoParams struct {
 	Used       sql.NullFloat64 `json:"used"`
 }
 
+// ######################################################################################
+// ----------------------------------disk info-------------------------------------------
 func (q *Queries) AddNodeDiskInfo(ctx context.Context, arg AddNodeDiskInfoParams) (NodeDiskInfo, error) {
 	row := q.queryRow(ctx, q.addNodeDiskInfoStmt, addNodeDiskInfo,
 		arg.NodeID,
@@ -80,6 +82,8 @@ type AddNodeSysInfoParams struct {
 	TotalMemory     sql.NullFloat64 `json:"total_memory"`
 }
 
+// ######################################################################################
+// ----------------------------------sys info-------------------------------------------
 func (q *Queries) AddNodeSysInfo(ctx context.Context, arg AddNodeSysInfoParams) (NodeSysInfo, error) {
 	row := q.queryRow(ctx, q.addNodeSysInfoStmt, addNodeSysInfo,
 		arg.NodeID,
@@ -270,6 +274,78 @@ func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, err
 			&i.Ip,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNodesWithSysInfo = `-- name: GetNodesWithSysInfo :many
+SELECT n.id,
+  n.name,
+  n.ip,
+  nsi.os,
+  nsi.platform,
+  nsi.platform_version,
+  nsi.kernel_version,
+  nsi.cpus,
+  nsi.total_memory
+FROM nodes as n
+  JOIN node_sys_info as nsi ON n.id = nsi.node_id
+WHERE n.name LIKE '%' || $1 || '%'
+  OR n.ip LIKE '%' || $1 || '%'
+  OR nsi.os LIKE '%' || $1 || '%'
+  OR nsi.platform LIKE '%' || $1 || '%'
+  OR nsi.platform_version LIKE '%' || $1 || '%'
+  OR nsi.kernel_version LIKE '%' || $1 || '%'
+LIMIT $2 OFFSET $3
+`
+
+type GetNodesWithSysInfoParams struct {
+	Column1 sql.NullString `json:"column_1"`
+	Limit   int32          `json:"limit"`
+	Offset  int32          `json:"offset"`
+}
+
+type GetNodesWithSysInfoRow struct {
+	ID              int32           `json:"id"`
+	Name            sql.NullString  `json:"name"`
+	Ip              string          `json:"ip"`
+	Os              sql.NullString  `json:"os"`
+	Platform        sql.NullString  `json:"platform"`
+	PlatformVersion sql.NullString  `json:"platform_version"`
+	KernelVersion   sql.NullString  `json:"kernel_version"`
+	Cpus            sql.NullInt32   `json:"cpus"`
+	TotalMemory     sql.NullFloat64 `json:"total_memory"`
+}
+
+func (q *Queries) GetNodesWithSysInfo(ctx context.Context, arg GetNodesWithSysInfoParams) ([]GetNodesWithSysInfoRow, error) {
+	rows, err := q.query(ctx, q.getNodesWithSysInfoStmt, getNodesWithSysInfo, arg.Column1, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetNodesWithSysInfoRow
+	for rows.Next() {
+		var i GetNodesWithSysInfoRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Ip,
+			&i.Os,
+			&i.Platform,
+			&i.PlatformVersion,
+			&i.KernelVersion,
+			&i.Cpus,
+			&i.TotalMemory,
 		); err != nil {
 			return nil, err
 		}

@@ -24,6 +24,27 @@ WHERE id = $1;
 SELECT *
 FROM nodes
 WHERE ip = $1;
+-- name: GetNodesWithSysInfo :many
+SELECT n.id,
+  n.name,
+  n.ip,
+  nsi.os,
+  nsi.platform,
+  nsi.platform_version,
+  nsi.kernel_version,
+  nsi.cpus,
+  nsi.total_memory
+FROM nodes as n
+  JOIN node_sys_info as nsi ON n.id = nsi.node_id
+WHERE n.name LIKE '%' || $1 || '%'
+  OR n.ip LIKE '%' || $1 || '%'
+  OR nsi.os LIKE '%' || $1 || '%'
+  OR nsi.platform LIKE '%' || $1 || '%'
+  OR nsi.platform_version LIKE '%' || $1 || '%'
+  OR nsi.kernel_version LIKE '%' || $1 || '%'
+LIMIT $2 OFFSET $3;
+--######################################################################################
+------------------------------------sys info-------------------------------------------
 -- name: AddNodeSysInfo :one
 INSERT INTO node_sys_info (
     node_id,
@@ -51,6 +72,8 @@ SET os = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE node_id = $1
 RETURNING *;
+--######################################################################################
+------------------------------------disk info-------------------------------------------
 -- name: AddNodeDiskInfo :one
 INSERT INTO node_disk_info (
     node_id,
