@@ -10,15 +10,36 @@ import (
 )
 
 type Node struct {
-	ID        int32           `json:"id"`
-	Name      sql.NullString  `json:"name"`
-	Ip        string          `json:"ip"`
-	CpuCores  int32           `json:"cpu_cores"`
-	CpuGhz    sql.NullFloat64 `json:"cpu_ghz"`
-	Memory    sql.NullInt32   `json:"memory"`
-	Disk      sql.NullInt32   `json:"disk"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
+	ID        int32          `json:"id"`
+	Name      sql.NullString `json:"name"`
+	Ip        string         `json:"ip"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
+type NodeDiskInfo struct {
+	ID         int32           `json:"id"`
+	NodeID     int32           `json:"node_id"`
+	Device     sql.NullString  `json:"device"`
+	MountPoint sql.NullString  `json:"mount_point"`
+	Fstype     sql.NullString  `json:"fstype"`
+	Total      sql.NullFloat64 `json:"total"`
+	Used       sql.NullFloat64 `json:"used"`
+	CreatedAt  time.Time       `json:"created_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
+}
+
+type NodeSysInfo struct {
+	ID              int32           `json:"id"`
+	NodeID          int32           `json:"node_id"`
+	Os              sql.NullString  `json:"os"`
+	Platform        sql.NullString  `json:"platform"`
+	PlatformVersion sql.NullString  `json:"platform_version"`
+	KernelVersion   sql.NullString  `json:"kernel_version"`
+	Cpus            sql.NullInt32   `json:"cpus"`
+	TotalMemory     sql.NullFloat64 `json:"total_memory"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 type User struct {

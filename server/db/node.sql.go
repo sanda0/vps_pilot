@@ -10,39 +10,120 @@ import (
 	"database/sql"
 )
 
-const createNode = `-- name: CreateNode :one
-INSERT INTO nodes (name, ip, cpu_cores, cpu_ghz, memory, disk)
+const addNodeDiskInfo = `-- name: AddNodeDiskInfo :one
+INSERT INTO node_disk_info (
+    node_id,
+    device,
+    mount_point,
+    fstype,
+    total,
+    used
+  )
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, name, ip, cpu_cores, cpu_ghz, memory, disk, created_at, updated_at
+RETURNING id, node_id, device, mount_point, fstype, total, used, created_at, updated_at
+`
+
+type AddNodeDiskInfoParams struct {
+	NodeID     int32           `json:"node_id"`
+	Device     sql.NullString  `json:"device"`
+	MountPoint sql.NullString  `json:"mount_point"`
+	Fstype     sql.NullString  `json:"fstype"`
+	Total      sql.NullFloat64 `json:"total"`
+	Used       sql.NullFloat64 `json:"used"`
+}
+
+func (q *Queries) AddNodeDiskInfo(ctx context.Context, arg AddNodeDiskInfoParams) (NodeDiskInfo, error) {
+	row := q.queryRow(ctx, q.addNodeDiskInfoStmt, addNodeDiskInfo,
+		arg.NodeID,
+		arg.Device,
+		arg.MountPoint,
+		arg.Fstype,
+		arg.Total,
+		arg.Used,
+	)
+	var i NodeDiskInfo
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Device,
+		&i.MountPoint,
+		&i.Fstype,
+		&i.Total,
+		&i.Used,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const addNodeSysInfo = `-- name: AddNodeSysInfo :one
+INSERT INTO node_sys_info (
+    node_id,
+    os,
+    platform,
+    platform_version,
+    kernel_version,
+    cpus,
+    total_memory
+  )
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, node_id, os, platform, platform_version, kernel_version, cpus, total_memory, created_at, updated_at
+`
+
+type AddNodeSysInfoParams struct {
+	NodeID          int32           `json:"node_id"`
+	Os              sql.NullString  `json:"os"`
+	Platform        sql.NullString  `json:"platform"`
+	PlatformVersion sql.NullString  `json:"platform_version"`
+	KernelVersion   sql.NullString  `json:"kernel_version"`
+	Cpus            sql.NullInt32   `json:"cpus"`
+	TotalMemory     sql.NullFloat64 `json:"total_memory"`
+}
+
+func (q *Queries) AddNodeSysInfo(ctx context.Context, arg AddNodeSysInfoParams) (NodeSysInfo, error) {
+	row := q.queryRow(ctx, q.addNodeSysInfoStmt, addNodeSysInfo,
+		arg.NodeID,
+		arg.Os,
+		arg.Platform,
+		arg.PlatformVersion,
+		arg.KernelVersion,
+		arg.Cpus,
+		arg.TotalMemory,
+	)
+	var i NodeSysInfo
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Os,
+		&i.Platform,
+		&i.PlatformVersion,
+		&i.KernelVersion,
+		&i.Cpus,
+		&i.TotalMemory,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createNode = `-- name: CreateNode :one
+INSERT INTO nodes (name, ip)
+VALUES ($1, $2)
+RETURNING id, name, ip, created_at, updated_at
 `
 
 type CreateNodeParams struct {
-	Name     sql.NullString  `json:"name"`
-	Ip       string          `json:"ip"`
-	CpuCores int32           `json:"cpu_cores"`
-	CpuGhz   sql.NullFloat64 `json:"cpu_ghz"`
-	Memory   sql.NullInt32   `json:"memory"`
-	Disk     sql.NullInt32   `json:"disk"`
+	Name sql.NullString `json:"name"`
+	Ip   string         `json:"ip"`
 }
 
 func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, error) {
-	row := q.queryRow(ctx, q.createNodeStmt, createNode,
-		arg.Name,
-		arg.Ip,
-		arg.CpuCores,
-		arg.CpuGhz,
-		arg.Memory,
-		arg.Disk,
-	)
+	row := q.queryRow(ctx, q.createNodeStmt, createNode, arg.Name, arg.Ip)
 	var i Node
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Ip,
-		&i.CpuCores,
-		&i.CpuGhz,
-		&i.Memory,
-		&i.Disk,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -63,7 +144,7 @@ func (q *Queries) DeleteNode(ctx context.Context, id int32) (int64, error) {
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, name, ip, cpu_cores, cpu_ghz, memory, disk, created_at, updated_at
+SELECT id, name, ip, created_at, updated_at
 FROM nodes
 WHERE id = $1
 `
@@ -75,10 +156,88 @@ func (q *Queries) GetNode(ctx context.Context, id int32) (Node, error) {
 		&i.ID,
 		&i.Name,
 		&i.Ip,
-		&i.CpuCores,
-		&i.CpuGhz,
-		&i.Memory,
-		&i.Disk,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getNodeByIP = `-- name: GetNodeByIP :one
+SELECT id, name, ip, created_at, updated_at
+FROM nodes
+WHERE ip = $1
+`
+
+func (q *Queries) GetNodeByIP(ctx context.Context, ip string) (Node, error) {
+	row := q.queryRow(ctx, q.getNodeByIPStmt, getNodeByIP, ip)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Ip,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getNodeDiskInfoByNodeID = `-- name: GetNodeDiskInfoByNodeID :many
+SELECT id, node_id, device, mount_point, fstype, total, used, created_at, updated_at
+FROM node_disk_info
+WHERE node_id = $1
+`
+
+func (q *Queries) GetNodeDiskInfoByNodeID(ctx context.Context, nodeID int32) ([]NodeDiskInfo, error) {
+	rows, err := q.query(ctx, q.getNodeDiskInfoByNodeIDStmt, getNodeDiskInfoByNodeID, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NodeDiskInfo
+	for rows.Next() {
+		var i NodeDiskInfo
+		if err := rows.Scan(
+			&i.ID,
+			&i.NodeID,
+			&i.Device,
+			&i.MountPoint,
+			&i.Fstype,
+			&i.Total,
+			&i.Used,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNodeSysInfoByNodeID = `-- name: GetNodeSysInfoByNodeID :one
+SELECT id, node_id, os, platform, platform_version, kernel_version, cpus, total_memory, created_at, updated_at
+FROM node_sys_info
+WHERE node_id = $1
+`
+
+func (q *Queries) GetNodeSysInfoByNodeID(ctx context.Context, nodeID int32) (NodeSysInfo, error) {
+	row := q.queryRow(ctx, q.getNodeSysInfoByNodeIDStmt, getNodeSysInfoByNodeID, nodeID)
+	var i NodeSysInfo
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Os,
+		&i.Platform,
+		&i.PlatformVersion,
+		&i.KernelVersion,
+		&i.Cpus,
+		&i.TotalMemory,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -86,7 +245,7 @@ func (q *Queries) GetNode(ctx context.Context, id int32) (Node, error) {
 }
 
 const getNodes = `-- name: GetNodes :many
-SELECT id, name, ip, cpu_cores, cpu_ghz, memory, disk, created_at, updated_at
+SELECT id, name, ip, created_at, updated_at
 FROM nodes
 LIMIT $1 OFFSET $2
 `
@@ -109,10 +268,6 @@ func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, err
 			&i.ID,
 			&i.Name,
 			&i.Ip,
-			&i.CpuCores,
-			&i.CpuGhz,
-			&i.Memory,
-			&i.Disk,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -131,46 +286,120 @@ func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, err
 
 const updateNode = `-- name: UpdateNode :one
 UPDATE nodes
-SET name = $1,
-  ip = $2,
-  cpu_cores = $3,
-  cpu_ghz = $4,
-  memory = $5,
-  disk = $6,
+SET name = $2,
+  ip = $3,
   updated_at = CURRENT_TIMESTAMP
-WHERE id = $7
-RETURNING id, name, ip, cpu_cores, cpu_ghz, memory, disk, created_at, updated_at
+WHERE id = $1
+RETURNING id, name, ip, created_at, updated_at
 `
 
 type UpdateNodeParams struct {
-	Name     sql.NullString  `json:"name"`
-	Ip       string          `json:"ip"`
-	CpuCores int32           `json:"cpu_cores"`
-	CpuGhz   sql.NullFloat64 `json:"cpu_ghz"`
-	Memory   sql.NullInt32   `json:"memory"`
-	Disk     sql.NullInt32   `json:"disk"`
-	ID       int32           `json:"id"`
+	ID   int32          `json:"id"`
+	Name sql.NullString `json:"name"`
+	Ip   string         `json:"ip"`
 }
 
 func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, error) {
-	row := q.queryRow(ctx, q.updateNodeStmt, updateNode,
-		arg.Name,
-		arg.Ip,
-		arg.CpuCores,
-		arg.CpuGhz,
-		arg.Memory,
-		arg.Disk,
-		arg.ID,
-	)
+	row := q.queryRow(ctx, q.updateNodeStmt, updateNode, arg.ID, arg.Name, arg.Ip)
 	var i Node
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Ip,
-		&i.CpuCores,
-		&i.CpuGhz,
-		&i.Memory,
-		&i.Disk,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateNodeDiskInfo = `-- name: UpdateNodeDiskInfo :one
+UPDATE node_disk_info
+SET device = $2,
+  mount_point = $3,
+  fstype = $4,
+  total = $5,
+  used = $6,
+  updated_at = CURRENT_TIMESTAMP
+WHERE node_id = $1
+RETURNING id, node_id, device, mount_point, fstype, total, used, created_at, updated_at
+`
+
+type UpdateNodeDiskInfoParams struct {
+	NodeID     int32           `json:"node_id"`
+	Device     sql.NullString  `json:"device"`
+	MountPoint sql.NullString  `json:"mount_point"`
+	Fstype     sql.NullString  `json:"fstype"`
+	Total      sql.NullFloat64 `json:"total"`
+	Used       sql.NullFloat64 `json:"used"`
+}
+
+func (q *Queries) UpdateNodeDiskInfo(ctx context.Context, arg UpdateNodeDiskInfoParams) (NodeDiskInfo, error) {
+	row := q.queryRow(ctx, q.updateNodeDiskInfoStmt, updateNodeDiskInfo,
+		arg.NodeID,
+		arg.Device,
+		arg.MountPoint,
+		arg.Fstype,
+		arg.Total,
+		arg.Used,
+	)
+	var i NodeDiskInfo
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Device,
+		&i.MountPoint,
+		&i.Fstype,
+		&i.Total,
+		&i.Used,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateNodeSysInfo = `-- name: UpdateNodeSysInfo :one
+UPDATE node_sys_info
+SET os = $2,
+  platform = $3,
+  platform_version = $4,
+  kernel_version = $5,
+  cpus = $6,
+  total_memory = $7,
+  updated_at = CURRENT_TIMESTAMP
+WHERE node_id = $1
+RETURNING id, node_id, os, platform, platform_version, kernel_version, cpus, total_memory, created_at, updated_at
+`
+
+type UpdateNodeSysInfoParams struct {
+	NodeID          int32           `json:"node_id"`
+	Os              sql.NullString  `json:"os"`
+	Platform        sql.NullString  `json:"platform"`
+	PlatformVersion sql.NullString  `json:"platform_version"`
+	KernelVersion   sql.NullString  `json:"kernel_version"`
+	Cpus            sql.NullInt32   `json:"cpus"`
+	TotalMemory     sql.NullFloat64 `json:"total_memory"`
+}
+
+func (q *Queries) UpdateNodeSysInfo(ctx context.Context, arg UpdateNodeSysInfoParams) (NodeSysInfo, error) {
+	row := q.queryRow(ctx, q.updateNodeSysInfoStmt, updateNodeSysInfo,
+		arg.NodeID,
+		arg.Os,
+		arg.Platform,
+		arg.PlatformVersion,
+		arg.KernelVersion,
+		arg.Cpus,
+		arg.TotalMemory,
+	)
+	var i NodeSysInfo
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Os,
+		&i.Platform,
+		&i.PlatformVersion,
+		&i.KernelVersion,
+		&i.Cpus,
+		&i.TotalMemory,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

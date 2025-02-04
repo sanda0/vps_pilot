@@ -12,6 +12,7 @@ import (
 	"github.com/sanda0/vps_pilot/cmd/app"
 	"github.com/sanda0/vps_pilot/cmd/cli"
 	"github.com/sanda0/vps_pilot/db"
+	tcpserver "github.com/sanda0/vps_pilot/tcp_server"
 
 	_ "github.com/lib/pq"
 )
@@ -38,6 +39,9 @@ func main() {
 	//init ctx
 	ctx := context.Background()
 	repo := db.NewRepo(con)
+
+	//init tcp server
+	go tcpserver.StartTcpServer(ctx, repo, "55001")
 
 	port := flag.String("port", "8080", "port to listen on")
 	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
