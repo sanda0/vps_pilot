@@ -42,6 +42,6 @@ func (n *NodeWithSysInfoDto) Convert(row *db.GetNodesWithSysInfoRow) {
 }
 
 type NodeNameUpdateDto struct {
-	NodeId int32  `json:"node_id"`
+	NodeId int32  `json:"id"`
 	Name   string `json:"name"`
 }

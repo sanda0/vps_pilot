@@ -11,7 +11,7 @@ import (
 type NodeService interface {
 	CreateNode(ip string, data string) error
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
-	UpdateName(nodeId int32, name string) (*db.Node, error)
+	UpdateName(nodeId int32, name string) error
 }
 
 type nodeService struct {
@@ -20,8 +20,8 @@ type nodeService struct {
 }
 
 // UpdateName implements NodeService.
-func (n *nodeService) UpdateName(nodeId int32, name string) (*db.Node, error) {
-	node, err := n.repo.Queries.UpdateNodeName(n.ctx, db.UpdateNodeNameParams{
+func (n *nodeService) UpdateName(nodeId int32, name string) error {
+	err := n.repo.Queries.UpdateNodeName(n.ctx, db.UpdateNodeNameParams{
 		ID: nodeId,
 		Name: sql.NullString{
 			String: name,
@@ -29,9 +29,9 @@ func (n *nodeService) UpdateName(nodeId int32, name string) (*db.Node, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &node, nil
+	return nil
 }
 
 // GetNodesWithSysInfo implements NodeService.

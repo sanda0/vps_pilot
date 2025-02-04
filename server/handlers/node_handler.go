@@ -24,12 +24,12 @@ func (n *nodeHandler) UpdateName(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	node, err := n.nodeService.UpdateName(form.NodeId, form.Name)
+	err := n.nodeService.UpdateName(form.NodeId, form.Name)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"data": node})
+	c.JSON(200, gin.H{"data": "Node name updated"})
 }
 
 // GetNodes implements NodeHandler.

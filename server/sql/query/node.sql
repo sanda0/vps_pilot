@@ -43,11 +43,10 @@ WHERE n.name LIKE '%' || $1 || '%'
   OR nsi.platform_version LIKE '%' || $1 || '%'
   OR nsi.kernel_version LIKE '%' || $1 || '%'
 LIMIT $2 OFFSET $3;
--- name: UpdateNodeName :one
+-- name: UpdateNodeName :exec
 UPDATE nodes
 SET name = $2
-WHERE id = $1
-RETURNING *;
+WHERE id = $1;
 --######################################################################################
 ------------------------------------sys info-------------------------------------------
 -- name: AddNodeSysInfo :one
