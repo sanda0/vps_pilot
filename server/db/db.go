@@ -24,6 +24,12 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.addNodeDiskInfoStmt, err = db.PrepareContext(ctx, addNodeDiskInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query AddNodeDiskInfo: %w", err)
+	}
+	if q.addNodeSysInfoStmt, err = db.PrepareContext(ctx, addNodeSysInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query AddNodeSysInfo: %w", err)
+	}
 	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
 	}
@@ -42,17 +48,42 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodeStmt, err = db.PrepareContext(ctx, getNode); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNode: %w", err)
 	}
+	if q.getNodeByIPStmt, err = db.PrepareContext(ctx, getNodeByIP); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeByIP: %w", err)
+	}
+	if q.getNodeDiskInfoByNodeIDStmt, err = db.PrepareContext(ctx, getNodeDiskInfoByNodeID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeDiskInfoByNodeID: %w", err)
+	}
+	if q.getNodeSysInfoByNodeIDStmt, err = db.PrepareContext(ctx, getNodeSysInfoByNodeID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeSysInfoByNodeID: %w", err)
+	}
 	if q.getNodesStmt, err = db.PrepareContext(ctx, getNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodes: %w", err)
 	}
 	if q.updateNodeStmt, err = db.PrepareContext(ctx, updateNode); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNode: %w", err)
 	}
+	if q.updateNodeDiskInfoStmt, err = db.PrepareContext(ctx, updateNodeDiskInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateNodeDiskInfo: %w", err)
+	}
+	if q.updateNodeSysInfoStmt, err = db.PrepareContext(ctx, updateNodeSysInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateNodeSysInfo: %w", err)
+	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
+	if q.addNodeDiskInfoStmt != nil {
+		if cerr := q.addNodeDiskInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addNodeDiskInfoStmt: %w", cerr)
+		}
+	}
+	if q.addNodeSysInfoStmt != nil {
+		if cerr := q.addNodeSysInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addNodeSysInfoStmt: %w", cerr)
+		}
+	}
 	if q.createNodeStmt != nil {
 		if cerr := q.createNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
@@ -83,6 +114,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNodeStmt: %w", cerr)
 		}
 	}
+	if q.getNodeByIPStmt != nil {
+		if cerr := q.getNodeByIPStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeByIPStmt: %w", cerr)
+		}
+	}
+	if q.getNodeDiskInfoByNodeIDStmt != nil {
+		if cerr := q.getNodeDiskInfoByNodeIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeDiskInfoByNodeIDStmt: %w", cerr)
+		}
+	}
+	if q.getNodeSysInfoByNodeIDStmt != nil {
+		if cerr := q.getNodeSysInfoByNodeIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeSysInfoByNodeIDStmt: %w", cerr)
+		}
+	}
 	if q.getNodesStmt != nil {
 		if cerr := q.getNodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNodesStmt: %w", cerr)
@@ -91,6 +137,16 @@ func (q *Queries) Close() error {
 	if q.updateNodeStmt != nil {
 		if cerr := q.updateNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateNodeStmt: %w", cerr)
+		}
+	}
+	if q.updateNodeDiskInfoStmt != nil {
+		if cerr := q.updateNodeDiskInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateNodeDiskInfoStmt: %w", cerr)
+		}
+	}
+	if q.updateNodeSysInfoStmt != nil {
+		if cerr := q.updateNodeSysInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateNodeSysInfoStmt: %w", cerr)
 		}
 	}
 	return err
@@ -130,29 +186,43 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                  DBTX
-	tx                  *sql.Tx
-	createNodeStmt      *sql.Stmt
-	createUserStmt      *sql.Stmt
-	deleteNodeStmt      *sql.Stmt
-	findUserByEmailStmt *sql.Stmt
-	findUserByIdStmt    *sql.Stmt
-	getNodeStmt         *sql.Stmt
-	getNodesStmt        *sql.Stmt
-	updateNodeStmt      *sql.Stmt
+	db                          DBTX
+	tx                          *sql.Tx
+	addNodeDiskInfoStmt         *sql.Stmt
+	addNodeSysInfoStmt          *sql.Stmt
+	createNodeStmt              *sql.Stmt
+	createUserStmt              *sql.Stmt
+	deleteNodeStmt              *sql.Stmt
+	findUserByEmailStmt         *sql.Stmt
+	findUserByIdStmt            *sql.Stmt
+	getNodeStmt                 *sql.Stmt
+	getNodeByIPStmt             *sql.Stmt
+	getNodeDiskInfoByNodeIDStmt *sql.Stmt
+	getNodeSysInfoByNodeIDStmt  *sql.Stmt
+	getNodesStmt                *sql.Stmt
+	updateNodeStmt              *sql.Stmt
+	updateNodeDiskInfoStmt      *sql.Stmt
+	updateNodeSysInfoStmt       *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                  tx,
-		tx:                  tx,
-		createNodeStmt:      q.createNodeStmt,
-		createUserStmt:      q.createUserStmt,
-		deleteNodeStmt:      q.deleteNodeStmt,
-		findUserByEmailStmt: q.findUserByEmailStmt,
-		findUserByIdStmt:    q.findUserByIdStmt,
-		getNodeStmt:         q.getNodeStmt,
-		getNodesStmt:        q.getNodesStmt,
-		updateNodeStmt:      q.updateNodeStmt,
+		db:                          tx,
+		tx:                          tx,
+		addNodeDiskInfoStmt:         q.addNodeDiskInfoStmt,
+		addNodeSysInfoStmt:          q.addNodeSysInfoStmt,
+		createNodeStmt:              q.createNodeStmt,
+		createUserStmt:              q.createUserStmt,
+		deleteNodeStmt:              q.deleteNodeStmt,
+		findUserByEmailStmt:         q.findUserByEmailStmt,
+		findUserByIdStmt:            q.findUserByIdStmt,
+		getNodeStmt:                 q.getNodeStmt,
+		getNodeByIPStmt:             q.getNodeByIPStmt,
+		getNodeDiskInfoByNodeIDStmt: q.getNodeDiskInfoByNodeIDStmt,
+		getNodeSysInfoByNodeIDStmt:  q.getNodeSysInfoByNodeIDStmt,
+		getNodesStmt:                q.getNodesStmt,
+		updateNodeStmt:              q.updateNodeStmt,
+		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,
+		updateNodeSysInfoStmt:       q.updateNodeSysInfoStmt,
 	}
 }

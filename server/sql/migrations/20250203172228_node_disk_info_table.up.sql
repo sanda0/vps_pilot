@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS node_disk_info (
   device TEXT,
   mount_point TEXT,
   fstype TEXT,
-  total TEXT,
-  used TEXT,
+  total float,
+  used float,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
