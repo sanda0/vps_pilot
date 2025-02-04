@@ -433,11 +433,10 @@ func (q *Queries) UpdateNodeDiskInfo(ctx context.Context, arg UpdateNodeDiskInfo
 	return i, err
 }
 
-const updateNodeName = `-- name: UpdateNodeName :one
+const updateNodeName = `-- name: UpdateNodeName :exec
 UPDATE nodes
 SET name = $2
 WHERE id = $1
-RETURNING id, name, ip, created_at, updated_at
 `
 
 type UpdateNodeNameParams struct {
@@ -445,17 +444,9 @@ type UpdateNodeNameParams struct {
 	Name sql.NullString `json:"name"`
 }
 
-func (q *Queries) UpdateNodeName(ctx context.Context, arg UpdateNodeNameParams) (Node, error) {
-	row := q.queryRow(ctx, q.updateNodeNameStmt, updateNodeName, arg.ID, arg.Name)
-	var i Node
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Ip,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+func (q *Queries) UpdateNodeName(ctx context.Context, arg UpdateNodeNameParams) error {
+	_, err := q.exec(ctx, q.updateNodeNameStmt, updateNodeName, arg.ID, arg.Name)
+	return err
 }
 
 const updateNodeSysInfo = `-- name: UpdateNodeSysInfo :one

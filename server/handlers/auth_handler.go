@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sanda0/vps_pilot/dto"
 	"github.com/sanda0/vps_pilot/services"
+	"github.com/sanda0/vps_pilot/utils"
 )
 
 type AuthHandler interface {
@@ -23,8 +24,15 @@ func (a *authHandler) Profile(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	user.PasswordHash = ""
-	c.JSON(200, gin.H{"data": user})
+
+	userResponse := dto.UserLoginResponseDto{
+		ID:       user.ID,
+		Email:    user.Email,
+		Username: user.Username,
+		Token:    utils.ExtractTokenFromHeader(c),
+	}
+
+	c.JSON(200, gin.H{"data": userResponse})
 }
 
 // Login implements AuthHandler.
