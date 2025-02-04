@@ -11,11 +11,27 @@ import (
 type NodeService interface {
 	CreateNode(ip string, data string) error
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
+	UpdateName(nodeId int32, name string) (*db.Node, error)
 }
 
 type nodeService struct {
 	repo *db.Repo
 	ctx  context.Context
+}
+
+// UpdateName implements NodeService.
+func (n *nodeService) UpdateName(nodeId int32, name string) (*db.Node, error) {
+	node, err := n.repo.Queries.UpdateNodeName(n.ctx, db.UpdateNodeNameParams{
+		ID: nodeId,
+		Name: sql.NullString{
+			String: name,
+			Valid:  true,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &node, nil
 }
 
 // GetNodesWithSysInfo implements NodeService.

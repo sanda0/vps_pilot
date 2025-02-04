@@ -40,3 +40,8 @@ func (n *NodeWithSysInfoDto) Convert(row *db.GetNodesWithSysInfoRow) {
 	n.Cpus = row.Cpus.Int32
 	n.TotalMemory = utils.BytesToGB(row.TotalMemory.Float64)
 }
+
+type NodeNameUpdateDto struct {
+	NodeId int32  `json:"node_id"`
+	Name   string `json:"name"`
+}

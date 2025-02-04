@@ -69,6 +69,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateNodeDiskInfoStmt, err = db.PrepareContext(ctx, updateNodeDiskInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNodeDiskInfo: %w", err)
 	}
+	if q.updateNodeNameStmt, err = db.PrepareContext(ctx, updateNodeName); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateNodeName: %w", err)
+	}
 	if q.updateNodeSysInfoStmt, err = db.PrepareContext(ctx, updateNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNodeSysInfo: %w", err)
 	}
@@ -152,6 +155,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateNodeDiskInfoStmt: %w", cerr)
 		}
 	}
+	if q.updateNodeNameStmt != nil {
+		if cerr := q.updateNodeNameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateNodeNameStmt: %w", cerr)
+		}
+	}
 	if q.updateNodeSysInfoStmt != nil {
 		if cerr := q.updateNodeSysInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateNodeSysInfoStmt: %w", cerr)
@@ -211,6 +219,7 @@ type Queries struct {
 	getNodesWithSysInfoStmt     *sql.Stmt
 	updateNodeStmt              *sql.Stmt
 	updateNodeDiskInfoStmt      *sql.Stmt
+	updateNodeNameStmt          *sql.Stmt
 	updateNodeSysInfoStmt       *sql.Stmt
 }
 
@@ -233,6 +242,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodesWithSysInfoStmt:     q.getNodesWithSysInfoStmt,
 		updateNodeStmt:              q.updateNodeStmt,
 		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,
+		updateNodeNameStmt:          q.updateNodeNameStmt,
 		updateNodeSysInfoStmt:       q.updateNodeSysInfoStmt,
 	}
 }
