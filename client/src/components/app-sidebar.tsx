@@ -1,22 +1,15 @@
 import * as React from "react"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
+
   GalleryVerticalEnd,
   Globe,
-  Map,
-  PieChart,
+
   ReplaceAll,
   Server,
   Settings2,
-  SquareTerminal,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 
 import {
@@ -27,6 +20,8 @@ import {
   SidebarMenuButton,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { userAtom, User } from "@/atoms/user"
+import { useAtom } from "jotai"
 
 // This is sample data.
 const data = {
@@ -73,6 +68,13 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+
+  const [user] = useAtom<User | null>(userAtom)
+  data.user.email = user?.email || data.user.email
+  data.user.name = user?.username || data.user.name
+
+  console.log(user)
+  
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
