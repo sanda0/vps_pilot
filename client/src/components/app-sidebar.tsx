@@ -10,6 +10,7 @@ import {
   Map,
   PieChart,
   ReplaceAll,
+  Server,
   Settings2,
   SquareTerminal,
 } from "lucide-react"
@@ -45,7 +46,7 @@ const data = {
     {
       title: "Nodes",
       url: "/nodes",
-      icon: SquareTerminal,
+      icon: Server,
     },
     {
       title: "Projects",

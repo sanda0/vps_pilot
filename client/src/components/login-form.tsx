@@ -26,7 +26,7 @@ export function LoginForm({
   const [error, setError] = useState("")
   const navigate = useNavigate()
 
-  const [user, setUserAtom] = useAtom<User | null>(userAtom)
+  const [_, setUserAtom] = useAtom<User | null>(userAtom)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

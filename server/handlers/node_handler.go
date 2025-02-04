@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sanda0/vps_pilot/dto"
 	"github.com/sanda0/vps_pilot/services"
 )
 
@@ -32,11 +32,18 @@ func (n *nodeHandler) GetNodes(c *gin.Context) {
 		limit = 10 // default value
 	}
 
-	nodes, err := n.nodeService.GetNodesWithSysInfo(searchQuery, int32(limit), int32(page))
-	fmt.Println(nodes)
+	nodesRows, err := n.nodeService.GetNodesWithSysInfo(searchQuery, int32(limit), int32(page))
+
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
+	}
+
+	nodes := []dto.NodeWithSysInfoDto{}
+	for _, row := range nodesRows {
+		node := dto.NodeWithSysInfoDto{}
+		node.Convert(&row)
+		nodes = append(nodes, node)
 	}
 
 	c.JSON(200, gin.H{"data": nodes})

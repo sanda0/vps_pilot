@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sanda0/vps_pilot/db"
 	"github.com/sanda0/vps_pilot/handlers"
@@ -21,7 +23,14 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	nodeHander := handlers.NewNodeHandler(nodeService)
 
 	server := gin.Default()
-	server.Use(middleware.CORSMiddleware())
+	server.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // Change to specific domains in production
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	//routes
 	api := server.Group("/api/v1")
@@ -39,7 +48,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		dashbaord.GET("/profile", userHandler.Profile)
 		nodes := dashbaord.Group("/nodes")
 		{
-			nodes.GET("/", nodeHander.GetNodes)
+			nodes.GET("", nodeHander.GetNodes)
 		}
 	}
 
