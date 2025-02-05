@@ -8,6 +8,5 @@ type UserLoginDto struct {
 type UserLoginResponseDto struct {
 	ID       int32  `json:"id"`
 	Email    string `json:"email"`
-	Token    string `json:"token"`
 	Username string `json:"username"`
 }

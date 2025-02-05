@@ -29,7 +29,6 @@ func (a *authHandler) Profile(c *gin.Context) {
 		ID:       user.ID,
 		Email:    user.Email,
 		Username: user.Username,
-		Token:    utils.ExtractTokenFromHeader(c),
 	}
 
 	c.JSON(200, gin.H{"data": userResponse})
@@ -39,19 +38,26 @@ func (a *authHandler) Profile(c *gin.Context) {
 func (a *authHandler) Login(c *gin.Context) {
 	form := dto.UserLoginDto{}
 	if err := c.ShouldBindJSON(&form); err != nil {
-		c.SetCookie("__tkn__", "", -1, "/", "", true, true)
+		utils.WriteTokenToCookie(c, "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	userResponse, err := a.userService.Login(form)
 	if err != nil {
-		c.SetCookie("__tkn__", "", -1, "/", "", true, true)
+		utils.WriteTokenToCookie(c, "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.SetCookie("__tkn__", userResponse.Token, 3600, "/", "", true, true)
+	token, err := utils.GenerateToken(userResponse.ID)
+	if err != nil {
+		utils.WriteTokenToCookie(c, "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.WriteTokenToCookie(c, token)
 
 	c.JSON(200, gin.H{"data": userResponse})
 
