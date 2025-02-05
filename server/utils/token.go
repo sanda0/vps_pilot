@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -11,25 +12,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// func ExtractToken(c *gin.Context) string {
-// 	// get token from cookie
-// 	cookie, err := c.Request.Cookie("__tkn__")
-
-// 	if err == nil {
-// 		return cookie.Value
-// 	}
-
-// 	return ""
-
-// }
-
 func ExtractTokenFromHeader(c *gin.Context) string {
-	bearerToken := c.Request.Header.Get("Authorization")
-	if len(bearerToken) > 7 && bearerToken[:7] == "Bearer " {
-		return bearerToken[7:]
+	// get token from cookie
+	cookie, err := c.Request.Cookie("__tkn__")
+
+	if err == nil {
+		return cookie.Value
 	}
+
 	return ""
+
 }
+
+// func ExtractTokenFromHeader(c *gin.Context) string {
+// 	bearerToken := c.Request.Header.Get("Authorization")
+// 	if len(bearerToken) > 7 && bearerToken[:7] == "Bearer " {
+// 		return bearerToken[7:]
+// 	}
+// 	return ""
+// }
 
 func GenerateToken(user_id int32) (string, error) {
 	token_lifespan, err := strconv.Atoi(os.Getenv("TOKEN_LIFESPAN")) // in minutes
@@ -85,4 +86,18 @@ func ExtractTokenID(c *gin.Context) (int32, error) {
 		return int32(userID), nil
 	}
 	return 0, nil
+}
+
+func WriteTokenToCookie(c *gin.Context, token string) {
+	//set http only cookie
+	cookie := &http.Cookie{
+		Name:     "__tkn__",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(c.Writer, cookie)
+
 }

@@ -43,16 +43,10 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 
 	fmt.Println("user", user)
 
-	token, err := utils.GenerateToken(user.ID)
-	if err != nil {
-		return nil, err
-	}
-
 	response := &dto.UserLoginResponseDto{
 		ID:       user.ID,
 		Email:    user.Email,
 		Username: user.Username,
-		Token:    token,
 	}
 
 	return response, nil

@@ -24,7 +24,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Change to specific domains in production
+		AllowOrigins:     []string{"http://localhost:5173"}, // Change to specific domains in production
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
