@@ -11,10 +11,31 @@ import (
 type NodeHandler interface {
 	GetNodes(c *gin.Context)
 	UpdateName(c *gin.Context)
+	GetNode(c *gin.Context)
 }
 
 type nodeHandler struct {
 	nodeService services.NodeService
+}
+
+// GetNode implements NodeHandler.
+func (n *nodeHandler) GetNode(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	node, err := n.nodeService.GetNode(int32(id))
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": dto.NodeDto{
+		ID:   node.ID,
+		Name: node.Name.String,
+		Ip:   node.Ip,
+	}})
 }
 
 // UpdateName implements NodeHandler.

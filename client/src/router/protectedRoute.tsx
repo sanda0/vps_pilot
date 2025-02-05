@@ -16,7 +16,6 @@ export default function ProtectedRoute() {
           setUserAtom({
             id: res.data.data.id,
             email: res.data.data.email,
-            token: res.data.data.token,
             username: res.data.data.username
           });
         }

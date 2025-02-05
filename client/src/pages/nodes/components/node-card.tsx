@@ -1,27 +1,18 @@
 import { Cpu, Edit, HardDriveIcon, MemoryStick, Network, Server, Telescope, TerminalSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
+import { NodeSysInfo } from "@/types/node_type";
 
 
 
 
 export interface NodeCardProps {
-  data: NodeData;
+  data: NodeSysInfo;
   onEdit?: (id: number,name:string) => void;
   onView?: (id: number) => void;
 }
 
-export interface NodeData {
-  id: number;
-  name: string;
-  ip: string;
-  os: string;
-  platform: string;
-  platform_version: string;
-  kernel_version: string;
-  cpus: number;
-  total_memory: number;
-}
+
 
 
 export function NodeCard(props: NodeCardProps) {
@@ -38,7 +29,7 @@ export function NodeCard(props: NodeCardProps) {
               <Button size="icon" variant="outline" onClick={()=>props.onEdit?.(props.data.id,props.data.name)}>
                 <Edit></Edit>
               </Button>
-              <Button size="icon" variant="outline">
+              <Button size="icon" variant="outline" onClick={()=>props.onView?.(props.data.id)}>
                 <Telescope></Telescope>
               </Button>
             </div>

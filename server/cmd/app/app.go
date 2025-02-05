@@ -50,6 +50,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		{
 			nodes.GET("", nodeHander.GetNodes)
 			nodes.PUT("/change-name", nodeHander.UpdateName)
+			nodes.GET("/:id", nodeHander.GetNode)
 		}
 	}
 
