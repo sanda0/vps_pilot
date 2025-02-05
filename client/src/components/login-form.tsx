@@ -40,10 +40,9 @@ export function LoginForm({
         setUserAtom({
           id: res.data.data.id,
           email: res.data.data.email,
-          token: res.data.data.token,
           username: res.data.data.username
         })
-        localStorage.setItem("token", res.data.data.token)
+      
         navigate("/")
       } else if (res.status === 401) {
         setIsLoading(false)
