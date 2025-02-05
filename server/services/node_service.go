@@ -12,11 +12,21 @@ type NodeService interface {
 	CreateNode(ip string, data string) error
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
 	UpdateName(nodeId int32, name string) error
+	GetNode(nodeId int32) (db.Node, error)
 }
 
 type nodeService struct {
 	repo *db.Repo
 	ctx  context.Context
+}
+
+// GetNode implements NodeService.
+func (n *nodeService) GetNode(nodeId int32) (db.Node, error) {
+	node, err := n.repo.Queries.GetNode(n.ctx, nodeId)
+	if err != nil {
+		return db.Node{}, err
+	}
+	return node, nil
 }
 
 // UpdateName implements NodeService.

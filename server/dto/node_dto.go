@@ -45,3 +45,9 @@ type NodeNameUpdateDto struct {
 	NodeId int32  `json:"id"`
 	Name   string `json:"name"`
 }
+
+type NodeDto struct {
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
+	Ip   string `json:"ip"`
+}
