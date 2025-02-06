@@ -73,7 +73,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   data.user.email = user?.email || data.user.email
   data.user.name = user?.username || data.user.name
 
-  console.log(user)
+
   
   return (
     <Sidebar collapsible="icon" {...props}>
