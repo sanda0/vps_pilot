@@ -1,18 +1,18 @@
 
 migration:
 	@read -p "Enter migration name: " name; \
-		migrate create -ext sql -dir sql/migrations $$name
+		migrate create -ext sql -dir internal/db/sql/migrations $$name
 
 migrate:
-	migrate  -source file://sql/migrations \
+	migrate  -source file://internal/db/sql/migrations \
 		-database postgres://postgres:1234@127.0.0.1:5432/vps_pilot?sslmode=disable up
 
 rollback:
-	migrate -source file://sql/migrations \
+	migrate -source file://internal/db/sql/migrations \
 		-database postgres://postgres:1234@127.0.0.1:5432/vps_pilot?sslmode=disable down
 
 drop:
-	migrate -source file://sql/migrations \
+	migrate -source file://internal/db/sql/migrations \
 		-database postgres://postgres:1234@127.0.0.1:5432/vps_pilot?sslmode=disable drop
 
 sqlc:
@@ -21,7 +21,7 @@ sqlc:
 
 migratef:
 	@read -p "Enter migration number: " num; \
-	migrate -source file://sql/migrations \
+	migrate -source file://internal/db/sql/migrations \
 		-database postgres://postgres:1234@127.0.0.1:5432/vps_pilot?sslmode=disable force $$num
 
 		
