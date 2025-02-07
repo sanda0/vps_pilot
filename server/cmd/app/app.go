@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/sanda0/vps_pilot/db"
-	"github.com/sanda0/vps_pilot/handlers"
-	"github.com/sanda0/vps_pilot/middleware"
-	"github.com/sanda0/vps_pilot/services"
+	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/handlers"
+	"github.com/sanda0/vps_pilot/internal/middleware"
+	"github.com/sanda0/vps_pilot/internal/services"
 )
 
 func Run(ctx context.Context, repo *db.Repo, port string) {

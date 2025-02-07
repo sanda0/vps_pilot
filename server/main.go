@@ -9,12 +9,11 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/sanda0/vps_pilot/cmd/app"
 	"github.com/sanda0/vps_pilot/cmd/cli"
-	"github.com/sanda0/vps_pilot/db"
-	tcpserver "github.com/sanda0/vps_pilot/tcp_server"
-
-	_ "github.com/lib/pq"
+	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/tcpserver"
 )
 
 func main() {
