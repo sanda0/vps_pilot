@@ -24,8 +24,19 @@ type Disk struct {
 	Used       uint64 `json:"used"`       // used disk space in bytes
 }
 
+type SystemStat struct {
+	CPUUsage  []float64 `json:"cpu_usage"`
+	MemUsage  float64   `json:"mem_usage"`
+	DiskUsage float64   `json:"disk_usage"`
+}
+
+func (s *SystemStat) FromBytes(data []byte) error {
+	return json.Unmarshal(data, s)
+}
+
 type Msg struct {
-	Msg   string
-	Token string
-	Data  []byte
+	Msg    string
+	NodeId int32
+	Token  string
+	Data   []byte
 }

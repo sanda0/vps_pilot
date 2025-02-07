@@ -42,6 +42,14 @@ type NodeSysInfo struct {
 	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
+type SystemStat struct {
+	Time     time.Time       `json:"time"`
+	NodeID   int32           `json:"node_id"`
+	StatType string          `json:"stat_type"`
+	CpuID    int32           `json:"cpu_id"`
+	Value    sql.NullFloat64 `json:"value"`
+}
+
 type User struct {
 	ID           int32        `json:"id"`
 	Username     string       `json:"username"`

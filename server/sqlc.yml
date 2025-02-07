@@ -1,11 +1,11 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: ".internal/db/sql/query/"
-    schema: ".internal/db/sql/migrations/"
+    queries: "internal/db/sql/query/"
+    schema: "internal/db/sql/migrations/"
     gen:
       go:
         package: "db"
-        out: "./internal/db"
+        out: "internal/db"
         emit_json_tags: true
         emit_prepared_queries: true
