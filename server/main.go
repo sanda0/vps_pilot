@@ -39,9 +39,6 @@ func main() {
 	ctx := context.Background()
 	repo := db.NewRepo(con)
 
-	//init tcp server
-	go tcpserver.StartTcpServer(ctx, repo, "55001")
-
 	port := flag.String("port", "8080", "port to listen on")
 	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
 	createMakefile := flag.Bool("create-makefile", false, "create makefile")
@@ -59,6 +56,9 @@ func main() {
 		}
 		return
 	}
+
+	//init tcp server
+	go tcpserver.StartTcpServer(ctx, repo, "55001")
 
 	app.Run(ctx, repo, *port)
 
