@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/sanda0/vps_pilot/db"
+	"github.com/sanda0/vps_pilot/internal/db"
 )
 
 var AgentConnections map[string]net.Conn

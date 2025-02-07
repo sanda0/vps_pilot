@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sanda0/vps_pilot/db"
-	"github.com/sanda0/vps_pilot/utils"
+	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/utils"
 )
 
 func CreateSuperuser(ctx context.Context, repo *db.Repo) {

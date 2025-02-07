@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sanda0/vps_pilot/db"
-	"github.com/sanda0/vps_pilot/dto"
-	"github.com/sanda0/vps_pilot/utils"
+	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/dto"
+	"github.com/sanda0/vps_pilot/internal/utils"
 )
 
 type UserService interface {
