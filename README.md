@@ -1,9 +1,3 @@
-# KukuOps (OSS)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub Stars](https://img.shields.io/github/stars/your-username/kukuops.svg?style=social)](https://github.com/your-username/kukuops) *(Replace with your GitHub username/repo)*
-
-KukuOps is a streamlined and efficient open-source platform for server monitoring, automated deployments, and cron job management. Built with Go, React, and Bun, and leveraging the power of PostgreSQL with pg_hypertable for time-series data, KukuOps empowers you to gain deep insights into your infrastructure, automate deployments, and manage scheduled tasks effortlessly.
 
 ## Features
 
@@ -16,16 +10,3 @@ KukuOps is a streamlined and efficient open-source platform for server monitorin
 * **Extensible Agent:**  Easily extend the agent's capabilities with custom metrics and integrations.
 * **Open Source (MIT License):**  KukuOps is freely available and encourages community contributions.
 
-## Getting Started
-
-### Prerequisites
-
-* [Go](https://golang.org/) (for backend)
-* [Node.js](https://nodejs.org/) and [Bun](https://bun.sh/) (for the dashboard)
-* [PostgreSQL](https://www.postgresql.org/)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/your-username/kukuops.git](https://www.google.com/search?q=https://github.com/your-username/kukuops.git)
