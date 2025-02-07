@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sanda0/vps_pilot/dto"
-	"github.com/sanda0/vps_pilot/services"
+	"github.com/sanda0/vps_pilot/internal/dto"
+	"github.com/sanda0/vps_pilot/internal/services"
 )
 
 type NodeHandler interface {

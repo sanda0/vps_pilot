@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/sanda0/vps_pilot/db"
+	"github.com/sanda0/vps_pilot/internal/db"
 )
 
 func CreateNode(ctx context.Context, repo *db.Repo, ip string, data []byte) {

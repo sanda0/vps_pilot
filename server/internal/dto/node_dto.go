@@ -1,8 +1,8 @@
 package dto
 
 import (
-	"github.com/sanda0/vps_pilot/db"
-	"github.com/sanda0/vps_pilot/utils"
+	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/utils"
 )
 
 // type GetNodesWithSysInfoRow struct {

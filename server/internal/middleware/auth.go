@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sanda0/vps_pilot/utils"
+	"github.com/sanda0/vps_pilot/internal/utils"
 )
 
 func JwtAuthMiddleware() gin.HandlerFunc {
