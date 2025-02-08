@@ -15,21 +15,18 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { useState } from "react"
+import { Moon, Sun } from "lucide-react"
 import { Outlet } from "react-router"
 
 export default function DashboardLayout() {
 
-  
-  const {theme,setTheme} = useTheme()
-  const [themeEmoji, setThemeEmoji] = useState(theme === "light" ? "🌙" : "🌞")
+
+  const { theme, setTheme } = useTheme()
 
   const toggleTheme = () => {
     if (theme === "light") {
-      setThemeEmoji("🌞")
       setTheme("dark")
     } else {
-      setThemeEmoji("🌙")
       setTheme("light")
     }
   }
@@ -58,7 +55,7 @@ export default function DashboardLayout() {
               </BreadcrumbList>
             </Breadcrumb> */}
             <div>
-            <Button size={"icon"} className="text-xl" variant={"outline"} onClick={toggleTheme} >{themeEmoji}</Button>
+              <Button size={"icon"}  variant={"outline"} onClick={toggleTheme} >{theme === "light" ? <Moon></Moon> : <Sun></Sun>}</Button>
             </div>
           </div>
         </header>
