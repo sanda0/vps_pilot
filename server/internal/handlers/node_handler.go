@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/sanda0/vps_pilot/internal/dto"
 	"github.com/sanda0/vps_pilot/internal/services"
 )
@@ -12,10 +14,40 @@ type NodeHandler interface {
 	GetNodes(c *gin.Context)
 	UpdateName(c *gin.Context)
 	GetNode(c *gin.Context)
+	SystemStatWSHandler(c *gin.Context)
 }
 
 type nodeHandler struct {
 	nodeService services.NodeService
+}
+
+var systemStatUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+// SystemStatWSHandler implements NodeHandler.
+func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
+	conn, err := systemStatUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Printf("recv: %s", message)
+		err = conn.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
 }
 
 // GetNode implements NodeHandler.

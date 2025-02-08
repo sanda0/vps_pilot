@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/dto"
 )
 
 type NodeService interface {
@@ -13,11 +14,19 @@ type NodeService interface {
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
 	UpdateName(nodeId int32, name string) error
 	GetNode(nodeId int32) (db.Node, error)
+	GetSystemStat(queryParams chan dto.SystemStatQueryDto, result chan []dto.SystemStatResponseDto)
 }
 
 type nodeService struct {
 	repo *db.Repo
 	ctx  context.Context
+}
+
+// GetSystemStat implements NodeService.
+func (n *nodeService) GetSystemStat(queryParams chan dto.SystemStatQueryDto, result chan []dto.SystemStatResponseDto) {
+	for query := range queryParams {
+		fmt.Println(query)
+	}
 }
 
 // GetNode implements NodeService.

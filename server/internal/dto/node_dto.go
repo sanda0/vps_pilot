@@ -51,3 +51,16 @@ type NodeDto struct {
 	Name string `json:"name"`
 	Ip   string `json:"ip"`
 }
+
+type SystemStatQueryDto struct {
+	Node      db.Node
+	StatType  string
+	TimeRange string
+}
+
+type SystemStatResponseDto struct {
+	NodeID    int32                          `json:"node_id"`
+	TimeRange string                         `json:"time_range"`
+	Cpu       map[int][]db.GetSystemStatsRow `json:"cpu"`
+	Mem       db.GetSystemStatsRow           `json:"mem"`
+}
