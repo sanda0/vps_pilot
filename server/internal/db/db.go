@@ -63,6 +63,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodesWithSysInfoStmt, err = db.PrepareContext(ctx, getNodesWithSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodesWithSysInfo: %w", err)
 	}
+	if q.getSystemStatsStmt, err = db.PrepareContext(ctx, getSystemStats); err != nil {
+		return nil, fmt.Errorf("error preparing query GetSystemStats: %w", err)
+	}
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
 	}
@@ -148,6 +151,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNodesWithSysInfoStmt: %w", cerr)
 		}
 	}
+	if q.getSystemStatsStmt != nil {
+		if cerr := q.getSystemStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getSystemStatsStmt: %w", cerr)
+		}
+	}
 	if q.insertSystemStatsStmt != nil {
 		if cerr := q.insertSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertSystemStatsStmt: %w", cerr)
@@ -225,6 +233,7 @@ type Queries struct {
 	getNodeSysInfoByNodeIDStmt  *sql.Stmt
 	getNodesStmt                *sql.Stmt
 	getNodesWithSysInfoStmt     *sql.Stmt
+	getSystemStatsStmt          *sql.Stmt
 	insertSystemStatsStmt       *sql.Stmt
 	updateNodeStmt              *sql.Stmt
 	updateNodeDiskInfoStmt      *sql.Stmt
@@ -249,6 +258,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodeSysInfoByNodeIDStmt:  q.getNodeSysInfoByNodeIDStmt,
 		getNodesStmt:                q.getNodesStmt,
 		getNodesWithSysInfoStmt:     q.getNodesWithSysInfoStmt,
+		getSystemStatsStmt:          q.getSystemStatsStmt,
 		insertSystemStatsStmt:       q.insertSystemStatsStmt,
 		updateNodeStmt:              q.updateNodeStmt,
 		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,

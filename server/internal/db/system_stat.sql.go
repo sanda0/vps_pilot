@@ -7,10 +7,58 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/lib/pq"
 )
+
+const getSystemStats = `-- name: GetSystemStats :many
+select time,value from system_stats ss 
+where node_id = $1 and stat_type = $2
+and cpu_id = $3
+and time >= now() - interval '' || $4 || ''
+`
+
+type GetSystemStatsParams struct {
+	NodeID   int32          `json:"node_id"`
+	StatType string         `json:"stat_type"`
+	CpuID    int32          `json:"cpu_id"`
+	Column4  sql.NullString `json:"column_4"`
+}
+
+type GetSystemStatsRow struct {
+	Time  time.Time `json:"time"`
+	Value float64   `json:"value"`
+}
+
+func (q *Queries) GetSystemStats(ctx context.Context, arg GetSystemStatsParams) ([]GetSystemStatsRow, error) {
+	rows, err := q.query(ctx, q.getSystemStatsStmt, getSystemStats,
+		arg.NodeID,
+		arg.StatType,
+		arg.CpuID,
+		arg.Column4,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSystemStatsRow
+	for rows.Next() {
+		var i GetSystemStatsRow
+		if err := rows.Scan(&i.Time, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const insertSystemStats = `-- name: InsertSystemStats :exec
 INSERT INTO system_stats (time, node_id, stat_type, cpu_id, value)
