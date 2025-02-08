@@ -43,11 +43,11 @@ type NodeSysInfo struct {
 }
 
 type SystemStat struct {
-	Time     time.Time       `json:"time"`
-	NodeID   int32           `json:"node_id"`
-	StatType string          `json:"stat_type"`
-	CpuID    int32           `json:"cpu_id"`
-	Value    sql.NullFloat64 `json:"value"`
+	Time     time.Time `json:"time"`
+	NodeID   int32     `json:"node_id"`
+	StatType string    `json:"stat_type"`
+	CpuID    int32     `json:"cpu_id"`
+	Value    float64   `json:"value"`
 }
 
 type User struct {

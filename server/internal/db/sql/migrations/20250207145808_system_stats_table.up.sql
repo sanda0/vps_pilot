@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS system_stats(
     node_id INT NOT NULL,
     stat_type TEXT NOT NULL CHECK (stat_type IN ('cpu', 'mem')),
     cpu_id INT,
-    value DOUBLE PRECISION,
+    value DOUBLE PRECISION NOT NULL,
     PRIMARY KEY (time, node_id, stat_type, cpu_id)
 );
 DO $$ BEGIN IF NOT EXISTS (
