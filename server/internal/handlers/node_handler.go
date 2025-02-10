@@ -28,6 +28,13 @@ var systemStatUpgrader = websocket.Upgrader{
 
 // SystemStatWSHandler implements NodeHandler.
 func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
+
+	request := dto.SystemStatQueryDto{}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
 	conn, err := systemStatUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
@@ -68,6 +75,7 @@ func (n *nodeHandler) GetNode(c *gin.Context) {
 		Name: node.Name.String,
 		Ip:   node.Ip,
 	}})
+
 }
 
 // UpdateName implements NodeHandler.

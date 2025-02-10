@@ -64,3 +64,8 @@ type SystemStatResponseDto struct {
 	Cpu       map[int][]db.GetSystemStatsRow `json:"cpu"`
 	Mem       db.GetSystemStatsRow           `json:"mem"`
 }
+
+type NodeSystemStatRequestDto struct {
+	NodeID    int32  `json:"node_id"`
+	TimeRange string `json:"time_range"`
+}
