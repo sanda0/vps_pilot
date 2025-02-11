@@ -1,13 +1,48 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ButtonBar from "./button-bar";
 import { CpuChart } from "./cpu-chart";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MemoryChart } from "./memory-chart";
 import { NetworkChart } from "./netwrok-chart";
+import { useParams } from "react-router";
 
 export default function MetricsTab() {
 
   const [currentTimeRange, setCurrentTimeRange] = useState<string>("5M")
+  const { id } = useParams<{ id: string }>();
+
+  useEffect(() => {
+
+    const ws = new WebSocket(`ws://localhost:8000/api/v1/nodes/ws/system-stat`);
+
+    ws.onopen = () => {
+      console.log('WebSocket connection opened');
+      ws.send(JSON.stringify({ "id": Number(id), "time_range": currentTimeRange }));
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('WebSocket message received:', message);
+      // Handle the message as needed
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    setInterval(() => {
+      ws.send(JSON.stringify({ "id":Number(id), "time_range": currentTimeRange }));
+    }, 10000);
+
+    return () => {
+      ws.close();
+    };
+
+  }, [id])
 
   return <>
     <div>

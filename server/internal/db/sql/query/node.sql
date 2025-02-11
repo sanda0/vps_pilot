@@ -43,6 +43,20 @@ WHERE n.name LIKE '%' || $1 || '%'
   OR nsi.platform_version LIKE '%' || $1 || '%'
   OR nsi.kernel_version LIKE '%' || $1 || '%'
 LIMIT $2 OFFSET $3;
+
+-- name: GetNodeWithSysInfo :one
+SELECT n.id,
+  n.name,
+  n.ip,
+  nsi.os,
+  nsi.platform,
+  nsi.platform_version,
+  nsi.kernel_version,
+  nsi.cpus,
+  nsi.total_memory
+FROM nodes as n
+  JOIN node_sys_info as nsi ON n.id = nsi.node_id
+WHERE n.id = $1;
 -- name: UpdateNodeName :exec
 UPDATE nodes
 SET name = $2

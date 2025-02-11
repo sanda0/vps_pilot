@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -24,16 +26,13 @@ type nodeHandler struct {
 var systemStatUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins (adjust for production)
+	},
 }
 
 // SystemStatWSHandler implements NodeHandler.
 func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
-
-	request := dto.SystemStatQueryDto{}
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
 
 	conn, err := systemStatUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -42,6 +41,10 @@ func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	// queryParams chan dto.NodeSystemStatRequestDto, result chan dto.SystemStatResponseDto
+	var queryParams = make(chan dto.NodeSystemStatRequestDto)
+	var result = make(chan dto.SystemStatResponseDto)
+	go n.nodeService.GetSystemStat(queryParams, result)
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -49,7 +52,21 @@ func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
 			return
 		}
 		log.Printf("recv: %s", message)
-		err = conn.WriteMessage(websocket.TextMessage, message)
+
+		var query dto.NodeSystemStatRequestDto
+		query.FromBytes(message)
+		fmt.Println("Query received", query)
+		queryParams <- query
+
+		response := <-result
+
+		msg, err := response.ToBytes()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		err = conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
 			log.Println(err)
 			return

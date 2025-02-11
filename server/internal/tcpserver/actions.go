@@ -73,8 +73,8 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 		if err != nil {
 			fmt.Println("Error unmarshalling system stat", err)
 		}
-		fmt.Println("Node", msg.NodeId)
-		fmt.Println("time", time.Now())
+		// fmt.Println("Node", msg.NodeId)
+		// fmt.Println("time", time.Now())
 
 		var times []time.Time
 		var nodeIDs []int32
