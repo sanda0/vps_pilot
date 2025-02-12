@@ -10,39 +10,44 @@ export default function MetricsTab() {
 
   const [currentTimeRange, setCurrentTimeRange] = useState<string>("5M")
   const { id } = useParams<{ id: string }>();
+  const [memData, setMemData] = useState([]);
 
   useEffect(() => {
-
     const ws = new WebSocket(`ws://localhost:8000/api/v1/nodes/ws/system-stat`);
-
+    let timer:any = null;
+  
     ws.onopen = () => {
       console.log('WebSocket connection opened');
-      ws.send(JSON.stringify({ "id": Number(id), "time_range": currentTimeRange }));
+      ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+  
+      // Start timer after WebSocket is open
+      timer = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+        }
+      }, 10000);
     };
-
+  
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      console.log('WebSocket message received:', message);
-      // Handle the message as needed
+      console.log('WebSocket message received:', message.mem);
+      setMemData(message.mem);
     };
-
+  
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-
+  
     ws.onclose = () => {
       console.log('WebSocket connection closed');
+      clearInterval(timer); // Clear timer when connection closes
     };
-
-    setInterval(() => {
-      ws.send(JSON.stringify({ "id":Number(id), "time_range": currentTimeRange }));
-    }, 10000);
-
+  
     return () => {
       ws.close();
+      clearInterval(timer);
     };
-
-  }, [id])
+  }, [id, currentTimeRange]);
 
   return <>
     <div>
@@ -67,7 +72,7 @@ export default function MetricsTab() {
               <CardTitle>Memory usage</CardTitle>
             </CardHeader>
             <CardContent>
-            <MemoryChart timeRange={currentTimeRange}></MemoryChart>
+            <MemoryChart timeRange={currentTimeRange} data={memData}></MemoryChart>
             </CardContent>
           </Card>
         </div>
