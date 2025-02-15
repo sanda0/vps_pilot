@@ -4,6 +4,8 @@ export interface NodeData {
   id: number;
   name: string;
   ip: string;
+  cpus: number;
+  total_memory: number;
 }
 
 export interface NodeSysInfo {

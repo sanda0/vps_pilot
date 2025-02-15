@@ -11,4 +11,4 @@ SELECT
 select time,value from system_stats ss 
 where node_id = $1 and stat_type = $2
 and cpu_id = $3
-and time >= now() - interval '' || $4 || '';
+and time >= now() -  ($4||'')::interval;

@@ -94,7 +94,7 @@ func WriteTokenToCookie(c *gin.Context, token string) {
 		Name:     "__tkn__",
 		Value:    token,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false, //TODO: change to true in production
 		Path:     "/",
 		SameSite: http.SameSiteLaxMode,
 	}

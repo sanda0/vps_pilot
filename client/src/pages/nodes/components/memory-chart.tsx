@@ -10,37 +10,33 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-const chartData = [
-  { month: "January", desktop: 34, mobile: 80 },
-  { month: "February", desktop: 50, mobile: 60 },
-  { month: "March", desktop: 37, mobile: 70 },
-  { month: "April", desktop: 73, mobile: 90 },
-  { month: "May", desktop: 29, mobile: 30 },
-  { month: "June", desktop: 44, mobile: 40 },
-]
+
+
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  value: {
+    label: "Memory",
     color: "hsl(var(--chart-1))",
   },
-  mobile: {
-    label: "Mobile",
-    color: "hsl(var(--chart-2))",
-  },
+
 } satisfies ChartConfig
 
 interface ChartProps {
   timeRange: string
+  data: Object[]
+
 }
 
 export function MemoryChart(props: ChartProps) {
+
+
+
   return (
 
     <ChartContainer config={chartConfig} className="w-full h-80">
       <AreaChart
         accessibilityLayer
-        data={chartData}
+        data={props.data}
         margin={{
           left: -20,
           right: 0,
@@ -48,39 +44,41 @@ export function MemoryChart(props: ChartProps) {
       >
         <CartesianGrid vertical={true} />
         <XAxis
-          dataKey="month"
+          dataKey="time"
           tickLine={false}
           axisLine={false}
-          tickMargin={8}
-          tickFormatter={(value) => value.slice(0, 3)}
+          // tickMargin={8}
+          // tickCount={10}
+
+          tickFormatter={(value) => new Date(value).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value}%`}
-          // domain={[0, 100]}
+          tickFormatter={(value) => `${value}%`}   // domain={[0, 100]}
           // tickCount={10}
           // minTickGap={10}
           ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}
         />
-        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+        <ChartTooltip cursor={false} content={<ChartTooltipContent
+          labelFormatter={(value) => new Date(value).toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: "2-digit",
+            hour12: false
+          })}
+        />} />
         <Area
-          dataKey="mobile"
+          dataKey="value"
           type="natural"
-          fill="var(--color-mobile)"
-          fillOpacity={0.4}
-          stroke="var(--color-mobile)"
+          fill="var(--color-value)"
+          fillOpacity={0.1}
+          stroke="var(--color-value)"
           stackId="a"
         />
-        <Area
-          dataKey="desktop"
-          type="natural"
-          fill="var(--color-desktop)"
-          fillOpacity={0.4}
-          stroke="var(--color-desktop)"
-          stackId="b"
 
-        />
       </AreaChart>
     </ChartContainer>
   )

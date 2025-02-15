@@ -1,9 +1,13 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/sanda0/vps_pilot/internal/dto"
 	"github.com/sanda0/vps_pilot/internal/services"
 )
@@ -12,10 +16,62 @@ type NodeHandler interface {
 	GetNodes(c *gin.Context)
 	UpdateName(c *gin.Context)
 	GetNode(c *gin.Context)
+	SystemStatWSHandler(c *gin.Context)
 }
 
 type nodeHandler struct {
 	nodeService services.NodeService
+}
+
+var systemStatUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins (adjust for production)
+	},
+}
+
+// SystemStatWSHandler implements NodeHandler.
+func (n *nodeHandler) SystemStatWSHandler(c *gin.Context) {
+
+	conn, err := systemStatUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	// queryParams chan dto.NodeSystemStatRequestDto, result chan dto.SystemStatResponseDto
+	var queryParams = make(chan dto.NodeSystemStatRequestDto)
+	var result = make(chan dto.SystemStatResponseDto)
+	go n.nodeService.GetSystemStat(queryParams, result)
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Printf("recv: %s", message)
+
+		var query dto.NodeSystemStatRequestDto
+		query.FromBytes(message)
+		fmt.Println("Query received", query)
+		queryParams <- query
+
+		response := <-result
+
+		msg, err := response.ToBytes()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		err = conn.WriteMessage(websocket.TextMessage, msg)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
 }
 
 // GetNode implements NodeHandler.
@@ -32,10 +88,13 @@ func (n *nodeHandler) GetNode(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"data": dto.NodeDto{
-		ID:   node.ID,
-		Name: node.Name.String,
-		Ip:   node.Ip,
+		ID:     node.ID,
+		Name:   node.Name.String,
+		Ip:     node.Ip,
+		Memory: node.TotalMemory.Float64,
+		Cpus:   node.Cpus.Int32,
 	}})
+
 }
 
 // UpdateName implements NodeHandler.

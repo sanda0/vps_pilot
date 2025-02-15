@@ -1,13 +1,65 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ButtonBar from "./button-bar";
 import { CpuChart } from "./cpu-chart";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MemoryChart } from "./memory-chart";
 import { NetworkChart } from "./netwrok-chart";
+import { useParams } from "react-router";
+import { NodeData } from "@/types/node_type";
+import api from "@/lib/api";
 
 export default function MetricsTab() {
 
   const [currentTimeRange, setCurrentTimeRange] = useState<string>("5M")
+  const { id } = useParams<{ id: string }>();
+  const [memData, setMemData] = useState([]);
+  const [cpuData, setCpuData] = useState<any>();
+  const [node, setNode] = useState<NodeData | null>(null);
+
+  useEffect(() => {
+
+    api.get(`/nodes/${id}`).then((res) => {
+      setNode(res.data.data)
+    }).catch((err) => {
+      console.error(err)
+    })
+
+    const ws = new WebSocket(`ws://localhost:8000/api/v1/nodes/ws/system-stat`);
+    let timer:any = null;
+  
+    ws.onopen = () => {
+      console.log('WebSocket connection opened');
+      ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+  
+      // Start timer after WebSocket is open
+      timer = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+        }
+      }, 10000);
+    };
+  
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+
+      setMemData(message.mem);
+      setCpuData(message.cpu);
+    };
+  
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      clearInterval(timer); // Clear timer when connection closes
+    };
+  
+    return () => {
+      ws.close();
+      clearInterval(timer);
+    };
+  }, [id, currentTimeRange]);
 
   return <>
     <div>
@@ -24,7 +76,7 @@ export default function MetricsTab() {
               <CardTitle>CPU usage</CardTitle>
             </CardHeader>
             <CardContent>
-                <CpuChart timeRange={currentTimeRange}></CpuChart>
+                {cpuData && <CpuChart timeRange={currentTimeRange} cpuCount={node?.cpus??0} data={cpuData}></CpuChart>}
             </CardContent>
           </Card>
           <Card>
@@ -32,7 +84,7 @@ export default function MetricsTab() {
               <CardTitle>Memory usage</CardTitle>
             </CardHeader>
             <CardContent>
-            <MemoryChart timeRange={currentTimeRange}></MemoryChart>
+            <MemoryChart timeRange={currentTimeRange} data={memData}></MemoryChart>
             </CardContent>
           </Card>
         </div>

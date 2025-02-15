@@ -1,21 +1,11 @@
 package dto
 
 import (
+	"encoding/json"
+
 	"github.com/sanda0/vps_pilot/internal/db"
 	"github.com/sanda0/vps_pilot/internal/utils"
 )
-
-// type GetNodesWithSysInfoRow struct {
-// 	ID              int32           `json:"id"`
-// 	Name            sql.NullString  `json:"name"`
-// 	Ip              string          `json:"ip"`
-// 	Os              sql.NullString  `json:"os"`
-// 	Platform        sql.NullString  `json:"platform"`
-// 	PlatformVersion sql.NullString  `json:"platform_version"`
-// 	KernelVersion   sql.NullString  `json:"kernel_version"`
-// 	Cpus            sql.NullInt32   `json:"cpus"`
-// 	TotalMemory     sql.NullFloat64 `json:"total_memory"`
-// }
 
 type NodeWithSysInfoDto struct {
 	ID              int32   `json:"id"`
@@ -47,7 +37,49 @@ type NodeNameUpdateDto struct {
 }
 
 type NodeDto struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
-	Ip   string `json:"ip"`
+	ID     int32   `json:"id"`
+	Name   string  `json:"name"`
+	Ip     string  `json:"ip"`
+	Memory float64 `json:"memory"`
+	Cpus   int32   `json:"cpus"`
+}
+
+type SystemStatQueryDto struct {
+	Node      db.Node `json:"node" `
+	StatType  string  `json:"stat_type" binding:"required"`
+	TimeRange string  `json:"time_range" `
+}
+
+type SystemStatResponseDto struct {
+	NodeID    int32                    `json:"node_id"`
+	TimeRange string                   `json:"time_range"`
+	Cpu       []map[string]interface{} `json:"cpu"`
+	Mem       []db.GetSystemStatsRow   `json:"mem"`
+}
+
+func (s *SystemStatResponseDto) ToBytes() ([]byte, error) {
+	return json.Marshal(s)
+}
+
+type NodeSystemStatRequestDto struct {
+	ID        int32  `json:"id"`
+	TimeRange string `json:"time_range"`
+}
+
+func (n *NodeSystemStatRequestDto) FromBytes(data []byte) error {
+	err := json.Unmarshal(data, n)
+	if n.TimeRange == "5M" {
+		n.TimeRange = "5 minutes"
+	} else if n.TimeRange == "15M" {
+		n.TimeRange = "15 minutes"
+	} else if n.TimeRange == "1H" {
+		n.TimeRange = "1 hour"
+	} else if n.TimeRange == "1D" {
+		n.TimeRange = "1 day"
+	} else if n.TimeRange == "2D" {
+		n.TimeRange = "2 days"
+	} else if n.TimeRange == "1W" {
+		n.TimeRange = "1 week"
+	}
+	return err
 }

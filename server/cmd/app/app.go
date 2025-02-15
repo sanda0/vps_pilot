@@ -34,6 +34,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 
 	//routes
 	api := server.Group("/api/v1")
+	// api.
 
 	//auth routes
 	auth := api.Group("/auth")
@@ -51,6 +52,8 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 			nodes.GET("", nodeHander.GetNodes)
 			nodes.PUT("/change-name", nodeHander.UpdateName)
 			nodes.GET("/:id", nodeHander.GetNode)
+			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
+
 		}
 	}
 

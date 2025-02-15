@@ -248,6 +248,50 @@ func (q *Queries) GetNodeSysInfoByNodeID(ctx context.Context, nodeID int32) (Nod
 	return i, err
 }
 
+const getNodeWithSysInfo = `-- name: GetNodeWithSysInfo :one
+SELECT n.id,
+  n.name,
+  n.ip,
+  nsi.os,
+  nsi.platform,
+  nsi.platform_version,
+  nsi.kernel_version,
+  nsi.cpus,
+  nsi.total_memory
+FROM nodes as n
+  JOIN node_sys_info as nsi ON n.id = nsi.node_id
+WHERE n.id = $1
+`
+
+type GetNodeWithSysInfoRow struct {
+	ID              int32           `json:"id"`
+	Name            sql.NullString  `json:"name"`
+	Ip              string          `json:"ip"`
+	Os              sql.NullString  `json:"os"`
+	Platform        sql.NullString  `json:"platform"`
+	PlatformVersion sql.NullString  `json:"platform_version"`
+	KernelVersion   sql.NullString  `json:"kernel_version"`
+	Cpus            sql.NullInt32   `json:"cpus"`
+	TotalMemory     sql.NullFloat64 `json:"total_memory"`
+}
+
+func (q *Queries) GetNodeWithSysInfo(ctx context.Context, id int32) (GetNodeWithSysInfoRow, error) {
+	row := q.queryRow(ctx, q.getNodeWithSysInfoStmt, getNodeWithSysInfo, id)
+	var i GetNodeWithSysInfoRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Ip,
+		&i.Os,
+		&i.Platform,
+		&i.PlatformVersion,
+		&i.KernelVersion,
+		&i.Cpus,
+		&i.TotalMemory,
+	)
+	return i, err
+}
+
 const getNodes = `-- name: GetNodes :many
 SELECT id, name, ip, created_at, updated_at
 FROM nodes

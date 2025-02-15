@@ -22,6 +22,9 @@ export default function NodeView() {
     }).catch((err) => {
       console.error(err)
     })
+
+  
+
   }, [id])
 
   return <>

@@ -57,6 +57,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodeSysInfoByNodeIDStmt, err = db.PrepareContext(ctx, getNodeSysInfoByNodeID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodeSysInfoByNodeID: %w", err)
 	}
+	if q.getNodeWithSysInfoStmt, err = db.PrepareContext(ctx, getNodeWithSysInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeWithSysInfo: %w", err)
+	}
 	if q.getNodesStmt, err = db.PrepareContext(ctx, getNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodes: %w", err)
 	}
@@ -139,6 +142,11 @@ func (q *Queries) Close() error {
 	if q.getNodeSysInfoByNodeIDStmt != nil {
 		if cerr := q.getNodeSysInfoByNodeIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNodeSysInfoByNodeIDStmt: %w", cerr)
+		}
+	}
+	if q.getNodeWithSysInfoStmt != nil {
+		if cerr := q.getNodeWithSysInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeWithSysInfoStmt: %w", cerr)
 		}
 	}
 	if q.getNodesStmt != nil {
@@ -231,6 +239,7 @@ type Queries struct {
 	getNodeByIPStmt             *sql.Stmt
 	getNodeDiskInfoByNodeIDStmt *sql.Stmt
 	getNodeSysInfoByNodeIDStmt  *sql.Stmt
+	getNodeWithSysInfoStmt      *sql.Stmt
 	getNodesStmt                *sql.Stmt
 	getNodesWithSysInfoStmt     *sql.Stmt
 	getSystemStatsStmt          *sql.Stmt
@@ -256,6 +265,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodeByIPStmt:             q.getNodeByIPStmt,
 		getNodeDiskInfoByNodeIDStmt: q.getNodeDiskInfoByNodeIDStmt,
 		getNodeSysInfoByNodeIDStmt:  q.getNodeSysInfoByNodeIDStmt,
+		getNodeWithSysInfoStmt:      q.getNodeWithSysInfoStmt,
 		getNodesStmt:                q.getNodesStmt,
 		getNodesWithSysInfoStmt:     q.getNodesWithSysInfoStmt,
 		getSystemStatsStmt:          q.getSystemStatsStmt,
