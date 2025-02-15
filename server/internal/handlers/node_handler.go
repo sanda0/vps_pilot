@@ -88,9 +88,11 @@ func (n *nodeHandler) GetNode(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"data": dto.NodeDto{
-		ID:   node.ID,
-		Name: node.Name.String,
-		Ip:   node.Ip,
+		ID:     node.ID,
+		Name:   node.Name.String,
+		Ip:     node.Ip,
+		Memory: node.TotalMemory.Float64,
+		Cpus:   node.Cpus.Int32,
 	}})
 
 }
