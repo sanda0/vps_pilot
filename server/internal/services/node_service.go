@@ -13,7 +13,7 @@ type NodeService interface {
 	CreateNode(ip string, data string) error
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
 	UpdateName(nodeId int32, name string) error
-	GetNode(nodeId int32) (db.Node, error)
+	GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error)
 	GetSystemStat(queryParams chan dto.NodeSystemStatRequestDto, result chan dto.SystemStatResponseDto)
 }
 
@@ -31,23 +31,7 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			fmt.Println("Error getting node", err)
 			continue
 		}
-		cpuStats := make(map[int][]db.GetSystemStatsRow)
-		for i := 1; i <= int(node.Cpus.Int32); i++ {
-			cpustat, err := n.repo.Queries.GetSystemStats(n.ctx, db.GetSystemStatsParams{
-				NodeID:   query.ID,
-				StatType: "cpu",
-				CpuID:    int32(i),
-				Column4: sql.NullString{
-					String: query.TimeRange,
-					Valid:  true,
-				},
-			})
-			if err != nil {
-				fmt.Println("Error getting cpu stats", err)
-				continue
-			}
-			cpuStats[i] = cpustat
-		}
+
 		memStat, err := n.repo.Queries.GetSystemStats(n.ctx, db.GetSystemStatsParams{
 			NodeID:   query.ID,
 			StatType: "mem",
@@ -60,6 +44,18 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			fmt.Println("Error getting mem stats", err)
 			continue
 		}
+
+		cpuStats, err := n.repo.Queries.GetCPUStats(n.ctx, db.GetCPUStatsParams{
+			NodeID:    query.ID,
+			TimeRange: query.TimeRange,
+			CpuCount:  node.Cpus.Int32,
+		})
+
+		if err != nil {
+			fmt.Println("Error getting cpu stats", err)
+			continue
+		}
+
 		result <- dto.SystemStatResponseDto{
 			NodeID:    query.ID,
 			TimeRange: query.TimeRange,
@@ -72,10 +68,10 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 }
 
 // GetNode implements NodeService.
-func (n *nodeService) GetNode(nodeId int32) (db.Node, error) {
-	node, err := n.repo.Queries.GetNode(n.ctx, nodeId)
+func (n *nodeService) GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error) {
+	node, err := n.repo.Queries.GetNodeWithSysInfo(n.ctx, nodeId)
 	if err != nil {
-		return db.Node{}, err
+		return db.GetNodeWithSysInfoRow{}, err
 	}
 	return node, nil
 }

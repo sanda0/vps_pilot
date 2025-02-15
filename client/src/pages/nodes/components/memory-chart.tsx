@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/chart"
 
 
+
 const chartConfig = {
   value: {
     label: "Memory",
@@ -23,9 +24,13 @@ const chartConfig = {
 interface ChartProps {
   timeRange: string
   data: Object[]
+
 }
 
 export function MemoryChart(props: ChartProps) {
+
+
+
   return (
 
     <ChartContainer config={chartConfig} className="w-full h-80">
@@ -69,7 +74,7 @@ export function MemoryChart(props: ChartProps) {
           dataKey="value"
           type="natural"
           fill="var(--color-value)"
-          fillOpacity={0.4}
+          fillOpacity={0.1}
           stroke="var(--color-value)"
           stackId="a"
         />

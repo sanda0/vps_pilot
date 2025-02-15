@@ -37,9 +37,11 @@ type NodeNameUpdateDto struct {
 }
 
 type NodeDto struct {
-	ID   int32  `json:"id"`
-	Name string `json:"name"`
-	Ip   string `json:"ip"`
+	ID     int32   `json:"id"`
+	Name   string  `json:"name"`
+	Ip     string  `json:"ip"`
+	Memory float64 `json:"memory"`
+	Cpus   int32   `json:"cpus"`
 }
 
 type SystemStatQueryDto struct {
@@ -49,10 +51,10 @@ type SystemStatQueryDto struct {
 }
 
 type SystemStatResponseDto struct {
-	NodeID    int32                          `json:"node_id"`
-	TimeRange string                         `json:"time_range"`
-	Cpu       map[int][]db.GetSystemStatsRow `json:"cpu"`
-	Mem       []db.GetSystemStatsRow         `json:"mem"`
+	NodeID    int32                    `json:"node_id"`
+	TimeRange string                   `json:"time_range"`
+	Cpu       []map[string]interface{} `json:"cpu"`
+	Mem       []db.GetSystemStatsRow   `json:"mem"`
 }
 
 func (s *SystemStatResponseDto) ToBytes() ([]byte, error) {
