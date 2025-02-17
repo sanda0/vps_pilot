@@ -1,0 +1,1 @@
+ SELECT add_retention_policy('net_stat', INTERVAL '7 days');

@@ -15,6 +15,7 @@ export default function MetricsTab() {
   const [memData, setMemData] = useState([]);
   const [cpuData, setCpuData] = useState<any>();
   const [node, setNode] = useState<NodeData | null>(null);
+  const [networkData, setNetworkData] = useState<any>();
 
   useEffect(() => {
 
@@ -44,6 +45,7 @@ export default function MetricsTab() {
 
       setMemData(message.mem);
       setCpuData(message.cpu);
+      setNetworkData(message.net);
     };
   
     ws.onerror = (error) => {
@@ -94,7 +96,7 @@ export default function MetricsTab() {
               <CardTitle>Newwork</CardTitle>
             </CardHeader>
             <CardContent>
-                <NetworkChart timeRange={currentTimeRange}></NetworkChart>
+                <NetworkChart timeRange={currentTimeRange} data={networkData}></NetworkChart>
             </CardContent>
           </Card>
         </div>

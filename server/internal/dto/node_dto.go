@@ -55,6 +55,7 @@ type SystemStatResponseDto struct {
 	TimeRange string                   `json:"time_range"`
 	Cpu       []map[string]interface{} `json:"cpu"`
 	Mem       []db.GetSystemStatsRow   `json:"mem"`
+	Net       []db.GetNetStatsRow      `json:"net"`
 }
 
 func (s *SystemStatResponseDto) ToBytes() ([]byte, error) {

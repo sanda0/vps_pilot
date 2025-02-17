@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+type NetStat struct {
+	Time   time.Time `json:"time"`
+	NodeID int32     `json:"node_id"`
+	Sent   int64     `json:"sent"`
+	Recv   int64     `json:"recv"`
+}
+
 type Node struct {
 	ID        int32          `json:"id"`
 	Name      sql.NullString `json:"name"`
