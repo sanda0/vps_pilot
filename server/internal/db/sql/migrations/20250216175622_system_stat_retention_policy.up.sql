@@ -1,0 +1,1 @@
+ SELECT add_retention_policy('system_stats', INTERVAL '7 days');

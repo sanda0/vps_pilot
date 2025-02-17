@@ -56,11 +56,25 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			continue
 		}
 
+		netStat, err := n.repo.Queries.GetNetStats(n.ctx, db.GetNetStatsParams{
+			NodeID: query.ID,
+			Column2: sql.NullString{
+				String: query.TimeRange,
+				Valid:  true,
+			},
+		})
+
+		if err != nil {
+			fmt.Println("Error getting net stats", err)
+			continue
+		}
+
 		result <- dto.SystemStatResponseDto{
 			NodeID:    query.ID,
 			TimeRange: query.TimeRange,
 			Cpu:       cpuStats,
 			Mem:       memStat,
+			Net:       netStat,
 		}
 	}
 
