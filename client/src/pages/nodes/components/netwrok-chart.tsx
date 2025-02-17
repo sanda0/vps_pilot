@@ -43,7 +43,7 @@ export function NetworkChart(props: ChartProps) {
         accessibilityLayer
         data={props.data}
         margin={{
-          left: 0,
+          left: 20,
           right: 0,
         }}
       >
