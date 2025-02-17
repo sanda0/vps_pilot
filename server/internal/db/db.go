@@ -45,6 +45,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.findUserByIdStmt, err = db.PrepareContext(ctx, findUserById); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserById: %w", err)
 	}
+	if q.getNetStatsStmt, err = db.PrepareContext(ctx, getNetStats); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNetStats: %w", err)
+	}
 	if q.getNodeStmt, err = db.PrepareContext(ctx, getNode); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNode: %w", err)
 	}
@@ -68,6 +71,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getSystemStatsStmt, err = db.PrepareContext(ctx, getSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSystemStats: %w", err)
+	}
+	if q.insertNetStatsStmt, err = db.PrepareContext(ctx, insertNetStats); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertNetStats: %w", err)
 	}
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
@@ -124,6 +130,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing findUserByIdStmt: %w", cerr)
 		}
 	}
+	if q.getNetStatsStmt != nil {
+		if cerr := q.getNetStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNetStatsStmt: %w", cerr)
+		}
+	}
 	if q.getNodeStmt != nil {
 		if cerr := q.getNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNodeStmt: %w", cerr)
@@ -162,6 +173,11 @@ func (q *Queries) Close() error {
 	if q.getSystemStatsStmt != nil {
 		if cerr := q.getSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getSystemStatsStmt: %w", cerr)
+		}
+	}
+	if q.insertNetStatsStmt != nil {
+		if cerr := q.insertNetStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertNetStatsStmt: %w", cerr)
 		}
 	}
 	if q.insertSystemStatsStmt != nil {
@@ -235,6 +251,7 @@ type Queries struct {
 	deleteNodeStmt              *sql.Stmt
 	findUserByEmailStmt         *sql.Stmt
 	findUserByIdStmt            *sql.Stmt
+	getNetStatsStmt             *sql.Stmt
 	getNodeStmt                 *sql.Stmt
 	getNodeByIPStmt             *sql.Stmt
 	getNodeDiskInfoByNodeIDStmt *sql.Stmt
@@ -243,6 +260,7 @@ type Queries struct {
 	getNodesStmt                *sql.Stmt
 	getNodesWithSysInfoStmt     *sql.Stmt
 	getSystemStatsStmt          *sql.Stmt
+	insertNetStatsStmt          *sql.Stmt
 	insertSystemStatsStmt       *sql.Stmt
 	updateNodeStmt              *sql.Stmt
 	updateNodeDiskInfoStmt      *sql.Stmt
@@ -261,6 +279,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteNodeStmt:              q.deleteNodeStmt,
 		findUserByEmailStmt:         q.findUserByEmailStmt,
 		findUserByIdStmt:            q.findUserByIdStmt,
+		getNetStatsStmt:             q.getNetStatsStmt,
 		getNodeStmt:                 q.getNodeStmt,
 		getNodeByIPStmt:             q.getNodeByIPStmt,
 		getNodeDiskInfoByNodeIDStmt: q.getNodeDiskInfoByNodeIDStmt,
@@ -269,6 +288,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodesStmt:                q.getNodesStmt,
 		getNodesWithSysInfoStmt:     q.getNodesWithSysInfoStmt,
 		getSystemStatsStmt:          q.getSystemStatsStmt,
+		insertNetStatsStmt:          q.insertNetStatsStmt,
 		insertSystemStatsStmt:       q.insertSystemStatsStmt,
 		updateNodeStmt:              q.updateNodeStmt,
 		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,

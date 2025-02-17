@@ -20,18 +20,19 @@ const chartData = [
 ]
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  recv: {
+    label: "Received",
     color: "hsl(var(--chart-1))",
   },
-  mobile: {
-    label: "Mobile",
-    color: "hsl(var(--chart-2))",
+  sent: {
+    label: "Sent",
+    color: "hsl(var(--chart-30))",
   },
 } satisfies ChartConfig
 
 interface ChartProps {
   timeRange: string
+  data: Object[]
 }
 
 export function NetworkChart(props: ChartProps) {
@@ -40,41 +41,51 @@ export function NetworkChart(props: ChartProps) {
     <ChartContainer config={chartConfig} className="w-full h-[250px]">
       <AreaChart
         accessibilityLayer
-        data={chartData}
+        data={props.data}
         margin={{
-          left: -20,
+          left: 0,
           right: 0,
         }}
       >
         <CartesianGrid vertical={true} />
         <XAxis
-          dataKey="month"
+          dataKey="time"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          tickFormatter={(value) => value.slice(0, 3)}
+          tickFormatter={(value) => new Date(value).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
         />
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value}`}
-  
+          tickFormatter={(value) => `${value} B/s`}
+
         />
-        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+        <ChartTooltip cursor={false} content={<ChartTooltipContent
+          labelFormatter={(value) => new Date(value).toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: "2-digit",
+            hour12: false
+          })}
+          
+        />} />
         <Area
-          dataKey="mobile"
+          dataKey="recv"
           type="natural"
-          fill="var(--color-mobile)"
-          fillOpacity={0.4}
-          stroke="var(--color-mobile)"
+          fill="var(--color-recv)"
+          fillOpacity={0.1}
+          stroke="var(--color-recv)"
           stackId="a"
         />
         <Area
-          dataKey="desktop"
+          dataKey="sent"
           type="natural"
-          fill="var(--color-desktop)"
-          fillOpacity={0.4}
-          stroke="var(--color-desktop)"
+          fill="var(--color-sent)"
+          fillOpacity={0.1}
+          stroke="var(--color-sent)"
           stackId="b"
 
         />

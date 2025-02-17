@@ -76,6 +76,8 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 		// fmt.Println("Node", msg.NodeId)
 		// fmt.Println("time", time.Now())
 
+		fmt.Println("Net sent ps", sysStat.NetSentPS, "Net recv ps", sysStat.NetRecvPS)
+
 		var times []time.Time
 		var nodeIDs []int32
 		var statTypes []string
@@ -105,6 +107,17 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 
 		if err != nil {
 			fmt.Println("Error inserting system stats", err)
+		}
+
+		err = repo.Queries.InsertNetStats(ctx, db.InsertNetStatsParams{
+			Time:   time.Now(),
+			NodeID: msg.NodeId,
+			Sent:   sysStat.NetSentPS,
+			Recv:   sysStat.NetRecvPS,
+		})
+
+		if err != nil {
+			fmt.Println("Error inserting net stats", err)
 		}
 
 	}

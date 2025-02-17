@@ -28,6 +28,8 @@ type SystemStat struct {
 	CPUUsage  []float64 `json:"cpu_usage"`
 	MemUsage  float64   `json:"mem_usage"`
 	DiskUsage float64   `json:"disk_usage"`
+	NetSentPS int64     `json:"net_sent_ps"`
+	NetRecvPS int64     `json:"net_recv_ps"`
 }
 
 func (s *SystemStat) FromBytes(data []byte) error {
