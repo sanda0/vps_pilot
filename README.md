@@ -8,5 +8,5 @@
 * **Alerting:**  Configure alerts to be notified of critical events and performance thresholds.
 * **Git Integration:**  Seamless integration with GitLab/GitHub webhooks for automated deployments triggered by code changes.
 * **Extensible Agent:**  Easily extend the agent's capabilities with custom metrics and integrations.
-* **Open Source (MIT License):**  KukuOps is freely available and encourages community contributions.
+
 
