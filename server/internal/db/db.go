@@ -24,17 +24,29 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.activateAlertStmt, err = db.PrepareContext(ctx, activateAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query ActivateAlert: %w", err)
+	}
 	if q.addNodeDiskInfoStmt, err = db.PrepareContext(ctx, addNodeDiskInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query AddNodeDiskInfo: %w", err)
 	}
 	if q.addNodeSysInfoStmt, err = db.PrepareContext(ctx, addNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query AddNodeSysInfo: %w", err)
 	}
+	if q.createAlertStmt, err = db.PrepareContext(ctx, createAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAlert: %w", err)
+	}
 	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
 	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
+	}
+	if q.deactivateAlertStmt, err = db.PrepareContext(ctx, deactivateAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query DeactivateAlert: %w", err)
+	}
+	if q.deleteAlertStmt, err = db.PrepareContext(ctx, deleteAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAlert: %w", err)
 	}
 	if q.deleteNodeStmt, err = db.PrepareContext(ctx, deleteNode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteNode: %w", err)
@@ -44,6 +56,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.findUserByIdStmt, err = db.PrepareContext(ctx, findUserById); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserById: %w", err)
+	}
+	if q.getAlertStmt, err = db.PrepareContext(ctx, getAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAlert: %w", err)
+	}
+	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
 	}
 	if q.getNetStatsStmt, err = db.PrepareContext(ctx, getNetStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNetStats: %w", err)
@@ -78,6 +96,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
 	}
+	if q.updateAlertStmt, err = db.PrepareContext(ctx, updateAlert); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateAlert: %w", err)
+	}
 	if q.updateNodeStmt, err = db.PrepareContext(ctx, updateNode); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNode: %w", err)
 	}
@@ -95,6 +116,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 
 func (q *Queries) Close() error {
 	var err error
+	if q.activateAlertStmt != nil {
+		if cerr := q.activateAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing activateAlertStmt: %w", cerr)
+		}
+	}
 	if q.addNodeDiskInfoStmt != nil {
 		if cerr := q.addNodeDiskInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing addNodeDiskInfoStmt: %w", cerr)
@@ -105,6 +131,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing addNodeSysInfoStmt: %w", cerr)
 		}
 	}
+	if q.createAlertStmt != nil {
+		if cerr := q.createAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAlertStmt: %w", cerr)
+		}
+	}
 	if q.createNodeStmt != nil {
 		if cerr := q.createNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
@@ -113,6 +144,16 @@ func (q *Queries) Close() error {
 	if q.createUserStmt != nil {
 		if cerr := q.createUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
+		}
+	}
+	if q.deactivateAlertStmt != nil {
+		if cerr := q.deactivateAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deactivateAlertStmt: %w", cerr)
+		}
+	}
+	if q.deleteAlertStmt != nil {
+		if cerr := q.deleteAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAlertStmt: %w", cerr)
 		}
 	}
 	if q.deleteNodeStmt != nil {
@@ -128,6 +169,16 @@ func (q *Queries) Close() error {
 	if q.findUserByIdStmt != nil {
 		if cerr := q.findUserByIdStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing findUserByIdStmt: %w", cerr)
+		}
+	}
+	if q.getAlertStmt != nil {
+		if cerr := q.getAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAlertStmt: %w", cerr)
+		}
+	}
+	if q.getAlertsStmt != nil {
+		if cerr := q.getAlertsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
 		}
 	}
 	if q.getNetStatsStmt != nil {
@@ -183,6 +234,11 @@ func (q *Queries) Close() error {
 	if q.insertSystemStatsStmt != nil {
 		if cerr := q.insertSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertSystemStatsStmt: %w", cerr)
+		}
+	}
+	if q.updateAlertStmt != nil {
+		if cerr := q.updateAlertStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateAlertStmt: %w", cerr)
 		}
 	}
 	if q.updateNodeStmt != nil {
@@ -244,13 +300,19 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 type Queries struct {
 	db                          DBTX
 	tx                          *sql.Tx
+	activateAlertStmt           *sql.Stmt
 	addNodeDiskInfoStmt         *sql.Stmt
 	addNodeSysInfoStmt          *sql.Stmt
+	createAlertStmt             *sql.Stmt
 	createNodeStmt              *sql.Stmt
 	createUserStmt              *sql.Stmt
+	deactivateAlertStmt         *sql.Stmt
+	deleteAlertStmt             *sql.Stmt
 	deleteNodeStmt              *sql.Stmt
 	findUserByEmailStmt         *sql.Stmt
 	findUserByIdStmt            *sql.Stmt
+	getAlertStmt                *sql.Stmt
+	getAlertsStmt               *sql.Stmt
 	getNetStatsStmt             *sql.Stmt
 	getNodeStmt                 *sql.Stmt
 	getNodeByIPStmt             *sql.Stmt
@@ -262,6 +324,7 @@ type Queries struct {
 	getSystemStatsStmt          *sql.Stmt
 	insertNetStatsStmt          *sql.Stmt
 	insertSystemStatsStmt       *sql.Stmt
+	updateAlertStmt             *sql.Stmt
 	updateNodeStmt              *sql.Stmt
 	updateNodeDiskInfoStmt      *sql.Stmt
 	updateNodeNameStmt          *sql.Stmt
@@ -272,13 +335,19 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
 		db:                          tx,
 		tx:                          tx,
+		activateAlertStmt:           q.activateAlertStmt,
 		addNodeDiskInfoStmt:         q.addNodeDiskInfoStmt,
 		addNodeSysInfoStmt:          q.addNodeSysInfoStmt,
+		createAlertStmt:             q.createAlertStmt,
 		createNodeStmt:              q.createNodeStmt,
 		createUserStmt:              q.createUserStmt,
+		deactivateAlertStmt:         q.deactivateAlertStmt,
+		deleteAlertStmt:             q.deleteAlertStmt,
 		deleteNodeStmt:              q.deleteNodeStmt,
 		findUserByEmailStmt:         q.findUserByEmailStmt,
 		findUserByIdStmt:            q.findUserByIdStmt,
+		getAlertStmt:                q.getAlertStmt,
+		getAlertsStmt:               q.getAlertsStmt,
 		getNetStatsStmt:             q.getNetStatsStmt,
 		getNodeStmt:                 q.getNodeStmt,
 		getNodeByIPStmt:             q.getNodeByIPStmt,
@@ -290,6 +359,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getSystemStatsStmt:          q.getSystemStatsStmt,
 		insertNetStatsStmt:          q.insertNetStatsStmt,
 		insertSystemStatsStmt:       q.insertSystemStatsStmt,
+		updateAlertStmt:             q.updateAlertStmt,
 		updateNodeStmt:              q.updateNodeStmt,
 		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,
 		updateNodeNameStmt:          q.updateNodeNameStmt,
