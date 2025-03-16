@@ -1,8 +1,8 @@
 package dto
 
 type AlertDto struct {
-	NodeID           int32   `json:"node_id"`
-	Matric           string  `json:"metric"`
+	NodeID           int32   `json:"node_id" binding:"required"`
+	Metric           string  `json:"metric" binding:"required"`
 	Threshold        float64 `json:"threshold"`
 	NetReceThreshold float64 `json:"net_rece_threshold"`
 	NetSendThreshold float64 `json:"net_send_threshold"`
@@ -14,9 +14,9 @@ type AlertDto struct {
 }
 
 type AlertUpdateDto struct {
-	ID               int32   `json:"id"`
-	NodeID           int32   `json:"node_id"`
-	Matric           string  `json:"metric"`
+	ID               int32   `json:"id" binding:"required"`
+	NodeID           int32   `json:"node_id" binding:"required"`
+	Matric           string  `json:"metric" binding:"required"`
 	Threshold        float64 `json:"threshold"`
 	NetReceThreshold float64 `json:"net_rece_threshold"`
 	NetSendThreshold float64 `json:"net_send_threshold"`

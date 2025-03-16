@@ -6,6 +6,9 @@ import {
 } from "@/components/ui/tabs"
 import MetricsTab from "./metrics-tab"
 import AlertTab from "./alert-tab"
+import { NodeData } from "@/types/node_type"
+
+
 
 export function NodeViewTabs() {
   return (

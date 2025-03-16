@@ -34,16 +34,16 @@ func (a *alertService) ActivateAlert(alertId int32) error {
 
 // CreateAlert implements AlertService.
 func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
-	matric := "cpu"
-	if dto.Matric == "Memory" {
-		matric = "mem"
-	} else if dto.Matric == "Network" {
-		matric = "net"
+	metric := "cpu"
+	if dto.Metric == "Memory" {
+		metric = "mem"
+	} else if dto.Metric == "Network" {
+		metric = "net"
 	}
 
 	alert, err := a.repo.Queries.CreateAlert(a.ctx, db.CreateAlertParams{
 		NodeID:   dto.NodeID,
-		Metric:   matric,
+		Metric:   metric,
 		Duration: dto.Duration,
 		Threshold: sql.NullFloat64{
 			Float64: dto.Threshold,
