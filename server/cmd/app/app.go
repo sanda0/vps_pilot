@@ -59,9 +59,9 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		}
 		alerts := dashbaord.Group("/alerts")
 		{
-			alerts.GET("", alertHandler.GetAlert)
+			alerts.GET("/:id", alertHandler.GetAlert)
 			alerts.POST("", alertHandler.CreateAlert)
-			alerts.GET("/list", alertHandler.GetAlerts)
+			alerts.GET("", alertHandler.GetAlerts)
 			alerts.PUT("/activate", alertHandler.ActivateAlert)
 			alerts.PUT("/deactivate", alertHandler.DeactivateAlert)
 			alerts.DELETE("/:id", alertHandler.DeleteAlert)
