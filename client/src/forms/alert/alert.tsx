@@ -37,9 +37,11 @@ import {
 import { useState } from "react"
 import api from "@/lib/api"
 import { useParams } from "react-router"
+import { Alert } from "@/models/alert"
 
 interface AlertFromProps {
   onFinished: () => void;
+  alert?: Alert;
 }
 
 export function AlertFrom(props: AlertFromProps) {
@@ -52,6 +54,16 @@ export function AlertFrom(props: AlertFromProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       node_id: Number(id),
+      metric:props.alert?.metric,
+      threshold: props.alert?.threshold.Float64,
+      net_rece_threshold: props.alert?.net_rece_threshold.Float64,
+      net_send_threshold: props.alert?.net_send_threshold.Float64,
+      duration: props.alert?.duration,
+      email: props.alert?.email.String,
+      discord: props.alert?.discord_webhook.String,
+      slack: props.alert?.slack_webhook.String,
+      enabled: props.alert?.is_active.Bool
+      
     },
   })
 
