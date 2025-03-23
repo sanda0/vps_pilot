@@ -2,6 +2,7 @@
 import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { AlertFrom } from "@/forms/alert/alert";
+import { Alert } from "@/models/alert";
 
 
 
@@ -10,6 +11,7 @@ interface AlertFromProps {
   isEdit: boolean;
   onOpenChange: (status: boolean) => void;
   onSaved?: () => void;
+  alert?:Alert;
 }
 
 export default function AlertFromDialog(props: AlertFromProps) {
