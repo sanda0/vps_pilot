@@ -12,6 +12,7 @@ export default function AlertTab() {
   const [openFormDialog, setFromDilaog] = useState(false)
   const { id } = useParams<{ id: string }>();
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [currentAlert, setCurrentAlert] = useState<Alert >()
 
   const loadAlerts = () => {
     api.get(`/alerts?node_id=${id}&limit=100&offset=0`).then((res) => {
@@ -36,7 +37,7 @@ export default function AlertTab() {
 
   return <>
     <div>
-      <AlertFrom open={openFormDialog} isEdit={false} onOpenChange={(e) => { setFromDilaog(e) }}  ></AlertFrom>
+      <AlertFrom open={openFormDialog} alert={currentAlert} isEdit={false} onOpenChange={(e) => { setFromDilaog(e) }}  ></AlertFrom>
       <div className="flex justify-between">
         <div className="text-2xl font-semibold">Alerts</div>
         <div className="flex items-center ">
