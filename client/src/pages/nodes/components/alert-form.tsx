@@ -1,8 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogFooter, DialogHeader } from "@/components/ui/dialog";
+
+import { Dialog, DialogHeader } from "@/components/ui/dialog";
 import { DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertFrom } from "@/forms/alert/alert";
 
 
@@ -25,7 +23,7 @@ export default function AlertFromDialog(props: AlertFromProps) {
           <DialogTitle>Create Alert</DialogTitle>
         </DialogHeader>
         <div>
-          <AlertFrom></AlertFrom>
+          <AlertFrom onFinished={()=>props.onOpenChange(false)}></AlertFrom>
         </div>
 
       </DialogContent>
