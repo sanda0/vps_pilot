@@ -35,9 +35,9 @@ func (a *alertService) ActivateAlert(alertId int32) error {
 // CreateAlert implements AlertService.
 func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
 	metric := "cpu"
-	if dto.Metric == "Memory" {
+	if dto.Metric == "mem" {
 		metric = "mem"
-	} else if dto.Metric == "Network" {
+	} else if dto.Metric == "net" {
 		metric = "net"
 	}
 

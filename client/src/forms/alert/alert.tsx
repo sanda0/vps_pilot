@@ -38,8 +38,11 @@ import { useState } from "react"
 import api from "@/lib/api"
 import { useParams } from "react-router"
 
+interface AlertFromProps {
+  onFinished: () => void;
+}
 
-export function AlertFrom() {
+export function AlertFrom(props: AlertFromProps) {
 
   const { id } = useParams<{ id: string }>();
 
@@ -60,6 +63,7 @@ export function AlertFrom() {
     api.post('/alerts', form.getValues()).then((res) => {
       console.log(res)
       setIsPending(false)
+      props.onFinished()
     })
   }
 
