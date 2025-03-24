@@ -25,7 +25,7 @@ export default function AlertFromDialog(props: AlertFromProps) {
           <DialogTitle>Create Alert</DialogTitle>
         </DialogHeader>
         <div>
-          <AlertFrom onFinished={()=>props.onOpenChange(false)}></AlertFrom>
+          <AlertFrom alert={props.alert} onFinished={()=>props.onOpenChange(false)}></AlertFrom>
         </div>
 
       </DialogContent>

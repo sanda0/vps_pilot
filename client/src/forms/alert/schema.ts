@@ -9,6 +9,7 @@ export interface ActionResponse < T = any > {
   inputs ? : T
 }
 export const formSchema = z.object({
+  "id": z.number().optional(),
   "node_id": z.number().optional(),
   "metric": z.string().min(1),
   "threshold": z.number().optional(),
