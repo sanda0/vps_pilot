@@ -30,7 +30,7 @@ export default function AlertCard(props: AlertCardProps) {
 
           </div>
           <div className="flex gap-2">
-            <Button size={"icon"} variant={"secondary"}><Edit></Edit></Button>
+            <Button size={"icon"} variant={"secondary"} onClick={() => { props.onEditClick && props.onEditClick(props.id) }}><Edit></Edit></Button>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>

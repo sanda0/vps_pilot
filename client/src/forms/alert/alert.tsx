@@ -53,8 +53,9 @@ export function AlertFrom(props: AlertFromProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      id: props.alert?.id,
       node_id: Number(id),
-      metric:props.alert?.metric,
+      metric: props.alert?.metric,
       threshold: props.alert?.threshold.Float64,
       net_rece_threshold: props.alert?.net_rece_threshold.Float64,
       net_send_threshold: props.alert?.net_send_threshold.Float64,
@@ -63,7 +64,7 @@ export function AlertFrom(props: AlertFromProps) {
       discord: props.alert?.discord_webhook.String,
       slack: props.alert?.slack_webhook.String,
       enabled: props.alert?.is_active.Bool
-      
+
     },
   })
 
@@ -72,18 +73,27 @@ export function AlertFrom(props: AlertFromProps) {
     setIsPending(true)
     console.log("Submit")
     console.log(form.getValues())
-    api.post('/alerts', form.getValues()).then((res) => {
-      console.log(res)
-      setIsPending(false)
-      props.onFinished()
-    })
+    if (props.alert?.id) {
+      api.put(`/alerts`, form.getValues()).then((res) => {
+        console.log(res)
+        setIsPending(false)
+        props.onFinished()
+      }
+      )
+    } else {
+      api.post('/alerts', form.getValues()).then((res) => {
+        console.log(res)
+        setIsPending(false)
+        props.onFinished()
+      })
+    }
   }
 
   return (
     <div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col w-full max-w-3xl gap-2 p-2 mx-auto rounded-md md:p-5">
-          
+
 
           <FormField
             control={form.control}

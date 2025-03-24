@@ -35,6 +35,15 @@ export default function AlertTab() {
     })
   }
 
+  const onAlertEdit = (id: number) => {
+    api.get(`/alerts/${id}`).then((res) => {
+      setCurrentAlert(res.data.data)
+      setFromDilaog(true)
+      console.log(res.data.data)
+    })
+
+  }
+
   return <>
     <div>
       <AlertFrom open={openFormDialog} alert={currentAlert} isEdit={false} onOpenChange={(e) => { setFromDilaog(e) }}  ></AlertFrom>
@@ -57,8 +66,8 @@ export default function AlertTab() {
             email={alert.email.String}
             discord={alert.discord_webhook.String}
             slack={alert.slack_webhook.String}
-            onEditClick={() => { }}
             onDeleteClick={onAlertDelete}
+            onEditClick={onAlertEdit}
           ></AlertCard>
         })}
       </div>
