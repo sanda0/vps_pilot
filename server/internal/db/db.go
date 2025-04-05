@@ -57,6 +57,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.findUserByIdStmt, err = db.PrepareContext(ctx, findUserById); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserById: %w", err)
 	}
+	if q.getActiveAlertsByNodeAndMetricStmt, err = db.PrepareContext(ctx, getActiveAlertsByNodeAndMetric); err != nil {
+		return nil, fmt.Errorf("error preparing query GetActiveAlertsByNodeAndMetric: %w", err)
+	}
 	if q.getAlertStmt, err = db.PrepareContext(ctx, getAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlert: %w", err)
 	}
@@ -169,6 +172,11 @@ func (q *Queries) Close() error {
 	if q.findUserByIdStmt != nil {
 		if cerr := q.findUserByIdStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing findUserByIdStmt: %w", cerr)
+		}
+	}
+	if q.getActiveAlertsByNodeAndMetricStmt != nil {
+		if cerr := q.getActiveAlertsByNodeAndMetricStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getActiveAlertsByNodeAndMetricStmt: %w", cerr)
 		}
 	}
 	if q.getAlertStmt != nil {
@@ -298,71 +306,73 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                          DBTX
-	tx                          *sql.Tx
-	activateAlertStmt           *sql.Stmt
-	addNodeDiskInfoStmt         *sql.Stmt
-	addNodeSysInfoStmt          *sql.Stmt
-	createAlertStmt             *sql.Stmt
-	createNodeStmt              *sql.Stmt
-	createUserStmt              *sql.Stmt
-	deactivateAlertStmt         *sql.Stmt
-	deleteAlertStmt             *sql.Stmt
-	deleteNodeStmt              *sql.Stmt
-	findUserByEmailStmt         *sql.Stmt
-	findUserByIdStmt            *sql.Stmt
-	getAlertStmt                *sql.Stmt
-	getAlertsStmt               *sql.Stmt
-	getNetStatsStmt             *sql.Stmt
-	getNodeStmt                 *sql.Stmt
-	getNodeByIPStmt             *sql.Stmt
-	getNodeDiskInfoByNodeIDStmt *sql.Stmt
-	getNodeSysInfoByNodeIDStmt  *sql.Stmt
-	getNodeWithSysInfoStmt      *sql.Stmt
-	getNodesStmt                *sql.Stmt
-	getNodesWithSysInfoStmt     *sql.Stmt
-	getSystemStatsStmt          *sql.Stmt
-	insertNetStatsStmt          *sql.Stmt
-	insertSystemStatsStmt       *sql.Stmt
-	updateAlertStmt             *sql.Stmt
-	updateNodeStmt              *sql.Stmt
-	updateNodeDiskInfoStmt      *sql.Stmt
-	updateNodeNameStmt          *sql.Stmt
-	updateNodeSysInfoStmt       *sql.Stmt
+	db                                 DBTX
+	tx                                 *sql.Tx
+	activateAlertStmt                  *sql.Stmt
+	addNodeDiskInfoStmt                *sql.Stmt
+	addNodeSysInfoStmt                 *sql.Stmt
+	createAlertStmt                    *sql.Stmt
+	createNodeStmt                     *sql.Stmt
+	createUserStmt                     *sql.Stmt
+	deactivateAlertStmt                *sql.Stmt
+	deleteAlertStmt                    *sql.Stmt
+	deleteNodeStmt                     *sql.Stmt
+	findUserByEmailStmt                *sql.Stmt
+	findUserByIdStmt                   *sql.Stmt
+	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
+	getAlertStmt                       *sql.Stmt
+	getAlertsStmt                      *sql.Stmt
+	getNetStatsStmt                    *sql.Stmt
+	getNodeStmt                        *sql.Stmt
+	getNodeByIPStmt                    *sql.Stmt
+	getNodeDiskInfoByNodeIDStmt        *sql.Stmt
+	getNodeSysInfoByNodeIDStmt         *sql.Stmt
+	getNodeWithSysInfoStmt             *sql.Stmt
+	getNodesStmt                       *sql.Stmt
+	getNodesWithSysInfoStmt            *sql.Stmt
+	getSystemStatsStmt                 *sql.Stmt
+	insertNetStatsStmt                 *sql.Stmt
+	insertSystemStatsStmt              *sql.Stmt
+	updateAlertStmt                    *sql.Stmt
+	updateNodeStmt                     *sql.Stmt
+	updateNodeDiskInfoStmt             *sql.Stmt
+	updateNodeNameStmt                 *sql.Stmt
+	updateNodeSysInfoStmt              *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                          tx,
-		tx:                          tx,
-		activateAlertStmt:           q.activateAlertStmt,
-		addNodeDiskInfoStmt:         q.addNodeDiskInfoStmt,
-		addNodeSysInfoStmt:          q.addNodeSysInfoStmt,
-		createAlertStmt:             q.createAlertStmt,
-		createNodeStmt:              q.createNodeStmt,
-		createUserStmt:              q.createUserStmt,
-		deactivateAlertStmt:         q.deactivateAlertStmt,
-		deleteAlertStmt:             q.deleteAlertStmt,
-		deleteNodeStmt:              q.deleteNodeStmt,
-		findUserByEmailStmt:         q.findUserByEmailStmt,
-		findUserByIdStmt:            q.findUserByIdStmt,
-		getAlertStmt:                q.getAlertStmt,
-		getAlertsStmt:               q.getAlertsStmt,
-		getNetStatsStmt:             q.getNetStatsStmt,
-		getNodeStmt:                 q.getNodeStmt,
-		getNodeByIPStmt:             q.getNodeByIPStmt,
-		getNodeDiskInfoByNodeIDStmt: q.getNodeDiskInfoByNodeIDStmt,
-		getNodeSysInfoByNodeIDStmt:  q.getNodeSysInfoByNodeIDStmt,
-		getNodeWithSysInfoStmt:      q.getNodeWithSysInfoStmt,
-		getNodesStmt:                q.getNodesStmt,
-		getNodesWithSysInfoStmt:     q.getNodesWithSysInfoStmt,
-		getSystemStatsStmt:          q.getSystemStatsStmt,
-		insertNetStatsStmt:          q.insertNetStatsStmt,
-		insertSystemStatsStmt:       q.insertSystemStatsStmt,
-		updateAlertStmt:             q.updateAlertStmt,
-		updateNodeStmt:              q.updateNodeStmt,
-		updateNodeDiskInfoStmt:      q.updateNodeDiskInfoStmt,
-		updateNodeNameStmt:          q.updateNodeNameStmt,
-		updateNodeSysInfoStmt:       q.updateNodeSysInfoStmt,
+		db:                                 tx,
+		tx:                                 tx,
+		activateAlertStmt:                  q.activateAlertStmt,
+		addNodeDiskInfoStmt:                q.addNodeDiskInfoStmt,
+		addNodeSysInfoStmt:                 q.addNodeSysInfoStmt,
+		createAlertStmt:                    q.createAlertStmt,
+		createNodeStmt:                     q.createNodeStmt,
+		createUserStmt:                     q.createUserStmt,
+		deactivateAlertStmt:                q.deactivateAlertStmt,
+		deleteAlertStmt:                    q.deleteAlertStmt,
+		deleteNodeStmt:                     q.deleteNodeStmt,
+		findUserByEmailStmt:                q.findUserByEmailStmt,
+		findUserByIdStmt:                   q.findUserByIdStmt,
+		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
+		getAlertStmt:                       q.getAlertStmt,
+		getAlertsStmt:                      q.getAlertsStmt,
+		getNetStatsStmt:                    q.getNetStatsStmt,
+		getNodeStmt:                        q.getNodeStmt,
+		getNodeByIPStmt:                    q.getNodeByIPStmt,
+		getNodeDiskInfoByNodeIDStmt:        q.getNodeDiskInfoByNodeIDStmt,
+		getNodeSysInfoByNodeIDStmt:         q.getNodeSysInfoByNodeIDStmt,
+		getNodeWithSysInfoStmt:             q.getNodeWithSysInfoStmt,
+		getNodesStmt:                       q.getNodesStmt,
+		getNodesWithSysInfoStmt:            q.getNodesWithSysInfoStmt,
+		getSystemStatsStmt:                 q.getSystemStatsStmt,
+		insertNetStatsStmt:                 q.insertNetStatsStmt,
+		insertSystemStatsStmt:              q.insertSystemStatsStmt,
+		updateAlertStmt:                    q.updateAlertStmt,
+		updateNodeStmt:                     q.updateNodeStmt,
+		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,
+		updateNodeNameStmt:                 q.updateNodeNameStmt,
+		updateNodeSysInfoStmt:              q.updateNodeSysInfoStmt,
 	}
 }

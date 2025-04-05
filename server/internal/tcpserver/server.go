@@ -15,6 +15,7 @@ var AgentConnections map[string]net.Conn
 func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
 
 	var statChan = make(chan Msg, 100)
+	var monitorChan = make(chan Msg, 100)
 
 	AgentConnections = make(map[string]net.Conn)
 	listener, err := net.Listen("tcp", ":"+port)
@@ -25,6 +26,7 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
 	fmt.Println("TCP server Listening on port", port)
 
 	go StoreSystemStats(ctx, repo, statChan)
+	go MontiorAlerts(ctx, repo, monitorChan)
 
 	for {
 		conn, err := listener.Accept()
@@ -32,11 +34,11 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
 			return
 		}
 		AgentConnections[conn.RemoteAddr().String()] = conn
-		go handleRequest(ctx, repo, conn, statChan)
+		go handleRequest(ctx, repo, conn, statChan, monitorChan)
 	}
 }
 
-func handleRequest(ctx context.Context, repo *db.Repo, conn net.Conn, statChan chan Msg) {
+func handleRequest(ctx context.Context, repo *db.Repo, conn net.Conn, statChan chan Msg, monitorChan chan Msg) {
 	defer conn.Close()
 	fmt.Println("New connection from", conn.RemoteAddr())
 
@@ -69,6 +71,7 @@ func handleRequest(ctx context.Context, repo *db.Repo, conn net.Conn, statChan c
 		}
 		if msg.Msg == "sys_stat" {
 			statChan <- msg
+			monitorChan <- msg
 		}
 	}
 

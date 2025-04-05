@@ -197,12 +197,13 @@ export function AlertFrom(props: AlertFromProps) {
               )
               }
             /> </>}
+            
           <FormField
             control={form.control}
             name="duration"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Duration</FormLabel>
+                <FormLabel>Duration (in minutes) </FormLabel> 
                 <FormControl>
                   <Input
                     placeholder="Duration"
