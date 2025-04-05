@@ -34,16 +34,16 @@ func (a *alertService) ActivateAlert(alertId int32) error {
 
 // CreateAlert implements AlertService.
 func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
-	metric := "cpu"
-	if dto.Metric == "mem" {
-		metric = "mem"
-	} else if dto.Metric == "net" {
-		metric = "net"
-	}
+	// metric := "cpu"
+	// if dto.Metric == "mem" {
+	// 	metric = "mem"
+	// } else if dto.Metric == "net" {
+	// 	metric = "net"
+	// }
 
 	alert, err := a.repo.Queries.CreateAlert(a.ctx, db.CreateAlertParams{
 		NodeID:   dto.NodeID,
-		Metric:   metric,
+		Metric:   dto.Metric,
 		Duration: dto.Duration,
 		Threshold: sql.NullFloat64{
 			Float64: dto.Threshold,
@@ -114,16 +114,11 @@ func (a *alertService) GetAlerts(nodeId int32, limit int32, offset int32) ([]db.
 
 // UpdateAlert implements AlertService.
 func (a *alertService) UpdateAlert(dto dto.AlertUpdateDto) (*db.Alert, error) {
-	matric := "cpu"
-	if dto.Matric == "Memory" {
-		matric = "mem"
-	} else if dto.Matric == "Network" {
-		matric = "net"
-	}
+
 	alert, err := a.repo.Queries.UpdateAlert(a.ctx, db.UpdateAlertParams{
 		ID:       dto.ID,
 		NodeID:   dto.NodeID,
-		Metric:   matric,
+		Metric:   dto.Metric,
 		Duration: dto.Duration,
 		Threshold: sql.NullFloat64{
 			Float64: dto.Threshold,

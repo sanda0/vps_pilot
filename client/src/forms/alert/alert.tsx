@@ -41,7 +41,7 @@ import { Alert } from "@/models/alert"
 
 interface AlertFromProps {
   onFinished: () => void;
-  alert?: Alert;
+  alert?: Alert | null;
 }
 
 export function AlertFrom(props: AlertFromProps) {
@@ -78,6 +78,7 @@ export function AlertFrom(props: AlertFromProps) {
         console.log(res)
         setIsPending(false)
         props.onFinished()
+        form.reset()
       }
       )
     } else {
@@ -85,6 +86,7 @@ export function AlertFrom(props: AlertFromProps) {
         console.log(res)
         setIsPending(false)
         props.onFinished()
+        form.reset()
       })
     }
   }

@@ -28,6 +28,7 @@ RETURNING *;
 -- name: GetAlerts :many
 SELECT * FROM alerts
 WHERE node_id = $1
+ORDER BY id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetAlert :one

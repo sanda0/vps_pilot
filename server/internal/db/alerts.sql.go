@@ -213,6 +213,7 @@ func (q *Queries) GetAlert(ctx context.Context, id int32) (Alert, error) {
 const getAlerts = `-- name: GetAlerts :many
 SELECT id, node_id, metric, duration, threshold, net_rece_threshold, net_send_threshold, email, discord_webhook, slack_webhook, is_active, created_at, updated_at FROM alerts
 WHERE node_id = $1
+ORDER BY id DESC
 LIMIT $2 OFFSET $3
 `
 

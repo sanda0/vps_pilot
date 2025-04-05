@@ -11,7 +11,7 @@ interface AlertFromProps {
   isEdit: boolean;
   onOpenChange: (status: boolean) => void;
   onSaved?: () => void;
-  alert?:Alert;
+  alert?:Alert | null;
 }
 
 export default function AlertFromDialog(props: AlertFromProps) {
