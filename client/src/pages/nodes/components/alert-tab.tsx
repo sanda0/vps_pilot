@@ -5,6 +5,7 @@ import { Alert } from "@/models/alert";
 import { useParams } from "react-router";
 import api from "@/lib/api";
 import AlertCard from "./alert-card";
+import { set } from "zod";
 
 
 export default function AlertTab() {
@@ -12,7 +13,7 @@ export default function AlertTab() {
   const [openFormDialog, setFromDilaog] = useState(false)
   const { id } = useParams<{ id: string }>();
   const [alerts, setAlerts] = useState<Alert[]>([])
-  const [currentAlert, setCurrentAlert] = useState<Alert >()
+  const [currentAlert, setCurrentAlert] = useState<Alert | null>()
 
   const loadAlerts = () => {
     api.get(`/alerts?node_id=${id}&limit=100&offset=0`).then((res) => {
@@ -50,7 +51,10 @@ export default function AlertTab() {
       <div className="flex justify-between">
         <div className="text-2xl font-semibold">Alerts</div>
         <div className="flex items-center ">
-          <Button onClick={() => setFromDilaog(true)}>Create Alert</Button>
+          <Button onClick={() => {
+            setCurrentAlert(null)
+            setFromDilaog(true)
+          }}>Create Alert</Button>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
