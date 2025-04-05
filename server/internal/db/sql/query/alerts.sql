@@ -63,3 +63,7 @@ UPDATE alerts
 SET is_active = false
 WHERE id = $1;
 
+-- name: GetActiveAlertsByNodeAndMetric :many
+SELECT a.*,n.name as node_name,n.ip as node_ip FROM alerts a
+join nodes n on a.node_id = n.id
+WHERE node_id = $1 AND metric = $2 AND is_active = true;

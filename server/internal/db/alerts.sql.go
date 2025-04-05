@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const activateAlert = `-- name: ActivateAlert :exec
@@ -113,6 +114,74 @@ WHERE id = $1
 func (q *Queries) DeleteAlert(ctx context.Context, id int32) error {
 	_, err := q.exec(ctx, q.deleteAlertStmt, deleteAlert, id)
 	return err
+}
+
+const getActiveAlertsByNodeAndMetric = `-- name: GetActiveAlertsByNodeAndMetric :many
+SELECT a.id, a.node_id, a.metric, a.duration, a.threshold, a.net_rece_threshold, a.net_send_threshold, a.email, a.discord_webhook, a.slack_webhook, a.is_active, a.created_at, a.updated_at,n.name as node_name,n.ip as node_ip FROM alerts a
+join nodes n on a.node_id = n.id
+WHERE node_id = $1 AND metric = $2 AND is_active = true
+`
+
+type GetActiveAlertsByNodeAndMetricParams struct {
+	NodeID int32  `json:"node_id"`
+	Metric string `json:"metric"`
+}
+
+type GetActiveAlertsByNodeAndMetricRow struct {
+	ID               int32           `json:"id"`
+	NodeID           int32           `json:"node_id"`
+	Metric           string          `json:"metric"`
+	Duration         int32           `json:"duration"`
+	Threshold        sql.NullFloat64 `json:"threshold"`
+	NetReceThreshold sql.NullFloat64 `json:"net_rece_threshold"`
+	NetSendThreshold sql.NullFloat64 `json:"net_send_threshold"`
+	Email            sql.NullString  `json:"email"`
+	DiscordWebhook   sql.NullString  `json:"discord_webhook"`
+	SlackWebhook     sql.NullString  `json:"slack_webhook"`
+	IsActive         sql.NullBool    `json:"is_active"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	NodeName         sql.NullString  `json:"node_name"`
+	NodeIp           string          `json:"node_ip"`
+}
+
+func (q *Queries) GetActiveAlertsByNodeAndMetric(ctx context.Context, arg GetActiveAlertsByNodeAndMetricParams) ([]GetActiveAlertsByNodeAndMetricRow, error) {
+	rows, err := q.query(ctx, q.getActiveAlertsByNodeAndMetricStmt, getActiveAlertsByNodeAndMetric, arg.NodeID, arg.Metric)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetActiveAlertsByNodeAndMetricRow
+	for rows.Next() {
+		var i GetActiveAlertsByNodeAndMetricRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.NodeID,
+			&i.Metric,
+			&i.Duration,
+			&i.Threshold,
+			&i.NetReceThreshold,
+			&i.NetSendThreshold,
+			&i.Email,
+			&i.DiscordWebhook,
+			&i.SlackWebhook,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.NodeName,
+			&i.NodeIp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getAlert = `-- name: GetAlert :one
