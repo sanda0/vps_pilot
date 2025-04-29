@@ -3,7 +3,9 @@
 VPS Pilot is a **server monitoring and management platform** designed for private VPS servers.  
 It provides real-time monitoring, alerting, project management, and (future) cron job automation — all from a single dashboard.
 
----
+![Screenshot from 2025-04-29 08-13-30](https://github.com/user-attachments/assets/fff1c368-9c8e-4bb6-9720-f9a7f46a2910)
+
+
 
 ## ✨ Features
 
@@ -15,7 +17,6 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - **Network statistics**
 - Metrics are visualized in the dashboard with selectable time ranges:
   - 5 minutes, 15 minutes, 1 hour, 1 day, 2 days, 7 days.
-
 ---
 
 ### 🚨 Alerting
