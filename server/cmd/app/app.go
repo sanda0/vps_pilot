@@ -17,10 +17,12 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	//init services
 	userService := services.NewUserService(ctx, repo)
 	nodeService := services.NewNodeService(ctx, repo)
+	alertService := services.NewAlertService(ctx, repo)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
 	nodeHander := handlers.NewNodeHandler(nodeService)
+	alertHandler := handlers.NewAlertHandler(alertService)
 
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
@@ -54,6 +56,16 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 			nodes.GET("/:id", nodeHander.GetNode)
 			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
 
+		}
+		alerts := dashbaord.Group("/alerts")
+		{
+			alerts.GET("/:id", alertHandler.GetAlert)
+			alerts.POST("", alertHandler.CreateAlert)
+			alerts.GET("", alertHandler.GetAlerts)
+			alerts.PUT("/activate", alertHandler.ActivateAlert)
+			alerts.PUT("/deactivate", alertHandler.DeactivateAlert)
+			alerts.DELETE("/:id", alertHandler.DeleteAlert)
+			alerts.PUT("", alertHandler.UpdateAlert)
 		}
 	}
 

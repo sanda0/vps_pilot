@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+type Alert struct {
+	ID               int32           `json:"id"`
+	NodeID           int32           `json:"node_id"`
+	Metric           string          `json:"metric"`
+	Duration         int32           `json:"duration"`
+	Threshold        sql.NullFloat64 `json:"threshold"`
+	NetReceThreshold sql.NullFloat64 `json:"net_rece_threshold"`
+	NetSendThreshold sql.NullFloat64 `json:"net_send_threshold"`
+	Email            sql.NullString  `json:"email"`
+	DiscordWebhook   sql.NullString  `json:"discord_webhook"`
+	SlackWebhook     sql.NullString  `json:"slack_webhook"`
+	IsActive         sql.NullBool    `json:"is_active"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+}
+
 type NetStat struct {
 	Time   time.Time `json:"time"`
 	NodeID int32     `json:"node_id"`

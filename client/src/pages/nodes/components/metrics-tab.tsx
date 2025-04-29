@@ -93,7 +93,7 @@ export default function MetricsTab() {
         <div className="grid grid-cols-1">
           <Card>
             <CardHeader>
-              <CardTitle>Newwork</CardTitle>
+              <CardTitle>Network</CardTitle>
             </CardHeader>
             <CardContent>
                 <NetworkChart timeRange={currentTimeRange} data={networkData}></NetworkChart>
