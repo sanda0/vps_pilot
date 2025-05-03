@@ -10,7 +10,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 ## ✨ Features
 
 ### 📊 Monitoring
-- Agents installed on each node (server).
+- Agents installed on each node (server). (Agent repo: https://github.com/sanda0/vps_pilot_agent)
 - Agents send system metrics to the central server:
   - **CPU usage**
   - **Memory usage**
