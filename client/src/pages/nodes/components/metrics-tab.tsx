@@ -66,7 +66,7 @@ export default function MetricsTab() {
   return <>
     <div>
       <div className="flex justify-between">
-        <div className="text-2xl font-semibold">Matrics</div>
+        <div className="text-2xl font-semibold">Metrics</div>
         <div className="flex items-center ">
           <ButtonBar list={["5M", "15M", "1H", "1D", "2D", "7D"]} onClick={(v)=>setCurrentTimeRange(v)} ></ButtonBar>
         </div>
