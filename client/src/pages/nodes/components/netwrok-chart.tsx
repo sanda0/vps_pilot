@@ -10,14 +10,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-const chartData = [
-  { month: "January", desktop: 34, mobile: 80 },
-  { month: "February", desktop: 50, mobile: 60 },
-  { month: "March", desktop: 37, mobile: 70 },
-  { month: "April", desktop: 73, mobile: 90 },
-  { month: "May", desktop: 29, mobile: 30 },
-  { month: "June", desktop: 44, mobile: 40 },
-]
+
 
 const chartConfig = {
   recv: {

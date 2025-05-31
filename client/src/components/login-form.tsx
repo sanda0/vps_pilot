@@ -88,7 +88,7 @@ export function LoginForm({
                   <Input id="password" type="password" required onChange={(e) => setPassword(e.target.value)} />
                 </div>
                 <Button type="submit" className="w-full">
-                  Login
+                  {isLoading?"Loading":"Login"}
                 </Button>
               </div>
               {/* <div className="text-sm text-center">
@@ -97,6 +97,11 @@ export function LoginForm({
                   Sign up
                 </a>
               </div> */}
+              {error && (
+                <div className="text-sm text-center text-red-500">
+                  {error}
+                </div>
+              )}
             </div>
           </form>
         </CardContent>
