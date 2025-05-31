@@ -23,7 +23,7 @@ export default function NodeView() {
       console.error(err)
     })
 
-  
+    setIsOnline(true);
 
   }, [id])
 

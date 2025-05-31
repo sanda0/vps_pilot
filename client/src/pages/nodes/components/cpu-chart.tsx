@@ -14,17 +14,6 @@ import { useEffect, useState } from "react"
 
 
 
-// const chartConfig = {
-//   desktop: {
-//     label: "Desktop",
-//     color: "hsl(var(--chart-1))",
-//   },
-//   mobile: {
-//     label: "Mobile",
-//     color: "hsl(var(--chart-2))",
-//   },
-// } satisfies ChartConfig
-
 
 
 interface ChartProps {
@@ -33,37 +22,9 @@ interface ChartProps {
   cpuCount: number
 }
 
-interface CPUData {
-  time: string;
-  [cpu: string]: number | string;
-}
 
-const formatTimestamp = (timestamp: string): string => {
-  const date = new Date(timestamp);
-  return date.toISOString().replace("T", " ").split(".")[0];
-};
 
-function conventCpuData(inputData: { [key: string]: { time: string; value: number }[] }): CPUData[] {
-  console.log("inputData", inputData);
-  const timestamps = new Set<string>();
-  inputData["1"].forEach((data) => {
-    timestamps.add(formatTimestamp(data.time));
-  });
 
-  const cpuData: CPUData[] = [];
-
-  timestamps.forEach((timestamp) => {
-    const dataPoint: CPUData = { time: timestamp };
-    for (const cpu in inputData) {
-      const data = inputData[cpu].find((d) => formatTimestamp(d.time) === timestamp);
-      dataPoint[`cpu${cpu}`] = data ? data.value : 0;
-    }
-    cpuData.push(dataPoint);
-  });
-
-  return cpuData;
-
-}
 
 export function CpuChart(props: ChartProps) {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({})
@@ -136,23 +97,7 @@ export function CpuChart(props: ChartProps) {
           />
         ))}
 
-        {/* <Area
-          dataKey="mobile"
-          type="natural"
-          fill="var(--color-mobile)"
-          fillOpacity={0.1}
-          stroke="var(--color-mobile)"
-          stackId="a"
-        />
-        <Area
-          dataKey="desktop"
-          type="natural"
-          fill="var(--color-desktop)"
-          fillOpacity={0.1}
-          stroke="var(--color-desktop)"
-          stackId="b"
 
-        /> */}
       </AreaChart>
     </ChartContainer>
   )
