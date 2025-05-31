@@ -23,8 +23,8 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 - Users can configure alerts based on metric thresholds.
 - Notifications sent via:
   - **Discord** (✅ Implemented)
-  - **Email** (🔜 Not yet implemented)
-  - **Slack** (🔜 Not yet implemented)
+  - **Email** (✅ Implemented)
+  - **Slack** (✅ Implemented)
 
 ---
 
@@ -86,6 +86,35 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 ---
 
+## ⚙️ Configuration
+
+### Email Alerts
+Configure the following environment variables in your `.env` file for email notifications:
+
+```env
+MAIL_HOST="your-smtp-host.com"
+MAIL_PORT=465
+MAIL_USERNAME="your-email@domain.com"
+MAIL_PASSWORD="your-email-password"
+MAIL_FROM_ADDRESS="noreply@domain.com"
+```
+
+### Slack Alerts
+For Slack notifications, configure webhook URLs per alert in the dashboard. To create a Slack webhook:
+1. Go to your Slack workspace
+2. Navigate to Apps → Incoming Webhooks
+3. Create a new webhook for your desired channel
+4. Copy the webhook URL and paste it in the alert configuration
+
+### Discord Alerts
+For Discord notifications, configure webhook URLs per alert in the dashboard. To create a Discord webhook:
+1. Go to your Discord server settings
+2. Navigate to Integrations → Webhooks
+3. Create a new webhook for your desired channel
+4. Copy the webhook URL and paste it in the alert configuration
+
+---
+
 ## 📦 Installation
 
 (Instructions will be added soon. Likely via Docker Compose or manual Go/React build.)
@@ -96,8 +125,8 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 - [x] Real-time metrics collection (CPU, Memory, Network)
 - [x] Discord alert integration
-- [ ] Email alert integration
-- [ ] Slack alert integration
+- [x] Email alert integration
+- [x] Slack alert integration
 - [ ] Project management via `config.vpspilot.json`
 - [ ] Remote command execution for projects
 - [ ] Project backups (database + directories)

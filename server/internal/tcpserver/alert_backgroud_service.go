@@ -46,6 +46,30 @@ func average(nums []float64) float64 {
 	return sum / float64(len(nums))
 }
 
+// sendAlertNotifications sends alert to all configured notification channels
+func sendAlertNotifications(alert db.GetActiveAlertsByNodeAndMetricRow, alertMsg AlertMsg) {
+	// Send Discord alert if webhook is configured
+	if alert.DiscordWebhook.String != "" {
+		if err := SendDiscordAlert(alert.DiscordWebhook.String, alertMsg); err != nil {
+			fmt.Printf("Failed to send Discord alert: %v\n", err)
+		}
+	}
+
+	// Send Email alert if email is configured
+	if alert.Email.String != "" {
+		if err := SendEmailAlert(alert.Email.String, alertMsg); err != nil {
+			fmt.Printf("Failed to send email alert: %v\n", err)
+		}
+	}
+
+	// Send Slack alert if webhook is configured
+	if alert.SlackWebhook.String != "" {
+		if err := SendSlackAlert(alert.SlackWebhook.String, alertMsg); err != nil {
+			fmt.Printf("Failed to send Slack alert: %v\n", err)
+		}
+	}
+}
+
 func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg float64) {
 	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
 		NodeID: nodeId,
@@ -72,8 +96,8 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 			}
 
 			lastAlertSentTime[alert.ID] = time.Now()
-			// send notification
-			SendDiscordAlert(alert.DiscordWebhook.String, AlertMsg{
+			// send notifications to all configured channels
+			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
 				NodeIp:       alert.NodeIp,
 				Metric:       "CPU",
@@ -111,8 +135,8 @@ func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage
 			}
 
 			lastAlertSentTime[alert.ID] = time.Now()
-			// send notification
-			SendDiscordAlert(alert.DiscordWebhook.String, AlertMsg{
+			// send notifications to all configured channels
+			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
 				NodeIp:       alert.NodeIp,
 				Metric:       "Memory",
@@ -150,8 +174,8 @@ func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend
 			}
 
 			lastAlertSentTime[alert.ID] = time.Now()
-			// send notification
-			SendDiscordAlert(alert.DiscordWebhook.String, AlertMsg{
+			// send notifications to all configured channels
+			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
 				NodeIp:       alert.NodeIp,
 				Metric:       "Network",
