@@ -6,5 +6,5 @@ web
 vps-pilot
 vps_pilot_server
 
-
-server/data/*
+# SQLite database files
+data/
