@@ -1,14 +1,9 @@
 -- name: InsertSystemStats :exec
-INSERT INTO system_stats (time, node_id, stat_type, cpu_id, value)
-SELECT 
-    unnest($1::timestamptz[]),
-    unnest($2::int[]),
-    unnest($3::text[]),
-    unnest($4::int[]),
-    unnest($5::double precision[]);
+INSERT INTO system_stats (timestamp, node_id, stat_type, cpu_id, value)
+VALUES (?, ?, ?, ?, ?);
 
 -- name: GetSystemStats :many
-select time,value from system_stats ss 
-where node_id = $1 and stat_type = $2
-and cpu_id = $3
-and time >= now() -  ($4||'')::interval;
+select timestamp, value from system_stats ss 
+where node_id = ? and stat_type = ?
+and cpu_id = ?
+and timestamp >= strftime('%s', 'now') - ?;

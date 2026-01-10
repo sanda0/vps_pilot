@@ -1,17 +1,11 @@
 CREATE TABLE IF NOT EXISTS net_stat (
-    time TIMESTAMPTZ NOT NULL,
-    node_id INT NOT NULL,
-    sent BIGINT NOT NULL,  -- Bytes sent
-    recv BIGINT NOT NULL,  -- Bytes received
-    PRIMARY KEY (time, node_id)
+    timestamp INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    sent INTEGER NOT NULL,  -- Bytes sent
+    recv INTEGER NOT NULL,  -- Bytes received
+    PRIMARY KEY (timestamp, node_id)
 );
 
-DO $$ 
-BEGIN 
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables 
-        WHERE hypertable_name = 'net_stat'
-    ) THEN 
-        PERFORM create_hypertable('net_stat', 'time'); 
-    END IF;
-END $$;
+-- Create index for time-based queries
+CREATE INDEX IF NOT EXISTS idx_net_stat_timestamp ON net_stat(timestamp);
+CREATE INDEX IF NOT EXISTS idx_net_stat_node_time ON net_stat(node_id, timestamp);

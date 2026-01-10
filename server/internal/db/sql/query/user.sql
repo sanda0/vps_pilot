@@ -1,10 +1,10 @@
 -- name: CreateUser :one
 INSERT INTO users (username, email, password_hash)
-VALUES ($1, $2, $3)
+VALUES (?, ?, ?)
 RETURNING *;
 
 -- name: FindUserByEmail :one
-SELECT * FROM users WHERE email = $1;
+SELECT * FROM users WHERE email = ?;
 
 -- name: FindUserById :one
-SELECT * FROM users WHERE id = $1;
+SELECT * FROM users WHERE id = ?;

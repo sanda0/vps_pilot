@@ -72,7 +72,7 @@ func sendAlertNotifications(alert db.GetActiveAlertsByNodeAndMetricRow, alertMsg
 
 func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg float64) {
 	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
-		NodeID: nodeId,
+		NodeID: int64(nodeId),
 		Metric: "cpu",
 	})
 	if err != nil {
@@ -86,8 +86,8 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 	fmt.Println("Active alerts found", len(alerts))
 	for _, alert := range alerts {
 		if cpuAvg > alert.Threshold.Float64 {
-			fmt.Println("Cpu usage exceeded threshold for alert", alert.ID)
-			lastSendTime, ok := lastAlertSentTime[alert.ID]
+			fmt.Println("Cpu usage exceeded threshold for alert", int32(alert.ID))
+			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
 			if ok {
 				if time.Since(lastSendTime).Minutes() < float64(alert.Duration) {
 					fmt.Println("Alert already sent within last", alert.Duration, "minutes")
@@ -95,7 +95,7 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 				}
 			}
 
-			lastAlertSentTime[alert.ID] = time.Now()
+			lastAlertSentTime[int32(alert.ID)] = time.Now()
 			// send notifications to all configured channels
 			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
@@ -111,7 +111,7 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 
 func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage float64) {
 	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
-		NodeID: nodeId,
+		NodeID: int64(nodeId),
 		Metric: "mem",
 	})
 	if err != nil {
@@ -125,8 +125,8 @@ func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage
 	fmt.Println("Active alerts found", len(alerts))
 	for _, alert := range alerts {
 		if memUsage > alert.Threshold.Float64 {
-			fmt.Println("Memory usage exceeded threshold for alert", alert.ID)
-			lastSendTime, ok := lastAlertSentTime[alert.ID]
+			fmt.Println("Memory usage exceeded threshold for alert", int32(alert.ID))
+			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
 			if ok {
 				if time.Since(lastSendTime).Minutes() < float64(alert.Duration) {
 					fmt.Println("Alert already sent within last", alert.Duration, "minutes")
@@ -134,7 +134,7 @@ func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage
 				}
 			}
 
-			lastAlertSentTime[alert.ID] = time.Now()
+			lastAlertSentTime[int32(alert.ID)] = time.Now()
 			// send notifications to all configured channels
 			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
@@ -150,7 +150,7 @@ func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage
 
 func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend float64, netRecv float64) {
 	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
-		NodeID: nodeId,
+		NodeID: int64(nodeId),
 		Metric: "net",
 	})
 	if err != nil {
@@ -164,8 +164,8 @@ func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend
 	fmt.Println("Active alerts found", len(alerts))
 	for _, alert := range alerts {
 		if netSend > alert.Threshold.Float64 || netRecv > alert.Threshold.Float64 {
-			fmt.Println("Network usage exceeded threshold for alert", alert.ID)
-			lastSendTime, ok := lastAlertSentTime[alert.ID]
+			fmt.Println("Network usage exceeded threshold for alert", int32(alert.ID))
+			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
 			if ok {
 				if time.Since(lastSendTime).Minutes() < float64(alert.Duration) {
 					fmt.Println(" net Alert already sent within last", alert.Duration, "minutes")
@@ -173,7 +173,7 @@ func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend
 				}
 			}
 
-			lastAlertSentTime[alert.ID] = time.Now()
+			lastAlertSentTime[int32(alert.ID)] = time.Now()
 			// send notifications to all configured channels
 			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,

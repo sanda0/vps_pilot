@@ -50,8 +50,8 @@ func CreateNode(ctx context.Context, repo *db.Repo, ip string, data []byte) (*db
 			String: sysInfo.KernelVersion,
 			Valid:  true,
 		},
-		Cpus: sql.NullInt32{
-			Int32: int32(sysInfo.CPUs),
+		Cpus: sql.NullInt64{
+			Int64: int64(sysInfo.CPUs),
 			Valid: true,
 		},
 		TotalMemory: sql.NullFloat64{
@@ -72,53 +72,66 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 		err := sysStat.FromBytes(msg.Data)
 		if err != nil {
 			fmt.Println("Error unmarshalling system stat", err)
+			continue
 		}
-		// fmt.Println("Node", msg.NodeId)
-		// fmt.Println("time", time.Now())
 
 		fmt.Println("Net sent ps", sysStat.NetSentPS, "Net recv ps", sysStat.NetRecvPS)
 
-		var times []time.Time
-		var nodeIDs []int32
-		var statTypes []string
-		var cpuIDs []int32
-		var values []float64
+		now := time.Now().Unix() // Use Unix timestamp for SQLite
 
+		// Start transaction for batch insert
+		tx, err := repo.TimeseriesDB.Begin()
+		if err != nil {
+			fmt.Println("Error starting transaction:", err)
+			continue
+		}
+
+		// Insert CPU stats
 		for i, cpuUsage := range sysStat.CPUUsage {
-			times = append(times, time.Now())
-			nodeIDs = append(nodeIDs, msg.NodeId)
-			statTypes = append(statTypes, "cpu")
-			cpuIDs = append(cpuIDs, int32(i+1))
-			values = append(values, cpuUsage)
+			err = repo.TimeseriesQueries.WithTx(tx).InsertSystemStats(ctx, db.InsertSystemStatsParams{
+				Timestamp: now,
+				NodeID:    int64(msg.NodeId),
+				StatType:  "cpu",
+				CpuID:     sql.NullInt64{Int64: int64(i + 1), Valid: true},
+				Value:     cpuUsage,
+			})
+			if err != nil {
+				fmt.Println("Error inserting CPU stat:", err)
+				tx.Rollback()
+				break
+			}
 		}
-		times = append(times, time.Now())
-		nodeIDs = append(nodeIDs, msg.NodeId)
-		statTypes = append(statTypes, "mem")
-		cpuIDs = append(cpuIDs, 0)
-		values = append(values, sysStat.MemUsage)
 
-		err = repo.Queries.InsertSystemStats(ctx, db.InsertSystemStatsParams{
-			Column1: times,
-			Column2: nodeIDs,
-			Column3: statTypes,
-			Column4: cpuIDs,
-			Column5: values,
+		// Insert memory stat
+		err = repo.TimeseriesQueries.WithTx(tx).InsertSystemStats(ctx, db.InsertSystemStatsParams{
+			Timestamp: now,
+			NodeID:    int64(msg.NodeId),
+			StatType:  "mem",
+			CpuID:     sql.NullInt64{Int64: 0, Valid: true},
+			Value:     sysStat.MemUsage,
 		})
-
 		if err != nil {
-			fmt.Println("Error inserting system stats", err)
+			fmt.Println("Error inserting memory stat:", err)
+			tx.Rollback()
+			continue
 		}
 
-		err = repo.Queries.InsertNetStats(ctx, db.InsertNetStatsParams{
-			Time:   time.Now(),
-			NodeID: msg.NodeId,
-			Sent:   sysStat.NetSentPS,
-			Recv:   sysStat.NetRecvPS,
+		// Insert network stats
+		err = repo.TimeseriesQueries.WithTx(tx).InsertNetStats(ctx, db.InsertNetStatsParams{
+			Timestamp: now,
+			NodeID:    int64(msg.NodeId),
+			Sent:      sysStat.NetSentPS,
+			Recv:      sysStat.NetRecvPS,
 		})
-
 		if err != nil {
-			fmt.Println("Error inserting net stats", err)
+			fmt.Println("Error inserting net stats:", err)
+			tx.Rollback()
+			continue
 		}
 
+		// Commit transaction
+		if err := tx.Commit(); err != nil {
+			fmt.Println("Error committing transaction:", err)
+		}
 	}
 }

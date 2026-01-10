@@ -21,7 +21,7 @@ type userService struct {
 
 // Profile implements UserService.
 func (u *userService) Profile(id int32) (*db.User, error) {
-	user, err := u.repo.Queries.FindUserById(u.ctx, int32(id))
+	user, err := u.repo.Queries.FindUserById(u.ctx, int64(id))
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 	fmt.Println("user", user)
 
 	response := &dto.UserLoginResponseDto{
-		ID:       user.ID,
+		ID:       int32(user.ID),
 		Email:    user.Email,
 		Username: user.Username,
 	}

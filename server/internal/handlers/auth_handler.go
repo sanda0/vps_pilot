@@ -26,7 +26,7 @@ func (a *authHandler) Profile(c *gin.Context) {
 	}
 
 	userResponse := dto.UserLoginResponseDto{
-		ID:       user.ID,
+		ID:       int32(user.ID),
 		Email:    user.Email,
 		Username: user.Username,
 	}

@@ -26,29 +26,30 @@ type nodeService struct {
 func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDto, result chan dto.SystemStatResponseDto) {
 	for query := range queryParams {
 		fmt.Println("Query received", query)
-		node, err := n.repo.Queries.GetNodeWithSysInfo(n.ctx, query.ID)
+		node, err := n.repo.Queries.GetNodeWithSysInfo(n.ctx, int64(query.ID))
 		if err != nil {
 			fmt.Println("Error getting node", err)
 			continue
 		}
 
-		memStat, err := n.repo.Queries.GetSystemStats(n.ctx, db.GetSystemStatsParams{
-			NodeID:   query.ID,
+		// Convert timeRange from string to seconds (assuming it's a duration like "3600" for 1 hour)
+		timeRangeSeconds := parseTimeRangeToSeconds(query.TimeRange)
+
+		memStat, err := n.repo.TimeseriesQueries.GetSystemStats(n.ctx, db.GetSystemStatsParams{
+			NodeID:   int64(int64(query.ID)),
 			StatType: "mem",
-			Column4: sql.NullString{
-				String: query.TimeRange,
-				Valid:  true,
-			},
+			CpuID:    sql.NullInt64{Int64: 0, Valid: true},
+			Column4:  timeRangeSeconds,
 		})
 		if err != nil {
 			fmt.Println("Error getting mem stats", err)
 			continue
 		}
 
-		cpuStats, err := n.repo.Queries.GetCPUStats(n.ctx, db.GetCPUStatsParams{
+		cpuStats, err := n.repo.TimeseriesQueries.GetCPUStats(n.ctx, db.GetCPUStatsParams{
 			NodeID:    query.ID,
 			TimeRange: query.TimeRange,
-			CpuCount:  node.Cpus.Int32,
+			CpuCount:  int32(node.Cpus.Int64),
 		})
 
 		if err != nil {
@@ -56,12 +57,9 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			continue
 		}
 
-		netStat, err := n.repo.Queries.GetNetStats(n.ctx, db.GetNetStatsParams{
-			NodeID: query.ID,
-			Column2: sql.NullString{
-				String: query.TimeRange,
-				Valid:  true,
-			},
+		netStat, err := n.repo.TimeseriesQueries.GetNetStats(n.ctx, db.GetNetStatsParams{
+			NodeID:  int64(int64(query.ID)),
+			Column2: timeRangeSeconds,
 		})
 
 		if err != nil {
@@ -83,7 +81,7 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 
 // GetNode implements NodeService.
 func (n *nodeService) GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error) {
-	node, err := n.repo.Queries.GetNodeWithSysInfo(n.ctx, nodeId)
+	node, err := n.repo.Queries.GetNodeWithSysInfo(n.ctx, int64(nodeId))
 	if err != nil {
 		return db.GetNodeWithSysInfoRow{}, err
 	}
@@ -93,7 +91,7 @@ func (n *nodeService) GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error) {
 // UpdateName implements NodeService.
 func (n *nodeService) UpdateName(nodeId int32, name string) error {
 	err := n.repo.Queries.UpdateNodeName(n.ctx, db.UpdateNodeNameParams{
-		ID: nodeId,
+		ID: int64(nodeId),
 		Name: sql.NullString{
 			String: name,
 			Valid:  true,
@@ -113,8 +111,8 @@ func (n *nodeService) GetNodesWithSysInfo(search string, limit int32, page int32
 			String: search,
 			Valid:  true,
 		},
-		Limit:  limit,
-		Offset: offset,
+		Limit:  int64(limit),
+		Offset: int64(offset),
 	})
 	fmt.Println(nodes)
 	if err != nil {
@@ -133,4 +131,11 @@ func NewNodeService(ctx context.Context, repo *db.Repo) NodeService {
 		repo: repo,
 		ctx:  ctx,
 	}
+}
+
+// Helper function to convert time range string to seconds
+func parseTimeRangeToSeconds(timeRange string) int64 {
+	var seconds int64
+	fmt.Sscanf(timeRange, "%d", &seconds)
+	return seconds
 }

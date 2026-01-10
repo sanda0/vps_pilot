@@ -25,7 +25,7 @@ type alertService struct {
 
 // ActivateAlert implements AlertService.
 func (a *alertService) ActivateAlert(alertId int32) error {
-	err := a.repo.Queries.ActivateAlert(a.ctx, alertId)
+	err := a.repo.Queries.ActivateAlert(a.ctx, int64(alertId))
 	if err != nil {
 		return err
 	}
@@ -42,9 +42,9 @@ func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
 	// }
 
 	alert, err := a.repo.Queries.CreateAlert(a.ctx, db.CreateAlertParams{
-		NodeID:   dto.NodeID,
+		NodeID:   int64(dto.NodeID),
 		Metric:   dto.Metric,
-		Duration: dto.Duration,
+		Duration: int64(dto.Duration),
 		Threshold: sql.NullFloat64{
 			Float64: dto.Threshold,
 			Valid:   true,
@@ -58,8 +58,8 @@ func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
 			Valid:   true,
 		},
 		Email: sql.NullString{String: dto.Email, Valid: true},
-		IsActive: sql.NullBool{
-			Bool:  dto.Enabled,
+		IsActive: sql.NullInt64{
+			Int64: boolToInt64(dto.Enabled),
 			Valid: true,
 		},
 		SlackWebhook:   sql.NullString{String: dto.Slack, Valid: true},
@@ -73,7 +73,7 @@ func (a *alertService) CreateAlert(dto dto.AlertDto) (*db.Alert, error) {
 
 // DeactivateAlert implements AlertService.
 func (a *alertService) DeactivateAlert(alertId int32) error {
-	err := a.repo.Queries.DeactivateAlert(a.ctx, alertId)
+	err := a.repo.Queries.DeactivateAlert(a.ctx, int64(alertId))
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (a *alertService) DeactivateAlert(alertId int32) error {
 
 // DeleteAlert implements AlertService.
 func (a *alertService) DeleteAlert(alertId int32) error {
-	err := a.repo.Queries.DeleteAlert(a.ctx, alertId)
+	err := a.repo.Queries.DeleteAlert(a.ctx, int64(alertId))
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (a *alertService) DeleteAlert(alertId int32) error {
 
 // GetAlert implements AlertService.
 func (a *alertService) GetAlert(alertId int32) (*db.Alert, error) {
-	alert, err := a.repo.Queries.GetAlert(a.ctx, alertId)
+	alert, err := a.repo.Queries.GetAlert(a.ctx, int64(alertId))
 	if err != nil {
 		return nil, err
 	}
@@ -101,9 +101,9 @@ func (a *alertService) GetAlert(alertId int32) (*db.Alert, error) {
 // GetAlerts implements AlertService.
 func (a *alertService) GetAlerts(nodeId int32, limit int32, offset int32) ([]db.Alert, error) {
 	alerts, err := a.repo.Queries.GetAlerts(a.ctx, db.GetAlertsParams{
-		NodeID: nodeId,
-		Limit:  limit,
-		Offset: offset,
+		NodeID: int64(nodeId),
+		Limit:  int64(limit),
+		Offset: int64(offset),
 	})
 
 	if err != nil {
@@ -116,10 +116,10 @@ func (a *alertService) GetAlerts(nodeId int32, limit int32, offset int32) ([]db.
 func (a *alertService) UpdateAlert(dto dto.AlertUpdateDto) (*db.Alert, error) {
 
 	alert, err := a.repo.Queries.UpdateAlert(a.ctx, db.UpdateAlertParams{
-		ID:       dto.ID,
-		NodeID:   dto.NodeID,
+		ID:       int64(dto.ID),
+		NodeID:   int64(dto.NodeID),
 		Metric:   dto.Metric,
-		Duration: dto.Duration,
+		Duration: int64(dto.Duration),
 		Threshold: sql.NullFloat64{
 			Float64: dto.Threshold,
 			Valid:   true,
@@ -133,8 +133,8 @@ func (a *alertService) UpdateAlert(dto dto.AlertUpdateDto) (*db.Alert, error) {
 			Valid:   true,
 		},
 		Email: sql.NullString{String: dto.Email, Valid: true},
-		IsActive: sql.NullBool{
-			Bool:  dto.Enabled,
+		IsActive: sql.NullInt64{
+			Int64: boolToInt64(dto.Enabled),
 			Valid: true,
 		},
 		SlackWebhook:   sql.NullString{String: dto.Slack, Valid: true},
@@ -151,4 +151,12 @@ func NewAlertService(ctx context.Context, repo *db.Repo) AlertService {
 		repo: repo,
 		ctx:  ctx,
 	}
+}
+
+// Helper function to convert bool to int64 for SQLite
+func boolToInt64(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }

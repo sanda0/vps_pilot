@@ -59,7 +59,7 @@ func handleRequest(ctx context.Context, repo *db.Repo, conn net.Conn, statChan c
 			fmt.Println("Node connected", node)
 			err = encoder.Encode(Msg{
 				Msg:    "sys_stat",
-				NodeId: node.ID,
+				NodeId: int32(node.ID),
 			})
 			if err != nil {
 				fmt.Println("Error encoding message:", err)
