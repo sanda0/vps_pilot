@@ -1,7 +1,7 @@
 -- name: InsertNetStats :exec
-INSERT INTO net_stat (time, node_id, sent, recv) VALUES ($1, $2, $3, $4);
+INSERT INTO net_stat (timestamp, node_id, sent, recv) VALUES (?, ?, ?, ?);
 
 -- name: GetNetStats :many
-select time,sent,recv from net_stat ns
-where node_id = $1
-and time >= now() -  ($2||'')::interval;
+select timestamp, sent, recv from net_stat ns
+where node_id = ?
+and timestamp >= strftime('%s', 'now') - ?;

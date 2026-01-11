@@ -20,14 +20,14 @@ type NodeWithSysInfoDto struct {
 }
 
 func (n *NodeWithSysInfoDto) Convert(row *db.GetNodesWithSysInfoRow) {
-	n.ID = row.ID
+	n.ID = int32(row.ID)
 	n.Name = row.Name.String
 	n.Ip = row.Ip
 	n.Os = row.Os.String
 	n.Platform = row.Platform.String
 	n.PlatformVersion = row.PlatformVersion.String
 	n.KernelVersion = row.KernelVersion.String
-	n.Cpus = row.Cpus.Int32
+	n.Cpus = int32(row.Cpus.Int64)
 	n.TotalMemory = utils.BytesToGB(row.TotalMemory.Float64)
 }
 

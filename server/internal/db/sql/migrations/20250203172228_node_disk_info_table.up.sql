@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS node_disk_info (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   node_id INTEGER NOT NULL,
   device TEXT,
   mount_point TEXT,
   fstype TEXT,
-  total float,
-  used float,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  total REAL,
+  used REAL,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );

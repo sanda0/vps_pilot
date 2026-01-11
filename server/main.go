@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 	"github.com/sanda0/vps_pilot/cmd/app"
 	"github.com/sanda0/vps_pilot/cmd/cli"
 	"github.com/sanda0/vps_pilot/internal/db"
@@ -20,40 +18,67 @@ func main() {
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Warning: Error loading .env file, using environment variables")
 	}
 
-	//init db
-	con, err := sql.Open("postgres", fmt.Sprintf("dbname=%s password=%s user=%s host=%s sslmode=require",
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_HOST"),
-	))
-
-	if err != nil {
-		panic(err)
-	}
-
-	//init ctx
-	ctx := context.Background()
-	repo := db.NewRepo(con)
-
+	// Parse flags first
 	port := flag.String("port", "8080", "port to listen on")
 	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
 	createMakefile := flag.Bool("create-makefile", false, "create makefile")
+	migrate := flag.Bool("migrate", false, "run database migrations")
 	flag.Parse()
 
-	if *createSuperuser {
-		cli.CreateSuperuser(ctx, repo)
+	// Get database directory from environment or use default
+	dbDir := os.Getenv("DB_PATH")
+	if dbDir == "" {
+		// Use current directory by default
+		dbDir = "./data"
+	}
+
+	// Expand home directory if present
+	if dbDir[0] == '~' {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal("Failed to get home directory:", err)
+		}
+		dbDir = filepath.Join(homeDir, dbDir[1:])
+	}
+
+	// Handle migrate flag early
+	if *migrate {
+		if err := cli.RunMigrations(dbDir); err != nil {
+			log.Fatal("Migration failed:", err)
+		}
 		return
 	}
 
+	// Handle makefile creation early
 	if *createMakefile {
 		err := cli.CreateMakeFile()
 		if err != nil {
 			log.Fatal("Error creating Makefile")
 		}
+		return
+	}
+
+	// Initialize databases
+	log.Printf("Initializing databases in: %s\n", dbDir)
+	operationalDB, timeseriesDB, err := db.InitializeDatabases(dbDir)
+	if err != nil {
+		log.Fatal("Failed to initialize databases:", err)
+	}
+	defer operationalDB.Close()
+	defer timeseriesDB.Close()
+
+	//init ctx
+	ctx := context.Background()
+	repo := db.NewRepo(operationalDB, timeseriesDB)
+
+	//start retention policy service
+	go db.StartRetentionPolicyService(ctx, timeseriesDB)
+
+	if *createSuperuser {
+		cli.CreateSuperuser(ctx, repo)
 		return
 	}
 

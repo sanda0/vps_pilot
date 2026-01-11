@@ -1,1 +1,2 @@
- SELECT add_retention_policy('net_stat', INTERVAL '7 days');
+-- Retention policy will be handled by background service in Go
+-- This migration is kept for version consistency

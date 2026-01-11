@@ -11,6 +11,26 @@ import (
 	"github.com/sanda0/vps_pilot/internal/utils"
 )
 
+func RunMigrations(dbPath string) error {
+	if dbPath == "" {
+		dbPath = "./data"
+	}
+
+	fmt.Println("Running migrations...")
+	fmt.Printf("Database path: %s\n", dbPath)
+
+	// Initialize databases (this runs migrations automatically)
+	operationalDB, timeseriesDB, err := db.InitializeDatabases(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+	defer operationalDB.Close()
+	defer timeseriesDB.Close()
+
+	fmt.Println("✓ All migrations completed successfully")
+	return nil
+}
+
 func CreateSuperuser(ctx context.Context, repo *db.Repo) {
 
 	reader := bufio.NewReader(os.Stdin)
@@ -45,38 +65,82 @@ func CreateSuperuser(ctx context.Context, repo *db.Repo) {
 
 func CreateMakeFile() error {
 
-	// Get the database connection parameters from the environment variables or from the command line
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbName := os.Getenv("DB_NAME")
+	// Get the database path from the environment variable or use default
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./data"
+	}
+
+	operationalDB := dbPath + "/operational.db"
+	timeseriesDB := dbPath + "/timeseries.db"
 
 	fileContent := `
-migration:
-	@read -p "Enter migration name: " name; \
-		migrate create -ext sql -dir sql/migrations $$name
+# VPS Pilot Makefile
+# Database path: ` + dbPath + `
 
+# Run all migrations (uses built-in migration system)
 migrate:
-	migrate  -source file://sql/migrations \
-		-database ` + fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName) + ` up
+	go run main.go -migrate
 
-rollback:
-	migrate -source file://sql/migrations \
-		-database ` + fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName) + ` down
-
-drop:
-	migrate -source file://sql/migrations \
-		-database ` + fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName) + ` drop
-
+# Generate SQLC code
 sqlc:
 	sqlc generate
 
+# Build the server
+build:
+	go build -o vps_pilot_server main.go
 
-migratef:
-	@read -p "Enter migration number: " num; \
-	migrate -source file://sql/migrations \
-		-database ` + fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName) + ` force $$num
+# Run the server
+run:
+	go run main.go
+
+# Run the server with hot reload (requires air)
+dev:
+	air
+
+# Create superuser
+create-superuser:
+	go run main.go -create-superuser
+
+# Run tests
+test:
+	go test ./...
+
+# Run tests with coverage
+test-coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+
+# Clean build artifacts
+clean:
+	rm -f vps_pilot_server
+	rm -f coverage.out
+
+# Show database info
+db-info:
+	@echo "Operational DB: ` + operationalDB + `"
+	@echo "Timeseries DB: ` + timeseriesDB + `"
+	@ls -lh ` + dbPath + ` 2>/dev/null || echo "Database directory not found"
+
+# Backup databases
+backup:
+	@mkdir -p backups
+	@timestamp=$$(date +%Y%m%d_%H%M%S); \
+	cp ` + operationalDB + ` backups/operational_$$timestamp.db 2>/dev/null || true; \
+	cp ` + timeseriesDB + ` backups/timeseries_$$timestamp.db 2>/dev/null || true; \
+	echo "Backup created: backups/*_$$timestamp.db"
+
+# Remove databases (use with caution!)
+db-reset:
+	@read -p "Are you sure you want to delete all databases? [y/N] " confirm; \
+	if [ "$$confirm" = "y" ]; then \
+		rm -f ` + operationalDB + ` ` + timeseriesDB + `; \
+		echo "Databases deleted. Run 'make migrate' to recreate."; \
+	else \
+		echo "Cancelled."; \
+	fi
+
+.PHONY: migrate sqlc build run dev create-superuser test test-coverage clean db-info backup db-reset
 
 		`
 

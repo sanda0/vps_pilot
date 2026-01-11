@@ -1,1 +1,2 @@
-CREATE EXTENSION IF NOT EXISTS tablefunc;
+-- No extension needed for SQLite
+-- This migration is kept for version consistency

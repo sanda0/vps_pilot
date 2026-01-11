@@ -3,4 +3,8 @@ tmp
 
 web
 
-vps-pilot
+vps_pilot
+vps_pilot_server
+
+# SQLite database files
+data/

@@ -1,15 +1,15 @@
 CREATE TABLE IF NOT EXISTS alerts (
-  id SERIAL PRIMARY KEY,
-  node_id INT NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  node_id INTEGER NOT NULL,
   metric TEXT NOT NULL,
-  duration INT NOT NULL,
-  threshold float DEFAULT 0,
-  net_rece_threshold float DEFAULT 0,
-  net_send_threshold float DEFAULT 0,
-  email text,
-  discord_webhook text,
-  slack_webhook text,
-  is_active boolean DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+  duration INTEGER NOT NULL,
+  threshold REAL DEFAULT 0,
+  net_rece_threshold REAL DEFAULT 0,
+  net_send_threshold REAL DEFAULT 0,
+  email TEXT,
+  discord_webhook TEXT,
+  slack_webhook TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
