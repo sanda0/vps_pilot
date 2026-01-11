@@ -59,11 +59,10 @@ echo -e "${YELLOW}📁 Copying UI files to server...${NC}"
 cd ../server
 
 # Remove old embedded files if they exist
-rm -rf web/dist
-mkdir -p web
+rm -rf cmd/app/dist
 
-# Copy the built React app
-cp -r ../client/dist web/
+# Copy the built React app to cmd/app/dist for embedding
+cp -r ../client/dist cmd/app/
 
 echo -e "${GREEN}✅ UI files copied successfully${NC}"
 
@@ -71,9 +70,9 @@ echo -e "${GREEN}✅ UI files copied successfully${NC}"
 echo -e "${YELLOW}🔧 Building Go server with embedded UI...${NC}"
 
 # Build the Go binary
-go build -ldflags "-s -w" -o vps-pilot .
+go build -ldflags "-s -w" -o vps_pilot .
 
-if [ ! -f "vps-pilot" ]; then
+if [ ! -f "vps_pilot" ]; then
     echo -e "${RED}❌ Error: Go build failed${NC}"
     exit 1
 fi
@@ -83,13 +82,16 @@ echo -e "${GREEN}✅ Go server built successfully${NC}"
 # Step 4: Display success message
 echo ""
 echo -e "${GREEN}🎉 Build completed successfully!${NC}"
-echo -e "${GREEN}📁 Binary location: server/vps-pilot${NC}"
+echo -e "${GREEN}📁 Binary location: server/vps_pilot${NC}"
 echo ""
-echo -e "${YELLOW}📋 Usage:${NC}"
-echo "  cd server"
-echo "  ./vps-pilot --help"
+echo -e "${YELLOW}📋 Binary info:${NC}"
+echo "  Size: $(du -h vps_pilot | cut -f1)"
 echo ""
 echo -e "${YELLOW}🚀 To run the server:${NC}"
 echo "  cd server"
-echo "  ./vps-pilot"
+echo "  ./vps_pilot"
+echo ""
+echo -e "${YELLOW}🌐 Access:${NC}"
+echo "  Frontend: http://localhost:8000"
+echo "  API:      http://localhost:8000/api/v1"
 echo ""
