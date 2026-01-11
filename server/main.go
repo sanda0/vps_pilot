@@ -21,6 +21,13 @@ func main() {
 		log.Println("Warning: Error loading .env file, using environment variables")
 	}
 
+	// Parse flags first
+	port := flag.String("port", "8080", "port to listen on")
+	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
+	createMakefile := flag.Bool("create-makefile", false, "create makefile")
+	migrate := flag.Bool("migrate", false, "run database migrations")
+	flag.Parse()
+
 	// Get database directory from environment or use default
 	dbDir := os.Getenv("DB_PATH")
 	if dbDir == "" {
@@ -35,6 +42,23 @@ func main() {
 			log.Fatal("Failed to get home directory:", err)
 		}
 		dbDir = filepath.Join(homeDir, dbDir[1:])
+	}
+
+	// Handle migrate flag early
+	if *migrate {
+		if err := cli.RunMigrations(dbDir); err != nil {
+			log.Fatal("Migration failed:", err)
+		}
+		return
+	}
+
+	// Handle makefile creation early
+	if *createMakefile {
+		err := cli.CreateMakeFile()
+		if err != nil {
+			log.Fatal("Error creating Makefile")
+		}
+		return
 	}
 
 	// Initialize databases
@@ -53,21 +77,8 @@ func main() {
 	//start retention policy service
 	go db.StartRetentionPolicyService(ctx, timeseriesDB)
 
-	port := flag.String("port", "8080", "port to listen on")
-	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
-	createMakefile := flag.Bool("create-makefile", false, "create makefile")
-	flag.Parse()
-
 	if *createSuperuser {
 		cli.CreateSuperuser(ctx, repo)
-		return
-	}
-
-	if *createMakefile {
-		err := cli.CreateMakeFile()
-		if err != nil {
-			log.Fatal("Error creating Makefile")
-		}
 		return
 	}
 
