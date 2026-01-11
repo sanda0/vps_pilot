@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ButtonBar from "./button-bar";
 import { CpuChart } from "./cpu-chart";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MemoryChart } from "./memory-chart";
 import { NetworkChart } from "./netwrok-chart";
 import { useParams } from "react-router";
@@ -16,33 +16,45 @@ export default function MetricsTab() {
   const [cpuData, setCpuData] = useState<any>();
   const [node, setNode] = useState<NodeData | null>(null);
   const [networkData, setNetworkData] = useState<any>();
+  const wsRef = useRef<WebSocket | null>(null);
+  const timerRef = useRef<any>(null);
+  const timeRangeRef = useRef<string>(currentTimeRange);
 
+  // Keep timeRangeRef in sync with currentTimeRange
   useEffect(() => {
+    timeRangeRef.current = currentTimeRange;
+  }, [currentTimeRange]);
 
+  // Fetch node info once
+  useEffect(() => {
     api.get(`/nodes/${id}`).then((res) => {
       setNode(res.data.data)
     }).catch((err) => {
       console.error(err)
     })
+  }, [id]);
 
+  // WebSocket connection - create once per node
+  useEffect(() => {
     const ws = new WebSocket(`ws://localhost:8000/api/v1/nodes/ws/system-stat`);
-    let timer:any = null;
+    wsRef.current = ws;
   
     ws.onopen = () => {
       console.log('WebSocket connection opened');
-      ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+      // Send initial query
+      ws.send(JSON.stringify({ id: Number(id), time_range: timeRangeRef.current }));
   
       // Start timer after WebSocket is open
-      timer = setInterval(() => {
+      timerRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+          // Use ref to always get the latest time range
+          ws.send(JSON.stringify({ id: Number(id), time_range: timeRangeRef.current }));
         }
       }, 10000);
     };
   
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-
       setMemData(message.mem);
       setCpuData(message.cpu);
       setNetworkData(message.net);
@@ -54,14 +66,29 @@ export default function MetricsTab() {
   
     ws.onclose = () => {
       console.log('WebSocket connection closed');
-      clearInterval(timer); // Clear timer when connection closes
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
   
     return () => {
-      ws.close();
-      clearInterval(timer);
+      console.log('Cleaning up WebSocket');
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
-  }, [id, currentTimeRange]);
+  }, [id]); // Only reconnect if node ID changes
+
+  // Send new query immediately when time range changes
+  useEffect(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('Time range changed to:', currentTimeRange);
+      wsRef.current.send(JSON.stringify({ id: Number(id), time_range: currentTimeRange }));
+    }
+  }, [currentTimeRange, id]);
 
   return <>
     <div>
