@@ -21,15 +21,70 @@ type Migration struct {
 	IsApplied bool
 }
 
+// DatabaseType represents the type of database
+type DatabaseType string
+
+const (
+	OperationalDB DatabaseType = "operational"
+	TimeseriesDB  DatabaseType = "timeseries"
+)
+
+// MigrationConfig defines which migrations belong to which database
+type MigrationConfig struct {
+	// Patterns that indicate a migration belongs to timeseries DB
+	TimeseriesIncludePatterns []string
+	// Patterns to exclude from operational DB
+	OperationalExcludePatterns []string
+}
+
+// DefaultMigrationConfig returns the default migration separation configuration
+var DefaultMigrationConfig = MigrationConfig{
+	TimeseriesIncludePatterns: []string{
+		"system_stat",
+		"net_stat",
+	},
+	OperationalExcludePatterns: []string{
+		"retention_policy",
+		"enable_tablefunc",
+		"system_stat",
+		"net_stat",
+	},
+}
+
+// belongsToTimeseries checks if a migration belongs to timeseries DB
+func (c *MigrationConfig) belongsToTimeseries(migrationName string) bool {
+	for _, pattern := range c.TimeseriesIncludePatterns {
+		if strings.Contains(migrationName, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// belongsToOperational checks if a migration belongs to operational DB
+func (c *MigrationConfig) belongsToOperational(migrationName string) bool {
+	for _, pattern := range c.OperationalExcludePatterns {
+		if strings.Contains(migrationName, pattern) {
+			return false
+		}
+	}
+	return true
+}
+
 // RunMigrations executes all pending migrations on the given database
 func RunMigrations(db *sql.DB, dbType string) error {
+	return RunMigrationsWithConfig(db, dbType, &DefaultMigrationConfig)
+}
+
+// RunMigrationsWithConfig executes all pending migrations with a custom config
+func RunMigrationsWithConfig(db *sql.DB, dbType string, config *MigrationConfig) error {
 	// Create migrations table if it doesn't exist
 	if err := createMigrationsTable(db); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
 	// Get all migrations from embedded FS
-	migrations, err := loadMigrations(dbType)
+	migrations, err := loadMigrations(dbType, config)
 	if err != nil {
 		return fmt.Errorf("failed to load migrations: %w", err)
 	}
@@ -99,7 +154,7 @@ func createMigrationsTable(db *sql.DB) error {
 }
 
 // loadMigrations loads all migrations from embedded filesystem
-func loadMigrations(dbType string) ([]Migration, error) {
+func loadMigrations(dbType string, config *MigrationConfig) ([]Migration, error) {
 	entries, err := migrationsFS.ReadDir("sql/migrations")
 	if err != nil {
 		return nil, err
@@ -177,26 +232,17 @@ func loadMigrations(dbType string) ([]Migration, error) {
 		return migrations[i].Version < migrations[j].Version
 	})
 
-	// Filter migrations based on dbType
+	// Filter migrations based on dbType using config
 	var filteredMigrations []Migration
 	for _, migration := range migrations {
-		// Skip retention policy and extension migrations for operational DB
-		if dbType == "operational" {
-			if strings.Contains(migration.Name, "retention_policy") ||
-				strings.Contains(migration.Name, "enable_tablefunc") {
-				continue
-			}
-		}
-		// Only include time-series tables for timeseries DB
-		if dbType == "timeseries" {
-			if strings.Contains(migration.Name, "system_stat") ||
-				strings.Contains(migration.Name, "net_stat") {
+		if dbType == string(TimeseriesDB) {
+			// Only include migrations that belong to timeseries
+			if config.belongsToTimeseries(migration.Name) {
 				filteredMigrations = append(filteredMigrations, migration)
 			}
-		} else {
-			// For operational DB, exclude time-series tables
-			if !strings.Contains(migration.Name, "system_stat") &&
-				!strings.Contains(migration.Name, "net_stat") {
+		} else if dbType == string(OperationalDB) {
+			// Include migrations that belong to operational
+			if config.belongsToOperational(migration.Name) {
 				filteredMigrations = append(filteredMigrations, migration)
 			}
 		}
