@@ -86,9 +86,13 @@ migrate:
 sqlc:
 	sqlc generate
 
-# Build the server
+# Build the server only (no UI)
 build:
-	go build -o vps_pilot_server main.go
+	go build -o vps_pilot main.go
+
+# Build with embedded UI (requires frontend build first)
+build-full:
+	cd ../.. && ./build.sh
 
 # Run the server
 run:
@@ -113,8 +117,10 @@ test-coverage:
 
 # Clean build artifacts
 clean:
+	rm -f vps_pilot
 	rm -f vps_pilot_server
 	rm -f coverage.out
+	rm -rf cmd/app/dist
 
 # Show database info
 db-info:
@@ -140,7 +146,7 @@ db-reset:
 		echo "Cancelled."; \
 	fi
 
-.PHONY: migrate sqlc build run dev create-superuser test test-coverage clean db-info backup db-reset
+.PHONY: migrate sqlc build build-full run dev create-superuser test test-coverage clean db-info backup db-reset
 
 		`
 

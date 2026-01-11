@@ -2,6 +2,8 @@ tmp
 .env
 
 web
+cmd/app/dist/*
+!cmd/app/dist/.gitkeep
 
 vps_pilot
 vps_pilot_server

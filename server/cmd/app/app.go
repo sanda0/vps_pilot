@@ -2,6 +2,11 @@ package app
 
 import (
 	"context"
+	"embed"
+	"io/fs"
+	"log"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -11,6 +16,15 @@ import (
 	"github.com/sanda0/vps_pilot/internal/middleware"
 	"github.com/sanda0/vps_pilot/internal/services"
 )
+
+//go:embed all:dist
+var staticFiles embed.FS
+
+// hasEmbeddedUI checks if the UI files are embedded
+func hasEmbeddedUI() bool {
+	_, err := staticFiles.ReadDir("dist")
+	return err == nil
+}
 
 func Run(ctx context.Context, repo *db.Repo, port string) {
 
@@ -25,8 +39,10 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	alertHandler := handlers.NewAlertHandler(alertService)
 
 	server := gin.Default()
+
+	// CORS configuration - allow frontend origin in development
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // Change to specific domains in production
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8000"}, // Development + embedded
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -69,5 +85,84 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		}
 	}
 
+	// Serve embedded static files
+	serveEmbeddedFiles(server)
+
 	server.Run(":8000")
+}
+
+// serveEmbeddedFiles serves the embedded frontend files
+func serveEmbeddedFiles(router *gin.Engine) {
+	// Try to get the dist subdirectory from embedded FS
+	distFS, err := fs.Sub(staticFiles, "dist")
+	if err != nil {
+		log.Println("Warning: Failed to load embedded UI files. Frontend will not be available.")
+		log.Println("Run 'make build-ui' to build and embed the frontend.")
+		return
+	}
+
+	// Serve static files (JS, CSS, images, etc.)
+	router.GET("/assets/*filepath", func(c *gin.Context) {
+		filePath := strings.TrimPrefix(c.Param("filepath"), "/")
+		filePath = "assets/" + filePath
+		data, err := fs.ReadFile(distFS, filePath)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		// Set appropriate content type
+		contentType := getContentType(filePath)
+		c.Data(http.StatusOK, contentType, data)
+	})
+
+	// Serve favicon and other root files
+	router.GET("/favicon.ico", func(c *gin.Context) {
+		data, err := fs.ReadFile(distFS, "favicon.ico")
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Data(http.StatusOK, "image/x-icon", data)
+	})
+
+	// SPA fallback - serve index.html for all other routes (client-side routing)
+	router.NoRoute(func(c *gin.Context) {
+		// Don't serve index.html for API routes
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+
+		// Serve index.html for all other routes (SPA)
+		data, err := fs.ReadFile(distFS, "index.html")
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Failed to load frontend")
+			return
+		}
+		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+	})
+
+	log.Println("✓ Embedded UI loaded successfully")
+}
+
+// getContentType returns the appropriate content type based on file extension
+func getContentType(filename string) string {
+	if strings.HasSuffix(filename, ".js") {
+		return "application/javascript"
+	} else if strings.HasSuffix(filename, ".css") {
+		return "text/css"
+	} else if strings.HasSuffix(filename, ".json") {
+		return "application/json"
+	} else if strings.HasSuffix(filename, ".png") {
+		return "image/png"
+	} else if strings.HasSuffix(filename, ".jpg") || strings.HasSuffix(filename, ".jpeg") {
+		return "image/jpeg"
+	} else if strings.HasSuffix(filename, ".svg") {
+		return "image/svg+xml"
+	} else if strings.HasSuffix(filename, ".woff") {
+		return "font/woff"
+	} else if strings.HasSuffix(filename, ".woff2") {
+		return "font/woff2"
+	}
+	return "application/octet-stream"
 }
