@@ -97,7 +97,12 @@ VPS Pilot provides **Heroku-like simplicity** with Nix power under the hood:
     "command": "php artisan serve --host=0.0.0.0 --port=$PORT"
   },
   "env": {
-    "APP_ENV": "production"
+    "APP_ENV": "production",
+    "DB_HOST": "{{DB_HOST}}",
+    "DB_DATABASE": "{{DB_DATABASE}}",
+    "DB_USERNAME": "{{DB_USERNAME}}",
+    "DB_PASSWORD": "{{DB_PASSWORD}}",
+    "APP_KEY": "{{APP_KEY}}"
   },
   "database": {
     "type": "mysql",
@@ -105,6 +110,8 @@ VPS Pilot provides **Heroku-like simplicity** with Nix power under the hood:
   }
 }
 ```
+
+> **Note:** Use `{{VARIABLE_NAME}}` placeholders for sensitive values. Set actual values via the dashboard, and the agent will replace them during deployment.
 
 **Node.js API (Auto-generated Nix):**
 ```json
@@ -123,6 +130,12 @@ VPS Pilot provides **Heroku-like simplicity** with Nix power under the hood:
   },
   "start": {
     "command": "npm start"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "DATABASE_URL": "{{DATABASE_URL}}",
+    "JWT_SECRET": "{{JWT_SECRET}}",
+    "API_KEY": "{{API_KEY}}"
   },
   "healthcheck": {
     "url": "/health",
@@ -167,6 +180,12 @@ VPS Pilot provides **Heroku-like simplicity** with Nix power under the hood:
   },
   "start": {
     "command": "gunicorn myapp.wsgi:application --bind 0.0.0.0:$PORT"
+  },
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "myapp.settings",
+    "SECRET_KEY": "{{SECRET_KEY}}",
+    "DATABASE_URL": "{{DATABASE_URL}}",
+    "REDIS_URL": "{{REDIS_URL}}"
   }
 }
 ```
@@ -423,7 +442,10 @@ VPS Pilot includes pre-built Nix templates for common project types. Users just 
   
   "env": {
     "APP_ENV": "production",
-    "LOG_LEVEL": "info"
+    "LOG_LEVEL": "info",
+    "DB_PASSWORD": "{{DB_PASSWORD}}",
+    "API_KEY": "{{API_KEY}}",
+    "SECRET_KEY": "{{SECRET_KEY}}"
   },
   
   "resources": {
@@ -452,6 +474,49 @@ VPS Pilot includes pre-built Nix templates for common project types. Users just 
     "flake_file": "./custom-flake.nix"
   }
 }
+```
+
+#### Environment Variables Management
+
+**How It Works:**
+
+1. **Set in Dashboard (Web UI)**
+   - Navigate to Project Settings → Environment Variables
+   - Add key-value pairs (e.g., `DB_PASSWORD` = `mySecretPass123`)
+   - Mark sensitive variables (hidden in UI, encrypted in database)
+
+2. **Use Placeholders in Config**
+   ```json
+   "env": {
+     "DB_PASSWORD": "{{DB_PASSWORD}}",
+     "API_KEY": "{{API_KEY}}"
+   }
+   ```
+
+3. **Agent Deployment Process**
+   - Central server sends config + actual env var values to agent
+   - Agent replaces `{{PLACEHOLDERS}}` with real values
+   - Creates `.env` file in project directory
+   - Nix environment loads `.env` during startup
+
+**Benefits:**
+- ✅ **Secure**: Secrets never committed to Git
+- ✅ **Centralized**: Manage all secrets from dashboard
+- ✅ **Encrypted**: Sensitive values encrypted in operational database
+- ✅ **Per-Node**: Different values for dev/staging/prod
+- ✅ **Audit Trail**: Track who changed what and when
+
+**Example Dashboard UI:**
+```
+┌─────────────────────────────────────────┐
+│ Environment Variables                   │
+├─────────────────────────────────────────┤
+│ DB_PASSWORD    •••••••••  [Edit] [Del]  │
+│ API_KEY        •••••••••  [Edit] [Del]  │
+│ APP_ENV        production [Edit] [Del]  │
+│                                         │
+│ [+ Add Variable]                        │
+└─────────────────────────────────────────┘
 ```
 
 #### Benefits of Template-Based Nix Deployment

@@ -51,6 +51,8 @@ Topics covered:
 - Complete template library (Laravel, Node.js, Go, Python, etc.)
 - Template variable injection
 - Template selection logic
+- **Environment variables & secrets management**
+- Placeholder system for sensitive values
 - User experience walkthrough (no Nix knowledge needed!)
 - Custom template override for advanced users
 

@@ -675,23 +675,42 @@ func formatPythonVersion(version string) string {
   },
   "start": {
     "command": "php artisan serve --host=0.0.0.0 --port=$PORT"
+  },
+  "env": {
+    "APP_ENV": "production",
+    "DB_HOST": "{{DB_HOST}}",
+    "DB_DATABASE": "{{DB_DATABASE}}",
+    "DB_USERNAME": "{{DB_USERNAME}}",
+    "DB_PASSWORD": "{{DB_PASSWORD}}",
+    "APP_KEY": "{{APP_KEY}}"
   }
 }
 ```
 
-**2. User pushes to GitHub**
+**2. User sets environment variables in VPS Pilot Dashboard:**
+- Navigate to Project Settings → Environment Variables
+- Add `DB_HOST` = `localhost`
+- Add `DB_DATABASE` = `production_db`
+- Add `DB_USERNAME` = `dbuser`
+- Add `DB_PASSWORD` = `super_secret_123` (marked as sensitive)
+- Add `APP_KEY` = `base64:abc123...` (marked as sensitive)
 
-**3. VPS Pilot deploys:**
+**3. User pushes to GitHub**
+
+**4. VPS Pilot deploys:**
 - Agent clones repo
 - Reads `config.vpspilot.json`
+- Receives actual env var values from central server (encrypted in transit)
 - Sees `type: "laravel"`
 - Loads `laravel.nix.tmpl`
 - Injects: PHP 8.2, Node 20
 - Generates `flake.nix` automatically
+- Replaces `{{DB_PASSWORD}}` with actual value
+- Creates `.env` file with real secrets
 - Builds with Nix
 - Starts app
 
-**4. Done! No Nix knowledge needed!**
+**5. Done! No Nix knowledge needed, secrets are secure!**
 
 ---
 
@@ -721,6 +740,219 @@ The agent will use the user's custom `flake.nix` instead of a template.
 ✅ **Escape hatch** for advanced users (custom flakes)  
 ✅ **Consistent** environments across all nodes  
 ✅ **Version flexibility** - each project can use different versions  
+✅ **Secure secrets management** - environment variables encrypted and managed via dashboard  
+
+---
+
+## Environment Variables & Secrets Management
+
+### How It Works
+
+VPS Pilot uses a **placeholder-based approach** for managing sensitive environment variables:
+
+1. **User adds placeholders** in `config.vpspilot.json`:
+   ```json
+   "env": {
+     "DB_PASSWORD": "{{DB_PASSWORD}}",
+     "API_KEY": "{{API_KEY}}"
+   }
+   ```
+
+2. **User sets actual values** in VPS Pilot Dashboard:
+   - Project Settings → Environment Variables
+   - Values are encrypted in operational database
+   - Sensitive values are hidden in UI
+
+3. **Agent receives both** during deployment:
+   - `config.vpspilot.json` (with placeholders)
+   - Actual env var values (encrypted in transit)
+
+4. **Agent creates `.env` file**:
+   ```bash
+   # Agent replaces placeholders with real values
+   DB_PASSWORD=super_secret_123
+   API_KEY=sk_live_abc123xyz
+   ```
+
+### Database Schema
+
+```sql
+-- Environment variables table
+CREATE TABLE project_env_vars (
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,  -- Encrypted with AES-256
+  is_sensitive BOOLEAN DEFAULT false,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP,
+  updated_by INTEGER,  -- User ID
+  FOREIGN KEY (project_id) REFERENCES projects(id),
+  UNIQUE(project_id, key)
+);
+```
+
+### Dashboard UI Workflow
+
+```
+Project Settings → Environment Variables
+┌─────────────────────────────────────────────────┐
+│ Add Environment Variable                        │
+├─────────────────────────────────────────────────┤
+│ Key:   [DB_PASSWORD              ]              │
+│ Value: [•••••••••••••             ] 👁️ Show     │
+│ Type:  [x] Sensitive   [ ] Public               │
+│                                                  │
+│        [Add Variable]                           │
+└─────────────────────────────────────────────────┘
+
+Existing Variables:
+┌─────────────────────────────────────────────────┐
+│ DB_HOST        localhost      [Edit] [Delete]   │
+│ DB_DATABASE    production_db  [Edit] [Delete]   │
+│ DB_USERNAME    dbuser          [Edit] [Delete]   │
+│ DB_PASSWORD    •••••••••••     [Edit] [Delete]   │
+│ API_KEY        •••••••••••     [Edit] [Delete]   │
+│ APP_ENV        production      [Edit] [Delete]   │
+└─────────────────────────────────────────────────┘
+```
+
+### Deployment Message Flow
+
+```go
+// Central server sends to agent
+type DeployCommand struct {
+    Action    string            `json:"action"`
+    ProjectID int64             `json:"project_id"`
+    RepoURL   string            `json:"repo_url"`
+    Branch    string            `json:"branch"`
+    Commit    string            `json:"commit"`
+    Config    ProjectConfig     `json:"config"`  // config.vpspilot.json
+    EnvVars   map[string]string `json:"env_vars"` // Actual values
+}
+
+// Agent receives and processes
+func (a *Agent) Deploy(cmd DeployCommand) error {
+    // 1. Clone repository
+    repo := cloneRepository(cmd.RepoURL, cmd.Branch, cmd.Commit)
+    
+    // 2. Read config.vpspilot.json
+    config := parseConfig(repo)
+    
+    // 3. Replace placeholders in config.env with actual values
+    envFile := createEnvFile(config.Env, cmd.EnvVars)
+    
+    // 4. Generate flake.nix from template
+    flake := generateFlake(config, envFile)
+    
+    // 5. Build with Nix
+    nixBuild(flake)
+    
+    // 6. Start service
+    startService(config)
+}
+
+func createEnvFile(configEnv map[string]string, actualEnv map[string]string) string {
+    var envContent strings.Builder
+    
+    for key, value := range configEnv {
+        // Replace {{PLACEHOLDER}} with actual value
+        if strings.HasPrefix(value, "{{") && strings.HasSuffix(value, "}}") {
+            placeholder := strings.Trim(value, "{}")
+            if actualValue, ok := actualEnv[placeholder]; ok {
+                envContent.WriteString(fmt.Sprintf("%s=%s\n", key, actualValue))
+            }
+        } else {
+            // Use value as-is (not a placeholder)
+            envContent.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+        }
+    }
+    
+    return envContent.String()
+}
+```
+
+### Security Considerations
+
+1. **Encryption at Rest**
+   - Sensitive env vars encrypted in operational database
+   - AES-256-GCM encryption
+   - Separate encryption key per installation
+
+2. **Encryption in Transit**
+   - TLS for all communication (server ↔ agent)
+   - Env vars sent over encrypted TCP connection
+
+3. **Access Control**
+   - Only project owners can view/edit env vars
+   - Audit log for all changes
+   - Sensitive vars never shown in logs
+
+4. **Git Safety**
+   - Placeholders in `config.vpspilot.json` are safe to commit
+   - Actual secrets never touch Git repository
+   - `.env` files in `.gitignore` by default
+
+### Example: Complete Laravel Deployment
+
+**In Repository (`config.vpspilot.json`):**
+```json
+{
+  "name": "Laravel App",
+  "type": "laravel",
+  "runtime": { "php": "8.2", "node": "20" },
+  "env": {
+    "APP_NAME": "MyApp",
+    "APP_ENV": "production",
+    "APP_KEY": "{{APP_KEY}}",
+    "DB_CONNECTION": "mysql",
+    "DB_HOST": "{{DB_HOST}}",
+    "DB_PORT": "3306",
+    "DB_DATABASE": "{{DB_DATABASE}}",
+    "DB_USERNAME": "{{DB_USERNAME}}",
+    "DB_PASSWORD": "{{DB_PASSWORD}}",
+    "REDIS_HOST": "{{REDIS_HOST}}",
+    "REDIS_PASSWORD": "{{REDIS_PASSWORD}}",
+    "MAIL_HOST": "{{MAIL_HOST}}",
+    "MAIL_USERNAME": "{{MAIL_USERNAME}}",
+    "MAIL_PASSWORD": "{{MAIL_PASSWORD}}"
+  }
+}
+```
+
+**In VPS Pilot Dashboard (Encrypted):**
+```
+APP_KEY         = base64:abc123xyz...
+DB_HOST         = localhost
+DB_DATABASE     = production_db
+DB_USERNAME     = dbuser
+DB_PASSWORD     = super_secret_pass_123
+REDIS_HOST      = localhost
+REDIS_PASSWORD  = redis_pass_456
+MAIL_HOST       = smtp.gmail.com
+MAIL_USERNAME   = noreply@myapp.com
+MAIL_PASSWORD   = gmail_app_password_789
+```
+
+**Generated `.env` on Node:**
+```bash
+APP_NAME=MyApp
+APP_ENV=production
+APP_KEY=base64:abc123xyz...
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=production_db
+DB_USERNAME=dbuser
+DB_PASSWORD=super_secret_pass_123
+REDIS_HOST=localhost
+REDIS_PASSWORD=redis_pass_456
+MAIL_HOST=smtp.gmail.com
+MAIL_USERNAME=noreply@myapp.com
+MAIL_PASSWORD=gmail_app_password_789
+```
+
+**Result:** Secure deployment with no secrets in Git! 🔒
 
 ---
 

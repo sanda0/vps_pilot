@@ -187,9 +187,106 @@ For complete template reference and examples, see [NIX_TEMPLATES.md](NIX_TEMPLAT
 3. **Environment Setup**: Nix reads `flake.nix` and builds environment
 4. **Dependency Resolution**: Nix downloads and builds all dependencies
 5. **Build**: Project is built within Nix environment
-6. **Service Creation**: Systemd service is created/updated
-7. **Health Check**: Application is verified to be running
-8. **Status Report**: Agent reports back to central server
+6. **Environment Variables**: Agent creates `.env` file from dashboard secrets
+7. **Service Creation**: Systemd service is created/updated
+8. **Health Check**: Application is verified to be running
+9. **Status Report**: Agent reports back to central server
+
+---
+
+## Environment Variables & Secrets
+
+### Placeholder System
+
+VPS Pilot uses placeholders in `config.vpspilot.json` for sensitive values:
+
+```json
+{
+  "env": {
+    "APP_ENV": "production",
+    "DB_PASSWORD": "{{DB_PASSWORD}}",
+    "API_KEY": "{{API_KEY}}"
+  }
+}
+```
+
+### Dashboard Management
+
+1. **User sets actual values** in web dashboard
+2. **Values encrypted** in operational database (AES-256)
+3. **Central server sends** encrypted values to agent during deployment
+4. **Agent replaces placeholders** and creates `.env` file
+
+### Security Flow
+
+```
+┌─────────────────────────────────────────────────────┐
+│           VPS Pilot Dashboard (Web UI)              │
+│                                                      │
+│  User Sets Environment Variables:                   │
+│  ┌────────────────────────────────────────────┐    │
+│  │ DB_PASSWORD = super_secret_123 🔒         │    │
+│  │ API_KEY     = sk_live_abc123... 🔒        │    │
+│  └────────────────────────────────────────────┘    │
+│                      │                              │
+│                      │ Encrypt with AES-256         │
+│                      ▼                              │
+│  ┌────────────────────────────────────────────┐    │
+│  │      Operational Database (Encrypted)      │    │
+│  │                                            │    │
+│  │  project_env_vars:                         │    │
+│  │  | key         | value (encrypted)      |  │    │
+│  │  | DB_PASSWORD | U2FsdGVkX1... (cipher)|  │    │
+│  │  | API_KEY     | U2FsdGVkX1... (cipher)|  │    │
+│  └────────────────────────────────────────────┘    │
+└──────────────────────┬──────────────────────────────┘
+                       │
+                       │ Deployment Command
+                       │ (Decrypted + TLS)
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│                  Node Agent                         │
+│                                                      │
+│  Receives:                                          │
+│  {                                                  │
+│    "config": {                                      │
+│      "env": {                                       │
+│        "DB_PASSWORD": "{{DB_PASSWORD}}"             │
+│      }                                              │
+│    },                                               │
+│    "env_vars": {                                    │
+│      "DB_PASSWORD": "super_secret_123"  ← Actual    │
+│    }                                                │
+│  }                                                  │
+│                      │                              │
+│                      ▼                              │
+│  ┌────────────────────────────────────────────┐    │
+│  │  Create .env file:                         │    │
+│  │                                            │    │
+│  │  DB_PASSWORD=super_secret_123              │    │
+│  │  API_KEY=sk_live_abc123...                 │    │
+│  │                                            │    │
+│  │  Permissions: 600 (owner read/write only)  │    │
+│  └────────────────────────────────────────────┘    │
+│                      │                              │
+│                      ▼                              │
+│  ┌────────────────────────────────────────────┐    │
+│  │  Nix environment loads .env                │    │
+│  │  Application starts with secrets           │    │
+│  └────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
+```
+
+### Benefits
+
+- ✅ **Git-safe**: Placeholders in repo, secrets in database
+- ✅ **Encrypted**: AES-256 at rest, TLS in transit
+- ✅ **Centralized**: Manage all secrets from one place
+- ✅ **Per-node**: Different secrets for dev/staging/prod
+- ✅ **Audit trail**: Track all changes to env vars
+- ✅ **Access control**: Only authorized users can view/edit
+
+For complete details, see [NIX_TEMPLATES.md - Environment Variables](NIX_TEMPLATES.md#environment-variables--secrets-management).
 
 ---
 
