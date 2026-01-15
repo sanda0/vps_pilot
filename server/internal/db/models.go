@@ -64,6 +64,20 @@ type NodeSysInfo struct {
 	UpdatedAt       int64           `json:"updated_at"`
 }
 
+type Project struct {
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	Description    sql.NullString `json:"description"`
+	NodeID         int64          `json:"node_id"`
+	RepoUrl        sql.NullString `json:"repo_url"`
+	Branch         sql.NullString `json:"branch"`
+	DeployPath     string         `json:"deploy_path"`
+	Status         sql.NullString `json:"status"`
+	LastDeployedAt sql.NullInt64  `json:"last_deployed_at"`
+	CreatedAt      int64          `json:"created_at"`
+	UpdatedAt      int64          `json:"updated_at"`
+}
+
 type SystemStat struct {
 	Timestamp int64         `json:"timestamp"`
 	NodeID    int64         `json:"node_id"`
@@ -73,10 +87,11 @@ type SystemStat struct {
 }
 
 type User struct {
-	ID           int64         `json:"id"`
-	Username     string        `json:"username"`
-	Email        string        `json:"email"`
-	PasswordHash string        `json:"password_hash"`
-	CreatedAt    sql.NullInt64 `json:"created_at"`
-	UpdatedAt    sql.NullInt64 `json:"updated_at"`
+	ID           int64          `json:"id"`
+	Username     string         `json:"username"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	CreatedAt    sql.NullInt64  `json:"created_at"`
+	UpdatedAt    sql.NullInt64  `json:"updated_at"`
+	GithubToken  sql.NullString `json:"github_token"`
 }

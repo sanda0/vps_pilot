@@ -32,11 +32,14 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	userService := services.NewUserService(ctx, repo)
 	nodeService := services.NewNodeService(ctx, repo)
 	alertService := services.NewAlertService(ctx, repo)
+	projectService := services.NewProjectService(repo, ctx)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
 	nodeHander := handlers.NewNodeHandler(nodeService)
 	alertHandler := handlers.NewAlertHandler(alertService)
+	projectHandler := handlers.NewProjectHandler(projectService)
+	githubHandler := handlers.NewGitHubHandler(userService)
 
 	server := gin.Default()
 
@@ -65,13 +68,23 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	dashbaord.Use(middleware.JwtAuthMiddleware())
 	{
 		dashbaord.GET("/profile", userHandler.Profile)
+
+		// GitHub integration routes
+		github := dashbaord.Group("/github")
+		{
+			github.POST("/token", githubHandler.SaveToken)
+			github.GET("/repos", githubHandler.GetRepos)
+			github.GET("/status", githubHandler.GetStatus)
+			github.DELETE("/token", githubHandler.DeleteToken)
+		}
+
 		nodes := dashbaord.Group("/nodes")
 		{
 			nodes.GET("", nodeHander.GetNodes)
 			nodes.PUT("/change-name", nodeHander.UpdateName)
 			nodes.GET("/:id", nodeHander.GetNode)
 			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
-
+			nodes.GET("/:id/projects", projectHandler.ListProjectsByNode)
 		}
 		alerts := dashbaord.Group("/alerts")
 		{
@@ -82,6 +95,14 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 			alerts.PUT("/deactivate", alertHandler.DeactivateAlert)
 			alerts.DELETE("/:id", alertHandler.DeleteAlert)
 			alerts.PUT("", alertHandler.UpdateAlert)
+		}
+		projects := dashbaord.Group("/projects")
+		{
+			projects.POST("", projectHandler.CreateProject)
+			projects.GET("", projectHandler.ListProjects)
+			projects.GET("/:id", projectHandler.GetProject)
+			projects.PUT("/:id", projectHandler.UpdateProject)
+			projects.DELETE("/:id", projectHandler.DeleteProject)
 		}
 	}
 
