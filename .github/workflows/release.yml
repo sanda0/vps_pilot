@@ -45,10 +45,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '20'
+          bun-version: latest
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -57,11 +57,11 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: ./client
-        run: npm install
+        run: bun install
 
       - name: Build frontend
         working-directory: ./client
-        run: npm run build
+        run: bun run build
 
       - name: Copy frontend to server
         run: |
