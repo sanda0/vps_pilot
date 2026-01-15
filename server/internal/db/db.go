@@ -33,11 +33,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.addNodeSysInfoStmt, err = db.PrepareContext(ctx, addNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query AddNodeSysInfo: %w", err)
 	}
+	if q.countProjectsStmt, err = db.PrepareContext(ctx, countProjects); err != nil {
+		return nil, fmt.Errorf("error preparing query CountProjects: %w", err)
+	}
+	if q.countProjectsByNodeStmt, err = db.PrepareContext(ctx, countProjectsByNode); err != nil {
+		return nil, fmt.Errorf("error preparing query CountProjectsByNode: %w", err)
+	}
 	if q.createAlertStmt, err = db.PrepareContext(ctx, createAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAlert: %w", err)
 	}
 	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
+	}
+	if q.createProjectStmt, err = db.PrepareContext(ctx, createProject); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateProject: %w", err)
 	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
@@ -50,6 +59,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteNodeStmt, err = db.PrepareContext(ctx, deleteNode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteNode: %w", err)
+	}
+	if q.deleteProjectStmt, err = db.PrepareContext(ctx, deleteProject); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteProject: %w", err)
 	}
 	if q.findUserByEmailStmt, err = db.PrepareContext(ctx, findUserByEmail); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserByEmail: %w", err)
@@ -90,6 +102,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodesWithSysInfoStmt, err = db.PrepareContext(ctx, getNodesWithSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodesWithSysInfo: %w", err)
 	}
+	if q.getProjectStmt, err = db.PrepareContext(ctx, getProject); err != nil {
+		return nil, fmt.Errorf("error preparing query GetProject: %w", err)
+	}
+	if q.getProjectWithNodeStmt, err = db.PrepareContext(ctx, getProjectWithNode); err != nil {
+		return nil, fmt.Errorf("error preparing query GetProjectWithNode: %w", err)
+	}
 	if q.getSystemStatsStmt, err = db.PrepareContext(ctx, getSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSystemStats: %w", err)
 	}
@@ -98,6 +116,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
+	}
+	if q.listProjectsStmt, err = db.PrepareContext(ctx, listProjects); err != nil {
+		return nil, fmt.Errorf("error preparing query ListProjects: %w", err)
+	}
+	if q.listProjectsByNodeStmt, err = db.PrepareContext(ctx, listProjectsByNode); err != nil {
+		return nil, fmt.Errorf("error preparing query ListProjectsByNode: %w", err)
+	}
+	if q.listProjectsWithNodesStmt, err = db.PrepareContext(ctx, listProjectsWithNodes); err != nil {
+		return nil, fmt.Errorf("error preparing query ListProjectsWithNodes: %w", err)
 	}
 	if q.updateAlertStmt, err = db.PrepareContext(ctx, updateAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAlert: %w", err)
@@ -113,6 +140,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.updateNodeSysInfoStmt, err = db.PrepareContext(ctx, updateNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNodeSysInfo: %w", err)
+	}
+	if q.updateProjectStmt, err = db.PrepareContext(ctx, updateProject); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateProject: %w", err)
+	}
+	if q.updateProjectLastDeployedStmt, err = db.PrepareContext(ctx, updateProjectLastDeployed); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateProjectLastDeployed: %w", err)
+	}
+	if q.updateProjectStatusStmt, err = db.PrepareContext(ctx, updateProjectStatus); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateProjectStatus: %w", err)
 	}
 	return &q, nil
 }
@@ -134,6 +170,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing addNodeSysInfoStmt: %w", cerr)
 		}
 	}
+	if q.countProjectsStmt != nil {
+		if cerr := q.countProjectsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countProjectsStmt: %w", cerr)
+		}
+	}
+	if q.countProjectsByNodeStmt != nil {
+		if cerr := q.countProjectsByNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countProjectsByNodeStmt: %w", cerr)
+		}
+	}
 	if q.createAlertStmt != nil {
 		if cerr := q.createAlertStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createAlertStmt: %w", cerr)
@@ -142,6 +188,11 @@ func (q *Queries) Close() error {
 	if q.createNodeStmt != nil {
 		if cerr := q.createNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
+		}
+	}
+	if q.createProjectStmt != nil {
+		if cerr := q.createProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createProjectStmt: %w", cerr)
 		}
 	}
 	if q.createUserStmt != nil {
@@ -162,6 +213,11 @@ func (q *Queries) Close() error {
 	if q.deleteNodeStmt != nil {
 		if cerr := q.deleteNodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteNodeStmt: %w", cerr)
+		}
+	}
+	if q.deleteProjectStmt != nil {
+		if cerr := q.deleteProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteProjectStmt: %w", cerr)
 		}
 	}
 	if q.findUserByEmailStmt != nil {
@@ -229,6 +285,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNodesWithSysInfoStmt: %w", cerr)
 		}
 	}
+	if q.getProjectStmt != nil {
+		if cerr := q.getProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getProjectStmt: %w", cerr)
+		}
+	}
+	if q.getProjectWithNodeStmt != nil {
+		if cerr := q.getProjectWithNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getProjectWithNodeStmt: %w", cerr)
+		}
+	}
 	if q.getSystemStatsStmt != nil {
 		if cerr := q.getSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getSystemStatsStmt: %w", cerr)
@@ -242,6 +308,21 @@ func (q *Queries) Close() error {
 	if q.insertSystemStatsStmt != nil {
 		if cerr := q.insertSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertSystemStatsStmt: %w", cerr)
+		}
+	}
+	if q.listProjectsStmt != nil {
+		if cerr := q.listProjectsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listProjectsStmt: %w", cerr)
+		}
+	}
+	if q.listProjectsByNodeStmt != nil {
+		if cerr := q.listProjectsByNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listProjectsByNodeStmt: %w", cerr)
+		}
+	}
+	if q.listProjectsWithNodesStmt != nil {
+		if cerr := q.listProjectsWithNodesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listProjectsWithNodesStmt: %w", cerr)
 		}
 	}
 	if q.updateAlertStmt != nil {
@@ -267,6 +348,21 @@ func (q *Queries) Close() error {
 	if q.updateNodeSysInfoStmt != nil {
 		if cerr := q.updateNodeSysInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateNodeSysInfoStmt: %w", cerr)
+		}
+	}
+	if q.updateProjectStmt != nil {
+		if cerr := q.updateProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateProjectStmt: %w", cerr)
+		}
+	}
+	if q.updateProjectLastDeployedStmt != nil {
+		if cerr := q.updateProjectLastDeployedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateProjectLastDeployedStmt: %w", cerr)
+		}
+	}
+	if q.updateProjectStatusStmt != nil {
+		if cerr := q.updateProjectStatusStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateProjectStatusStmt: %w", cerr)
 		}
 	}
 	return err
@@ -311,12 +407,16 @@ type Queries struct {
 	activateAlertStmt                  *sql.Stmt
 	addNodeDiskInfoStmt                *sql.Stmt
 	addNodeSysInfoStmt                 *sql.Stmt
+	countProjectsStmt                  *sql.Stmt
+	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
 	createNodeStmt                     *sql.Stmt
+	createProjectStmt                  *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	deactivateAlertStmt                *sql.Stmt
 	deleteAlertStmt                    *sql.Stmt
 	deleteNodeStmt                     *sql.Stmt
+	deleteProjectStmt                  *sql.Stmt
 	findUserByEmailStmt                *sql.Stmt
 	findUserByIdStmt                   *sql.Stmt
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
@@ -330,14 +430,22 @@ type Queries struct {
 	getNodeWithSysInfoStmt             *sql.Stmt
 	getNodesStmt                       *sql.Stmt
 	getNodesWithSysInfoStmt            *sql.Stmt
+	getProjectStmt                     *sql.Stmt
+	getProjectWithNodeStmt             *sql.Stmt
 	getSystemStatsStmt                 *sql.Stmt
 	insertNetStatsStmt                 *sql.Stmt
 	insertSystemStatsStmt              *sql.Stmt
+	listProjectsStmt                   *sql.Stmt
+	listProjectsByNodeStmt             *sql.Stmt
+	listProjectsWithNodesStmt          *sql.Stmt
 	updateAlertStmt                    *sql.Stmt
 	updateNodeStmt                     *sql.Stmt
 	updateNodeDiskInfoStmt             *sql.Stmt
 	updateNodeNameStmt                 *sql.Stmt
 	updateNodeSysInfoStmt              *sql.Stmt
+	updateProjectStmt                  *sql.Stmt
+	updateProjectLastDeployedStmt      *sql.Stmt
+	updateProjectStatusStmt            *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -347,12 +455,16 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		activateAlertStmt:                  q.activateAlertStmt,
 		addNodeDiskInfoStmt:                q.addNodeDiskInfoStmt,
 		addNodeSysInfoStmt:                 q.addNodeSysInfoStmt,
+		countProjectsStmt:                  q.countProjectsStmt,
+		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
 		createNodeStmt:                     q.createNodeStmt,
+		createProjectStmt:                  q.createProjectStmt,
 		createUserStmt:                     q.createUserStmt,
 		deactivateAlertStmt:                q.deactivateAlertStmt,
 		deleteAlertStmt:                    q.deleteAlertStmt,
 		deleteNodeStmt:                     q.deleteNodeStmt,
+		deleteProjectStmt:                  q.deleteProjectStmt,
 		findUserByEmailStmt:                q.findUserByEmailStmt,
 		findUserByIdStmt:                   q.findUserByIdStmt,
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
@@ -366,13 +478,21 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodeWithSysInfoStmt:             q.getNodeWithSysInfoStmt,
 		getNodesStmt:                       q.getNodesStmt,
 		getNodesWithSysInfoStmt:            q.getNodesWithSysInfoStmt,
+		getProjectStmt:                     q.getProjectStmt,
+		getProjectWithNodeStmt:             q.getProjectWithNodeStmt,
 		getSystemStatsStmt:                 q.getSystemStatsStmt,
 		insertNetStatsStmt:                 q.insertNetStatsStmt,
 		insertSystemStatsStmt:              q.insertSystemStatsStmt,
+		listProjectsStmt:                   q.listProjectsStmt,
+		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
+		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
 		updateAlertStmt:                    q.updateAlertStmt,
 		updateNodeStmt:                     q.updateNodeStmt,
 		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,
 		updateNodeNameStmt:                 q.updateNodeNameStmt,
 		updateNodeSysInfoStmt:              q.updateNodeSysInfoStmt,
+		updateProjectStmt:                  q.updateProjectStmt,
+		updateProjectLastDeployedStmt:      q.updateProjectLastDeployedStmt,
+		updateProjectStatusStmt:            q.updateProjectStatusStmt,
 	}
 }
