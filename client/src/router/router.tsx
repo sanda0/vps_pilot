@@ -9,6 +9,7 @@ import ProjectsListPage from "@/pages/projects";
 import CreateProjectPage from "@/pages/projects/create";
 import ProjectDetailsPage from "@/pages/projects/[id]";
 import EditProjectPage from "@/pages/projects/[id]/edit";
+import GitHubSettings from "@/pages/settings/github";
 
 
 const router = createBrowserRouter(
@@ -25,6 +26,8 @@ const router = createBrowserRouter(
           <Route path="projects/create" element={<CreateProjectPage></CreateProjectPage>} ></Route>
           <Route path="projects/:id" element={<ProjectDetailsPage></ProjectDetailsPage>} ></Route>
           <Route path="projects/:id/edit" element={<EditProjectPage></EditProjectPage>} ></Route>
+          
+          <Route path="settings/github" element={<GitHubSettings></GitHubSettings>} ></Route>
         </Route>
       </Route>
 

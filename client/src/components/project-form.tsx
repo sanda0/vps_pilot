@@ -21,13 +21,27 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import { Loader2 } from 'lucide-react';
+import api, { githubApi } from '@/lib/api';
+import { Github, Loader2, ExternalLink } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Link } from 'react-router-dom';
 
 interface Node {
   id: number;
   name: string;
   ip: string;
+}
+
+interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  clone_url: string;
+  ssh_url: string;
+  description: string;
+  default_branch: string;
 }
 
 interface ProjectFormProps {
@@ -40,6 +54,9 @@ interface ProjectFormProps {
 export function ProjectForm({ defaultValues, onSubmit, isLoading = false, mode }: ProjectFormProps) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loadingNodes, setLoadingNodes] = useState(true);
+  const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
+  const [loadingGithubRepos, setLoadingGithubRepos] = useState(false);
+  const [githubConnected, setGithubConnected] = useState(false);
 
   const form = useForm<CreateProjectSchema>(
     mode === 'create'
@@ -89,8 +106,36 @@ export function ProjectForm({ defaultValues, onSubmit, isLoading = false, mode }
     fetchNodes();
   }, []);
 
+  // Check GitHub connection and load repos
+  useEffect(() => {
+    const checkGitHubConnection = async () => {
+      try {
+        setLoadingGithubRepos(true);
+        const status = await githubApi.getStatus();
+        setGithubConnected(status.connected);
+        
+        if (status.connected) {
+          const reposResponse = await githubApi.getRepos();
+          setGithubRepos(reposResponse.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to check GitHub connection:', error);
+        setGithubConnected(false);
+      } finally {
+        setLoadingGithubRepos(false);
+      }
+    };
+
+    checkGitHubConnection();
+  }, []);
+
   const handleSubmit = async (data: CreateProjectSchema | UpdateProjectSchema) => {
     await onSubmit(data);
+  };
+
+  const handleSelectGitHubRepo = (repoCloneUrl: string, defaultBranch: string) => {
+    form.setValue('repo_url', repoCloneUrl);
+    form.setValue('branch', defaultBranch || 'main');
   };
 
   return (
@@ -164,6 +209,79 @@ export function ProjectForm({ defaultValues, onSubmit, isLoading = false, mode }
               </FormItem>
             )}
           />
+        )}
+
+        {/* GitHub Repository Selection */}
+        {mode === 'create' && (
+          <div className="space-y-4">
+            {!githubConnected && !loadingGithubRepos && (
+              <Alert>
+                <Github className="h-4 w-4" />
+                <AlertTitle>Connect GitHub (Optional)</AlertTitle>
+                <AlertDescription className="flex flex-col gap-2">
+                  <p>Connect your GitHub account to easily select repositories</p>
+                  <Link to="/settings/github">
+                    <Button variant="outline" size="sm" type="button">
+                      <Github className="mr-2 h-4 w-4" />
+                      Connect GitHub
+                      <ExternalLink className="ml-2 h-3 w-3" />
+                    </Button>
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {loadingGithubRepos && (
+              <div className="flex items-center justify-center p-4 border rounded-lg">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading GitHub repositories...</span>
+              </div>
+            )}
+
+            {githubConnected && !loadingGithubRepos && (
+              <FormField
+                control={form.control}
+                name="repo_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GitHub Repository</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        const repo = githubRepos.find(r => r.clone_url === value);
+                        if (repo) {
+                          handleSelectGitHubRepo(repo.clone_url, repo.default_branch);
+                        }
+                      }}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a repository" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {githubRepos.map((repo) => (
+                          <SelectItem key={repo.id} value={repo.clone_url}>
+                            <div className="flex items-center gap-2">
+                              <Github className="h-4 w-4" />
+                              <span>{repo.full_name}</span>
+                              {repo.private && (
+                                <span className="text-xs text-muted-foreground">(Private)</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Or enter a repository URL manually below
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
         )}
 
         <FormField

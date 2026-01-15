@@ -39,6 +39,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	nodeHander := handlers.NewNodeHandler(nodeService)
 	alertHandler := handlers.NewAlertHandler(alertService)
 	projectHandler := handlers.NewProjectHandler(projectService)
+	githubHandler := handlers.NewGitHubHandler(userService)
 
 	server := gin.Default()
 
@@ -67,6 +68,16 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	dashbaord.Use(middleware.JwtAuthMiddleware())
 	{
 		dashbaord.GET("/profile", userHandler.Profile)
+
+		// GitHub integration routes
+		github := dashbaord.Group("/github")
+		{
+			github.POST("/token", githubHandler.SaveToken)
+			github.GET("/repos", githubHandler.GetRepos)
+			github.GET("/status", githubHandler.GetStatus)
+			github.DELETE("/token", githubHandler.DeleteToken)
+		}
+
 		nodes := dashbaord.Group("/nodes")
 		{
 			nodes.GET("", nodeHander.GetNodes)

@@ -48,4 +48,27 @@ export const projectsApi = {
   },
 };
 
+// GitHub API
+export const githubApi = {
+  saveToken: async (token: string) => {
+    const response = await api.post('/github/token', { token });
+    return response.data;
+  },
+
+  getRepos: async () => {
+    const response = await api.get('/github/repos');
+    return response.data;
+  },
+
+  getStatus: async () => {
+    const response = await api.get('/github/status');
+    return response.data;
+  },
+
+  deleteToken: async () => {
+    const response = await api.delete('/github/token');
+    return response.data;
+  },
+};
+
 export default api;

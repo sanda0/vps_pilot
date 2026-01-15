@@ -12,6 +12,9 @@ import (
 type UserService interface {
 	Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, error)
 	Profile(id int32) (*db.User, error)
+	SaveGitHubToken(userID int32, token string) error
+	GetGitHubToken(userID int32) (string, error)
+	RemoveGitHubToken(userID int32) error
 }
 
 type userService struct {
@@ -50,6 +53,21 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 	}
 
 	return response, nil
+}
+
+// SaveGitHubToken implements UserService.
+func (u *userService) SaveGitHubToken(userID int32, token string) error {
+	return u.repo.SaveGitHubToken(u.ctx, userID, token)
+}
+
+// GetGitHubToken implements UserService.
+func (u *userService) GetGitHubToken(userID int32) (string, error) {
+	return u.repo.GetGitHubToken(u.ctx, userID)
+}
+
+// RemoveGitHubToken implements UserService.
+func (u *userService) RemoveGitHubToken(userID int32) error {
+	return u.repo.RemoveGitHubToken(u.ctx, userID)
 }
 
 func NewUserService(ctx context.Context, repo *db.Repo) UserService {
