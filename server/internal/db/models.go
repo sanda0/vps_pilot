@@ -87,10 +87,11 @@ type SystemStat struct {
 }
 
 type User struct {
-	ID           int64         `json:"id"`
-	Username     string        `json:"username"`
-	Email        string        `json:"email"`
-	PasswordHash string        `json:"password_hash"`
-	CreatedAt    sql.NullInt64 `json:"created_at"`
-	UpdatedAt    sql.NullInt64 `json:"updated_at"`
+	ID           int64          `json:"id"`
+	Username     string         `json:"username"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	CreatedAt    sql.NullInt64  `json:"created_at"`
+	UpdatedAt    sql.NullInt64  `json:"updated_at"`
+	GithubToken  sql.NullString `json:"github_token"`
 }

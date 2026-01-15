@@ -24,7 +24,7 @@ import { useEffect, useState } from 'react';
 import api, { githubApi } from '@/lib/api';
 import { Github, Loader2, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 interface Node {
   id: number;
@@ -57,6 +57,7 @@ export function ProjectForm({ defaultValues, onSubmit, isLoading = false, mode }
   const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
   const [loadingGithubRepos, setLoadingGithubRepos] = useState(false);
   const [githubConnected, setGithubConnected] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm<CreateProjectSchema>(
     mode === 'create'
@@ -220,13 +221,16 @@ export function ProjectForm({ defaultValues, onSubmit, isLoading = false, mode }
                 <AlertTitle>Connect GitHub (Optional)</AlertTitle>
                 <AlertDescription className="flex flex-col gap-2">
                   <p>Connect your GitHub account to easily select repositories</p>
-                  <Link to="/settings/github">
-                    <Button variant="outline" size="sm" type="button">
-                      <Github className="mr-2 h-4 w-4" />
-                      Connect GitHub
-                      <ExternalLink className="ml-2 h-3 w-3" />
-                    </Button>
-                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    type="button"
+                    onClick={() => navigate('/settings/github')}
+                  >
+                    <Github className="mr-2 h-4 w-4" />
+                    Connect GitHub
+                    <ExternalLink className="ml-2 h-3 w-3" />
+                  </Button>
                 </AlertDescription>
               </Alert>
             )}

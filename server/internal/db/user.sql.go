@@ -7,12 +7,13 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, password_hash)
 VALUES (?, ?, ?)
-RETURNING id, username, email, password_hash, created_at, updated_at
+RETURNING id, username, email, password_hash, created_at, updated_at, github_token
 `
 
 type CreateUserParams struct {
@@ -31,12 +32,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GithubToken,
 	)
 	return i, err
 }
 
 const findUserByEmail = `-- name: FindUserByEmail :one
-SELECT id, username, email, password_hash, created_at, updated_at FROM users WHERE email = ?
+SELECT id, username, email, password_hash, created_at, updated_at, github_token FROM users WHERE email = ?
 `
 
 func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
@@ -49,12 +51,13 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GithubToken,
 	)
 	return i, err
 }
 
 const findUserById = `-- name: FindUserById :one
-SELECT id, username, email, password_hash, created_at, updated_at FROM users WHERE id = ?
+SELECT id, username, email, password_hash, created_at, updated_at, github_token FROM users WHERE id = ?
 `
 
 func (q *Queries) FindUserById(ctx context.Context, id int64) (User, error) {
@@ -67,6 +70,51 @@ func (q *Queries) FindUserById(ctx context.Context, id int64) (User, error) {
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GithubToken,
 	)
 	return i, err
+}
+
+const getGitHubToken = `-- name: GetGitHubToken :one
+SELECT github_token FROM users WHERE id = ?
+`
+
+func (q *Queries) GetGitHubToken(ctx context.Context, id int64) (sql.NullString, error) {
+	row := q.queryRow(ctx, q.getGitHubTokenStmt, getGitHubToken, id)
+	var github_token sql.NullString
+	err := row.Scan(&github_token)
+	return github_token, err
+}
+
+const removeGitHubToken = `-- name: RemoveGitHubToken :exec
+UPDATE users 
+SET github_token = NULL, updated_at = ? 
+WHERE id = ?
+`
+
+type RemoveGitHubTokenParams struct {
+	UpdatedAt sql.NullInt64 `json:"updated_at"`
+	ID        int64         `json:"id"`
+}
+
+func (q *Queries) RemoveGitHubToken(ctx context.Context, arg RemoveGitHubTokenParams) error {
+	_, err := q.exec(ctx, q.removeGitHubTokenStmt, removeGitHubToken, arg.UpdatedAt, arg.ID)
+	return err
+}
+
+const saveGitHubToken = `-- name: SaveGitHubToken :exec
+UPDATE users 
+SET github_token = ?, updated_at = ? 
+WHERE id = ?
+`
+
+type SaveGitHubTokenParams struct {
+	GithubToken sql.NullString `json:"github_token"`
+	UpdatedAt   sql.NullInt64  `json:"updated_at"`
+	ID          int64          `json:"id"`
+}
+
+func (q *Queries) SaveGitHubToken(ctx context.Context, arg SaveGitHubTokenParams) error {
+	_, err := q.exec(ctx, q.saveGitHubTokenStmt, saveGitHubToken, arg.GithubToken, arg.UpdatedAt, arg.ID)
+	return err
 }

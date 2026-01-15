@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/sanda0/vps_pilot/internal/db"
 	"github.com/sanda0/vps_pilot/internal/dto"
@@ -57,17 +59,31 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 
 // SaveGitHubToken implements UserService.
 func (u *userService) SaveGitHubToken(userID int32, token string) error {
-	return u.repo.SaveGitHubToken(u.ctx, userID, token)
+	return u.repo.Queries.SaveGitHubToken(u.ctx, db.SaveGitHubTokenParams{
+		GithubToken: sql.NullString{String: token, Valid: true},
+		UpdatedAt:   sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
+		ID:          int64(userID),
+	})
 }
 
 // GetGitHubToken implements UserService.
 func (u *userService) GetGitHubToken(userID int32) (string, error) {
-	return u.repo.GetGitHubToken(u.ctx, userID)
+	token, err := u.repo.Queries.GetGitHubToken(u.ctx, int64(userID))
+	if err != nil {
+		return "", err
+	}
+	if !token.Valid || token.String == "" {
+		return "", fmt.Errorf("GitHub token not found")
+	}
+	return token.String, nil
 }
 
 // RemoveGitHubToken implements UserService.
 func (u *userService) RemoveGitHubToken(userID int32) error {
-	return u.repo.RemoveGitHubToken(u.ctx, userID)
+	return u.repo.Queries.RemoveGitHubToken(u.ctx, db.RemoveGitHubTokenParams{
+		UpdatedAt: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
+		ID:        int64(userID),
+	})
 }
 
 func NewUserService(ctx context.Context, repo *db.Repo) UserService {

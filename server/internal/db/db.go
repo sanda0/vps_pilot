@@ -78,6 +78,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
 	}
+	if q.getGitHubTokenStmt, err = db.PrepareContext(ctx, getGitHubToken); err != nil {
+		return nil, fmt.Errorf("error preparing query GetGitHubToken: %w", err)
+	}
 	if q.getNetStatsStmt, err = db.PrepareContext(ctx, getNetStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNetStats: %w", err)
 	}
@@ -125,6 +128,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listProjectsWithNodesStmt, err = db.PrepareContext(ctx, listProjectsWithNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListProjectsWithNodes: %w", err)
+	}
+	if q.removeGitHubTokenStmt, err = db.PrepareContext(ctx, removeGitHubToken); err != nil {
+		return nil, fmt.Errorf("error preparing query RemoveGitHubToken: %w", err)
+	}
+	if q.saveGitHubTokenStmt, err = db.PrepareContext(ctx, saveGitHubToken); err != nil {
+		return nil, fmt.Errorf("error preparing query SaveGitHubToken: %w", err)
 	}
 	if q.updateAlertStmt, err = db.PrepareContext(ctx, updateAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAlert: %w", err)
@@ -245,6 +254,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
 		}
 	}
+	if q.getGitHubTokenStmt != nil {
+		if cerr := q.getGitHubTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getGitHubTokenStmt: %w", cerr)
+		}
+	}
 	if q.getNetStatsStmt != nil {
 		if cerr := q.getNetStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNetStatsStmt: %w", cerr)
@@ -323,6 +337,16 @@ func (q *Queries) Close() error {
 	if q.listProjectsWithNodesStmt != nil {
 		if cerr := q.listProjectsWithNodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listProjectsWithNodesStmt: %w", cerr)
+		}
+	}
+	if q.removeGitHubTokenStmt != nil {
+		if cerr := q.removeGitHubTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing removeGitHubTokenStmt: %w", cerr)
+		}
+	}
+	if q.saveGitHubTokenStmt != nil {
+		if cerr := q.saveGitHubTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing saveGitHubTokenStmt: %w", cerr)
 		}
 	}
 	if q.updateAlertStmt != nil {
@@ -422,6 +446,7 @@ type Queries struct {
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
 	getAlertStmt                       *sql.Stmt
 	getAlertsStmt                      *sql.Stmt
+	getGitHubTokenStmt                 *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
 	getNodeStmt                        *sql.Stmt
 	getNodeByIPStmt                    *sql.Stmt
@@ -438,6 +463,8 @@ type Queries struct {
 	listProjectsStmt                   *sql.Stmt
 	listProjectsByNodeStmt             *sql.Stmt
 	listProjectsWithNodesStmt          *sql.Stmt
+	removeGitHubTokenStmt              *sql.Stmt
+	saveGitHubTokenStmt                *sql.Stmt
 	updateAlertStmt                    *sql.Stmt
 	updateNodeStmt                     *sql.Stmt
 	updateNodeDiskInfoStmt             *sql.Stmt
@@ -470,6 +497,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
 		getAlertStmt:                       q.getAlertStmt,
 		getAlertsStmt:                      q.getAlertsStmt,
+		getGitHubTokenStmt:                 q.getGitHubTokenStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
 		getNodeStmt:                        q.getNodeStmt,
 		getNodeByIPStmt:                    q.getNodeByIPStmt,
@@ -486,6 +514,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listProjectsStmt:                   q.listProjectsStmt,
 		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
 		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
+		removeGitHubTokenStmt:              q.removeGitHubTokenStmt,
+		saveGitHubTokenStmt:                q.saveGitHubTokenStmt,
 		updateAlertStmt:                    q.updateAlertStmt,
 		updateNodeStmt:                     q.updateNodeStmt,
 		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,
