@@ -1,9 +1,7 @@
 import * as React from "react"
 import {
-
+  FolderGit2,
   GalleryVerticalEnd,
-  Globe,
-
   ReplaceAll,
   Server,
   Settings2,
@@ -45,8 +43,8 @@ const data = {
     },
     {
       title: "Projects",
-      url: "#",
-      icon: Globe
+      url: "/projects",
+      icon: FolderGit2
     },
     {
       title: "Cron Jobs",
