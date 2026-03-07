@@ -7,21 +7,21 @@ import (
 )
 
 type GetCPUStatsParams struct {
-	NodeID    int32  `json:"node_id"`
-	TimeRange string `json:"time_range"` // in seconds
-	CpuCount  int32  `json:"cpu_count"`
+	NodeID    int32 `json:"node_id"`
+	TimeRange int64 `json:"time_range"` // in seconds
+	CpuCount  int32 `json:"cpu_count"`
 }
 
 func (q *Queries) GetCPUStats(ctx context.Context, arg GetCPUStatsParams) ([]map[string]interface{}, error) {
 	// Calculate cutoff timestamp
-	cutoffTime := time.Now().Unix() - int64(mustParseInt(arg.TimeRange))
+	cutoffTime := time.Now().Unix() - arg.TimeRange
 
 	// Query to get all CPU stats within time range
 	// We'll need to pivot the data in Go since SQLite doesn't have crosstab
 	query := `
 		SELECT timestamp, cpu_id, value
 		FROM system_stats
-		WHERE node_id = ? 
+		WHERE node_id = ?
 		  AND stat_type = 'cpu'
 		  AND timestamp >= ?
 		ORDER BY timestamp, cpu_id
