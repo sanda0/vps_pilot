@@ -13,7 +13,7 @@ func TestGetCPUStats(t *testing.T) {
 	// Test case 1
 	_, err := q.GetCPUStats(context.Background(), db.GetCPUStatsParams{
 		NodeID:    1,
-		TimeRange: "1 day",
+		TimeRange: 60 * 24,
 		CpuCount:  8,
 	})
 	if err != nil {

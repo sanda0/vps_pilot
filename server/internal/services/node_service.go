@@ -41,6 +41,7 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			CpuID:    sql.NullInt64{Int64: 0, Valid: true},
 			Column4:  timeRangeSeconds,
 		})
+
 		if err != nil {
 			fmt.Println("Error getting mem stats", err)
 			continue
@@ -48,7 +49,7 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 
 		cpuStats, err := n.repo.TimeseriesQueries.GetCPUStats(n.ctx, db.GetCPUStatsParams{
 			NodeID:    query.ID,
-			TimeRange: query.TimeRange,
+			TimeRange: timeRangeSeconds,
 			CpuCount:  int32(node.Cpus.Int64),
 		})
 
@@ -137,5 +138,5 @@ func NewNodeService(ctx context.Context, repo *db.Repo) NodeService {
 func parseTimeRangeToSeconds(timeRange string) int64 {
 	var seconds int64
 	fmt.Sscanf(timeRange, "%d", &seconds)
-	return seconds
+	return seconds * 60
 }
