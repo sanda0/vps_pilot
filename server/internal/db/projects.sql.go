@@ -10,85 +10,59 @@ import (
 	"database/sql"
 )
 
-const countProjects = `-- name: CountProjects :one
-SELECT COUNT(*) FROM projects
+const upsertProject = `-- name: UpsertProject :one
+INSERT INTO projects (node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+ON CONFLICT (node_id, path) DO UPDATE SET
+    name       = excluded.name,
+    tech       = excluded.tech,
+    commands   = excluded.commands,
+    logs       = excluded.logs,
+    backups    = excluded.backups,
+    updated_at = strftime('%s', 'now')
+RETURNING id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
 `
 
-func (q *Queries) CountProjects(ctx context.Context) (int64, error) {
-	row := q.queryRow(ctx, q.countProjectsStmt, countProjects)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+type UpsertProjectParams struct {
+	NodeID   int64  `json:"node_id"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Tech     string `json:"tech"`
+	Commands string `json:"commands"`
+	Logs     string `json:"logs"`
+	Backups  string `json:"backups"`
 }
 
-const countProjectsByNode = `-- name: CountProjectsByNode :one
-SELECT COUNT(*) FROM projects WHERE node_id = ?
-`
-
-func (q *Queries) CountProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
-	row := q.queryRow(ctx, q.countProjectsByNodeStmt, countProjectsByNode, nodeID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const createProject = `-- name: CreateProject :one
-INSERT INTO projects (name, description, node_id, repo_url, branch, deploy_path, status)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at
-`
-
-type CreateProjectParams struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	NodeID      int64          `json:"node_id"`
-	RepoUrl     sql.NullString `json:"repo_url"`
-	Branch      sql.NullString `json:"branch"`
-	DeployPath  string         `json:"deploy_path"`
-	Status      sql.NullString `json:"status"`
-}
-
-func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (Project, error) {
-	row := q.queryRow(ctx, q.createProjectStmt, createProject,
-		arg.Name,
-		arg.Description,
+func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (Project, error) {
+	row := q.queryRow(ctx, q.upsertProjectStmt, upsertProject,
 		arg.NodeID,
-		arg.RepoUrl,
-		arg.Branch,
-		arg.DeployPath,
-		arg.Status,
+		arg.Name,
+		arg.Path,
+		arg.Tech,
+		arg.Commands,
+		arg.Logs,
+		arg.Backups,
 	)
 	var i Project
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
 		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
+		&i.Name,
+		&i.Path,
+		&i.Tech,
+		&i.Commands,
+		&i.Logs,
+		&i.Backups,
+		&i.DiscoveredAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const deleteProject = `-- name: DeleteProject :execrows
-DELETE FROM projects WHERE id = ?
-`
-
-func (q *Queries) DeleteProject(ctx context.Context, id string) (int64, error) {
-	result, err := q.exec(ctx, q.deleteProjectStmt, deleteProject, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const getProject = `-- name: GetProject :one
-SELECT id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at FROM projects WHERE id = ?
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+FROM projects
+WHERE id = ?
 `
 
 func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
@@ -96,44 +70,42 @@ func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
 	var i Project
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
 		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
+		&i.Name,
+		&i.Path,
+		&i.Tech,
+		&i.Commands,
+		&i.Logs,
+		&i.Backups,
+		&i.DiscoveredAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getProjectWithNode = `-- name: GetProjectWithNode :one
-SELECT 
-    p.id, p.name, p.description, p.node_id, p.repo_url, p.branch, p.deploy_path, p.status, p.last_deployed_at, p.created_at, p.updated_at,
-    n.name as node_name,
-    n.ip as node_ip
+SELECT
+    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at,
+    n.name AS node_name,
+    n.ip   AS node_ip
 FROM projects p
 LEFT JOIN nodes n ON p.node_id = n.id
 WHERE p.id = ?
 `
 
 type GetProjectWithNodeRow struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	Description    sql.NullString `json:"description"`
-	NodeID         int64          `json:"node_id"`
-	RepoUrl        sql.NullString `json:"repo_url"`
-	Branch         sql.NullString `json:"branch"`
-	DeployPath     string         `json:"deploy_path"`
-	Status         sql.NullString `json:"status"`
-	LastDeployedAt sql.NullInt64  `json:"last_deployed_at"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
-	NodeName       sql.NullString `json:"node_name"`
-	NodeIp         sql.NullString `json:"node_ip"`
+	ID           string         `json:"id"`
+	NodeID       int64          `json:"node_id"`
+	Name         string         `json:"name"`
+	Path         string         `json:"path"`
+	Tech         string         `json:"tech"`
+	Commands     string         `json:"commands"`
+	Logs         string         `json:"logs"`
+	Backups      string         `json:"backups"`
+	DiscoveredAt int64          `json:"discovered_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	NodeName     sql.NullString `json:"node_name"`
+	NodeIp       sql.NullString `json:"node_ip"`
 }
 
 func (q *Queries) GetProjectWithNode(ctx context.Context, id string) (GetProjectWithNodeRow, error) {
@@ -141,15 +113,14 @@ func (q *Queries) GetProjectWithNode(ctx context.Context, id string) (GetProject
 	var i GetProjectWithNodeRow
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.Description,
 		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
+		&i.Name,
+		&i.Path,
+		&i.Tech,
+		&i.Commands,
+		&i.Logs,
+		&i.Backups,
+		&i.DiscoveredAt,
 		&i.UpdatedAt,
 		&i.NodeName,
 		&i.NodeIp,
@@ -158,8 +129,9 @@ func (q *Queries) GetProjectWithNode(ctx context.Context, id string) (GetProject
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at FROM projects 
-ORDER BY created_at DESC
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+FROM projects
+ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
 `
 
@@ -179,15 +151,14 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 		var i Project
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
-			&i.Description,
 			&i.NodeID,
-			&i.RepoUrl,
-			&i.Branch,
-			&i.DeployPath,
-			&i.Status,
-			&i.LastDeployedAt,
-			&i.CreatedAt,
+			&i.Name,
+			&i.Path,
+			&i.Tech,
+			&i.Commands,
+			&i.Logs,
+			&i.Backups,
+			&i.DiscoveredAt,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -204,9 +175,10 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 }
 
 const listProjectsByNode = `-- name: ListProjectsByNode :many
-SELECT id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at FROM projects 
-WHERE node_id = ? 
-ORDER BY created_at DESC
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+FROM projects
+WHERE node_id = ?
+ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
 `
 
@@ -227,15 +199,14 @@ func (q *Queries) ListProjectsByNode(ctx context.Context, arg ListProjectsByNode
 		var i Project
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
-			&i.Description,
 			&i.NodeID,
-			&i.RepoUrl,
-			&i.Branch,
-			&i.DeployPath,
-			&i.Status,
-			&i.LastDeployedAt,
-			&i.CreatedAt,
+			&i.Name,
+			&i.Path,
+			&i.Tech,
+			&i.Commands,
+			&i.Logs,
+			&i.Backups,
+			&i.DiscoveredAt,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -252,13 +223,13 @@ func (q *Queries) ListProjectsByNode(ctx context.Context, arg ListProjectsByNode
 }
 
 const listProjectsWithNodes = `-- name: ListProjectsWithNodes :many
-SELECT 
-    p.id, p.name, p.description, p.node_id, p.repo_url, p.branch, p.deploy_path, p.status, p.last_deployed_at, p.created_at, p.updated_at,
-    n.name as node_name,
-    n.ip as node_ip
+SELECT
+    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at,
+    n.name AS node_name,
+    n.ip   AS node_ip
 FROM projects p
 LEFT JOIN nodes n ON p.node_id = n.id
-ORDER BY p.created_at DESC
+ORDER BY p.updated_at DESC
 LIMIT ? OFFSET ?
 `
 
@@ -268,19 +239,18 @@ type ListProjectsWithNodesParams struct {
 }
 
 type ListProjectsWithNodesRow struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	Description    sql.NullString `json:"description"`
-	NodeID         int64          `json:"node_id"`
-	RepoUrl        sql.NullString `json:"repo_url"`
-	Branch         sql.NullString `json:"branch"`
-	DeployPath     string         `json:"deploy_path"`
-	Status         sql.NullString `json:"status"`
-	LastDeployedAt sql.NullInt64  `json:"last_deployed_at"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
-	NodeName       sql.NullString `json:"node_name"`
-	NodeIp         sql.NullString `json:"node_ip"`
+	ID           string         `json:"id"`
+	NodeID       int64          `json:"node_id"`
+	Name         string         `json:"name"`
+	Path         string         `json:"path"`
+	Tech         string         `json:"tech"`
+	Commands     string         `json:"commands"`
+	Logs         string         `json:"logs"`
+	Backups      string         `json:"backups"`
+	DiscoveredAt int64          `json:"discovered_at"`
+	UpdatedAt    int64          `json:"updated_at"`
+	NodeName     sql.NullString `json:"node_name"`
+	NodeIp       sql.NullString `json:"node_ip"`
 }
 
 func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWithNodesParams) ([]ListProjectsWithNodesRow, error) {
@@ -294,15 +264,14 @@ func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWit
 		var i ListProjectsWithNodesRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Name,
-			&i.Description,
 			&i.NodeID,
-			&i.RepoUrl,
-			&i.Branch,
-			&i.DeployPath,
-			&i.Status,
-			&i.LastDeployedAt,
-			&i.CreatedAt,
+			&i.Name,
+			&i.Path,
+			&i.Tech,
+			&i.Commands,
+			&i.Logs,
+			&i.Backups,
+			&i.DiscoveredAt,
 			&i.UpdatedAt,
 			&i.NodeName,
 			&i.NodeIp,
@@ -320,111 +289,48 @@ func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWit
 	return items, nil
 }
 
-const updateProject = `-- name: UpdateProject :one
-UPDATE projects 
-SET name = ?,
-    description = ?,
-    repo_url = ?,
-    branch = ?,
-    deploy_path = ?,
-    status = ?,
-    updated_at = strftime('%s', 'now')
-WHERE id = ?
-RETURNING id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at
+const deleteProject = `-- name: DeleteProject :execrows
+DELETE FROM projects WHERE id = ?
 `
 
-type UpdateProjectParams struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	RepoUrl     sql.NullString `json:"repo_url"`
-	Branch      sql.NullString `json:"branch"`
-	DeployPath  string         `json:"deploy_path"`
-	Status      sql.NullString `json:"status"`
-	ID          string         `json:"id"`
+func (q *Queries) DeleteProject(ctx context.Context, id string) (int64, error) {
+	result, err := q.exec(ctx, q.deleteProjectStmt, deleteProject, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-func (q *Queries) UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error) {
-	row := q.queryRow(ctx, q.updateProjectStmt, updateProject,
-		arg.Name,
-		arg.Description,
-		arg.RepoUrl,
-		arg.Branch,
-		arg.DeployPath,
-		arg.Status,
-		arg.ID,
-	)
-	var i Project
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const updateProjectLastDeployed = `-- name: UpdateProjectLastDeployed :one
-UPDATE projects 
-SET last_deployed_at = strftime('%s', 'now'),
-    updated_at = strftime('%s', 'now')
-WHERE id = ?
-RETURNING id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at
+const deleteProjectsByNode = `-- name: DeleteProjectsByNode :execrows
+DELETE FROM projects WHERE node_id = ?
 `
 
-func (q *Queries) UpdateProjectLastDeployed(ctx context.Context, id string) (Project, error) {
-	row := q.queryRow(ctx, q.updateProjectLastDeployedStmt, updateProjectLastDeployed, id)
-	var i Project
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+func (q *Queries) DeleteProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
+	result, err := q.exec(ctx, q.deleteProjectsByNodeStmt, deleteProjectsByNode, nodeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-const updateProjectStatus = `-- name: UpdateProjectStatus :one
-UPDATE projects 
-SET status = ?,
-    updated_at = strftime('%s', 'now')
-WHERE id = ?
-RETURNING id, name, description, node_id, repo_url, branch, deploy_path, status, last_deployed_at, created_at, updated_at
+const countProjects = `-- name: CountProjects :one
+SELECT COUNT(*) FROM projects
 `
 
-type UpdateProjectStatusParams struct {
-	Status sql.NullString `json:"status"`
-	ID     string         `json:"id"`
+func (q *Queries) CountProjects(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.countProjectsStmt, countProjects)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
-func (q *Queries) UpdateProjectStatus(ctx context.Context, arg UpdateProjectStatusParams) (Project, error) {
-	row := q.queryRow(ctx, q.updateProjectStatusStmt, updateProjectStatus, arg.Status, arg.ID)
-	var i Project
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.NodeID,
-		&i.RepoUrl,
-		&i.Branch,
-		&i.DeployPath,
-		&i.Status,
-		&i.LastDeployedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+const countProjectsByNode = `-- name: CountProjectsByNode :one
+SELECT COUNT(*) FROM projects WHERE node_id = ?
+`
+
+func (q *Queries) CountProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
+	row := q.queryRow(ctx, q.countProjectsByNodeStmt, countProjectsByNode, nodeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }

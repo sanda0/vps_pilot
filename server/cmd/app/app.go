@@ -98,10 +98,8 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		}
 		projects := dashbaord.Group("/projects")
 		{
-			projects.POST("", projectHandler.CreateProject)
 			projects.GET("", projectHandler.ListProjects)
 			projects.GET("/:id", projectHandler.GetProject)
-			projects.PUT("/:id", projectHandler.UpdateProject)
 			projects.DELETE("/:id", projectHandler.DeleteProject)
 		}
 	}
@@ -109,7 +107,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	// Serve embedded static files
 	serveEmbeddedFiles(server)
 
-	server.Run(":8000")
+	server.Run(":" + port)
 }
 
 // serveEmbeddedFiles serves the embedded frontend files

@@ -4,9 +4,7 @@
 
 package db
 
-import (
-	"database/sql"
-)
+import "database/sql"
 
 type Alert struct {
 	ID               int64           `json:"id"`
@@ -65,17 +63,16 @@ type NodeSysInfo struct {
 }
 
 type Project struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	Description    sql.NullString `json:"description"`
-	NodeID         int64          `json:"node_id"`
-	RepoUrl        sql.NullString `json:"repo_url"`
-	Branch         sql.NullString `json:"branch"`
-	DeployPath     string         `json:"deploy_path"`
-	Status         sql.NullString `json:"status"`
-	LastDeployedAt sql.NullInt64  `json:"last_deployed_at"`
-	CreatedAt      int64          `json:"created_at"`
-	UpdatedAt      int64          `json:"updated_at"`
+	ID           string `json:"id"`
+	NodeID       int64  `json:"node_id"`
+	Name         string `json:"name"`
+	Path         string `json:"path"`
+	Tech         string `json:"tech"`     // JSON array stored as text
+	Commands     string `json:"commands"` // JSON array stored as text
+	Logs         string `json:"logs"`     // JSON array stored as text
+	Backups      string `json:"backups"`  // JSON object stored as text
+	DiscoveredAt int64  `json:"discovered_at"`
+	UpdatedAt    int64  `json:"updated_at"`
 }
 
 type SystemStat struct {
