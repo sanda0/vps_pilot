@@ -104,13 +104,6 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		}
 	}
 
-	// Agent-facing routes (no JWT — agents authenticate via node IP / shared secret in future)
-	agent := api.Group("/agent")
-	{
-		agent.POST("/projects/sync", projectHandler.AgentSyncProject)
-		agent.POST("/projects/bulk-sync", projectHandler.AgentBulkSyncProjects)
-	}
-
 	// Serve embedded static files
 	serveEmbeddedFiles(server)
 

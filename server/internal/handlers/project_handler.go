@@ -5,16 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sanda0/vps_pilot/internal/dto"
 	"github.com/sanda0/vps_pilot/internal/services"
 )
 
 type ProjectHandler interface {
-	// Agent-facing
-	AgentSyncProject(c *gin.Context)
-	AgentBulkSyncProjects(c *gin.Context)
-
-	// Dashboard-facing
 	GetProject(c *gin.Context)
 	ListProjects(c *gin.Context)
 	ListProjectsByNode(c *gin.Context)
@@ -29,67 +23,6 @@ func NewProjectHandler(projectService services.ProjectService) ProjectHandler {
 	return &projectHandler{
 		projectService: projectService,
 	}
-}
-
-// AgentSyncProject handles POST /api/v1/agent/projects/sync
-// Called by the agent when it discovers or updates a single project config.
-func (h *projectHandler) AgentSyncProject(c *gin.Context) {
-	var req dto.AgentProjectSyncRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	project, err := h.projectService.UpsertFromAgent(&req)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if err.Error() == "node not found" {
-			status = http.StatusNotFound
-		}
-		c.JSON(status, gin.H{
-			"error":   "Failed to sync project",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, project)
-}
-
-// AgentBulkSyncProjects handles POST /api/v1/agent/projects/bulk-sync
-// Called by the agent to report all projects found on a node in one request.
-func (h *projectHandler) AgentBulkSyncProjects(c *gin.Context) {
-	var req dto.AgentProjectsBulkSyncRequest
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	projects, err := h.projectService.BulkSyncFromAgent(&req)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if err.Error() == "node not found" {
-			status = http.StatusNotFound
-		}
-		c.JSON(status, gin.H{
-			"error":   "Failed to bulk sync projects",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"synced": len(projects),
-		"data":   projects,
-	})
 }
 
 // GetProject handles GET /api/v1/projects/:id
