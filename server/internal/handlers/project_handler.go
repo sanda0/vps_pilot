@@ -10,11 +10,14 @@ import (
 )
 
 type ProjectHandler interface {
-	CreateProject(c *gin.Context)
+	// Agent-facing
+	AgentSyncProject(c *gin.Context)
+	AgentBulkSyncProjects(c *gin.Context)
+
+	// Dashboard-facing
 	GetProject(c *gin.Context)
 	ListProjects(c *gin.Context)
 	ListProjectsByNode(c *gin.Context)
-	UpdateProject(c *gin.Context)
 	DeleteProject(c *gin.Context)
 }
 
@@ -28,9 +31,10 @@ func NewProjectHandler(projectService services.ProjectService) ProjectHandler {
 	}
 }
 
-// CreateProject handles POST /api/projects
-func (h *projectHandler) CreateProject(c *gin.Context) {
-	var req dto.CreateProjectRequest
+// AgentSyncProject handles POST /api/v1/agent/projects/sync
+// Called by the agent when it discovers or updates a single project config.
+func (h *projectHandler) AgentSyncProject(c *gin.Context) {
+	var req dto.AgentProjectSyncRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -40,32 +44,14 @@ func (h *projectHandler) CreateProject(c *gin.Context) {
 		return
 	}
 
-	project, err := h.projectService.CreateProject(&req)
+	project, err := h.projectService.UpsertFromAgent(&req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create project",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, project)
-}
-
-// GetProject handles GET /api/projects/:id
-func (h *projectHandler) GetProject(c *gin.Context) {
-	id := c.Param("id")
-
-	project, err := h.projectService.GetProject(id)
-	if err != nil {
-		if err.Error() == "project not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Project not found",
-			})
-			return
+		status := http.StatusInternalServerError
+		if err.Error() == "node not found" {
+			status = http.StatusNotFound
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to get project",
+		c.JSON(status, gin.H{
+			"error":   "Failed to sync project",
 			"details": err.Error(),
 		})
 		return
@@ -74,9 +60,55 @@ func (h *projectHandler) GetProject(c *gin.Context) {
 	c.JSON(http.StatusOK, project)
 }
 
-// ListProjects handles GET /api/projects
+// AgentBulkSyncProjects handles POST /api/v1/agent/projects/bulk-sync
+// Called by the agent to report all projects found on a node in one request.
+func (h *projectHandler) AgentBulkSyncProjects(c *gin.Context) {
+	var req dto.AgentProjectsBulkSyncRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	projects, err := h.projectService.BulkSyncFromAgent(&req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "node not found" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, gin.H{
+			"error":   "Failed to bulk sync projects",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"synced": len(projects),
+		"data":   projects,
+	})
+}
+
+// GetProject handles GET /api/v1/projects/:id
+func (h *projectHandler) GetProject(c *gin.Context) {
+	id := c.Param("id")
+
+	project, err := h.projectService.GetProject(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Project not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, project)
+}
+
+// ListProjects handles GET /api/v1/projects
 func (h *projectHandler) ListProjects(c *gin.Context) {
-	// Parse pagination parameters
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
 
@@ -99,7 +131,6 @@ func (h *projectHandler) ListProjects(c *gin.Context) {
 		return
 	}
 
-	// Get total count
 	total, err := h.projectService.CountProjects()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -117,7 +148,7 @@ func (h *projectHandler) ListProjects(c *gin.Context) {
 	})
 }
 
-// ListProjectsByNode handles GET /api/nodes/:id/projects
+// ListProjectsByNode handles GET /api/v1/nodes/:id/projects
 func (h *projectHandler) ListProjectsByNode(c *gin.Context) {
 	nodeIDStr := c.Param("id")
 	nodeID, err := strconv.Atoi(nodeIDStr)
@@ -128,7 +159,6 @@ func (h *projectHandler) ListProjectsByNode(c *gin.Context) {
 		return
 	}
 
-	// Parse pagination parameters
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
 
@@ -151,7 +181,6 @@ func (h *projectHandler) ListProjectsByNode(c *gin.Context) {
 		return
 	}
 
-	// Get total count for this node
 	total, err := h.projectService.CountProjectsByNode(int32(nodeID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -169,43 +198,11 @@ func (h *projectHandler) ListProjectsByNode(c *gin.Context) {
 	})
 }
 
-// UpdateProject handles PUT /api/projects/:id
-func (h *projectHandler) UpdateProject(c *gin.Context) {
-	id := c.Param("id")
-
-	var req dto.UpdateProjectRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	project, err := h.projectService.UpdateProject(id, &req)
-	if err != nil {
-		if err.Error() == "project not found" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Project not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to update project",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, project)
-}
-
-// DeleteProject handles DELETE /api/projects/:id
+// DeleteProject handles DELETE /api/v1/projects/:id
 func (h *projectHandler) DeleteProject(c *gin.Context) {
 	id := c.Param("id")
 
-	err := h.projectService.DeleteProject(id)
-	if err != nil {
+	if err := h.projectService.DeleteProject(id); err != nil {
 		if err.Error() == "project not found" {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Project not found",

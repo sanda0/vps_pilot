@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/sanda0/vps_pilot/internal/db"
@@ -10,12 +9,11 @@ import (
 )
 
 type ProjectService interface {
-	CreateProject(req *dto.CreateProjectRequest) (*dto.ProjectResponse, error)
+	UpsertFromAgent(req *dto.AgentProjectSyncRequest) (*dto.ProjectResponse, error)
+	BulkSyncFromAgent(req *dto.AgentProjectsBulkSyncRequest) ([]*dto.ProjectResponse, error)
 	GetProject(id string) (*dto.ProjectResponse, error)
 	ListProjects(limit, offset int32) ([]*dto.ProjectResponse, error)
 	ListProjectsByNode(nodeID int32, limit, offset int32) ([]*dto.ProjectResponse, error)
-	UpdateProject(id string, req *dto.UpdateProjectRequest) (*dto.ProjectResponse, error)
-	UpdateProjectStatus(id, status string) (*dto.ProjectResponse, error)
 	DeleteProject(id string) error
 	CountProjects() (int64, error)
 	CountProjectsByNode(nodeID int32) (int64, error)
@@ -33,62 +31,75 @@ func NewProjectService(repo *db.Repo, ctx context.Context) ProjectService {
 	}
 }
 
-// CreateProject creates a new project
-func (s *projectService) CreateProject(req *dto.CreateProjectRequest) (*dto.ProjectResponse, error) {
+// UpsertFromAgent inserts or updates a single project reported by an agent.
+func (s *projectService) UpsertFromAgent(req *dto.AgentProjectSyncRequest) (*dto.ProjectResponse, error) {
 	// Validate node exists
-	_, err := s.repo.Queries.GetNode(s.ctx, int64(req.NodeID))
+	_, err := s.repo.Queries.GetNode(s.ctx, req.NodeID)
 	if err != nil {
-		return nil, fmt.Errorf("node not found: %w", err)
+		return nil, fmt.Errorf("node %d not found: %w", req.NodeID, err)
 	}
 
-	// Set default branch if empty
-	if req.Branch == "" {
-		req.Branch = "main"
-	}
-
-	project, err := s.repo.Queries.CreateProject(s.ctx, db.CreateProjectParams{
-		Name: req.Name,
-		Description: sql.NullString{
-			String: req.Description,
-			Valid:  req.Description != "",
-		},
-		NodeID: int64(req.NodeID),
-		RepoUrl: sql.NullString{
-			String: req.RepoURL,
-			Valid:  req.RepoURL != "",
-		},
-		Branch: sql.NullString{
-			String: req.Branch,
-			Valid:  true,
-		},
-		DeployPath: req.DeployPath,
-		Status: sql.NullString{
-			String: "inactive",
-			Valid:  true,
-		},
+	project, err := s.repo.Queries.UpsertProject(s.ctx, db.UpsertProjectParams{
+		NodeID:   req.NodeID,
+		Name:     req.Name,
+		Path:     req.Path,
+		Tech:     dto.MarshalTech(req.Tech),
+		Commands: dto.MarshalCommands(req.Commands),
+		Logs:     dto.MarshalLogs(req.Logs),
+		Backups:  dto.MarshalBackups(req.Backups),
 	})
-
 	if err != nil {
-		return nil, fmt.Errorf("failed to create project: %w", err)
+		return nil, fmt.Errorf("failed to upsert project: %w", err)
 	}
 
 	return dto.ConvertToProjectResponse(&project), nil
 }
 
-// GetProject retrieves a project with node information
-func (s *projectService) GetProject(id string) (*dto.ProjectResponse, error) {
-	project, err := s.repo.Queries.GetProjectWithNode(s.ctx, id)
+// BulkSyncFromAgent replaces all projects for a node with the provided list.
+// This is the preferred method: the agent sends the full current list and the
+// server reconciles (upsert all reported, delete any that are no longer present).
+func (s *projectService) BulkSyncFromAgent(req *dto.AgentProjectsBulkSyncRequest) ([]*dto.ProjectResponse, error) {
+	// Validate node exists
+	_, err := s.repo.Queries.GetNode(s.ctx, req.NodeID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("project not found")
-		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		return nil, fmt.Errorf("node %d not found: %w", req.NodeID, err)
 	}
 
-	return dto.ConvertToProjectWithNodeResponse(&project), nil
+	// Upsert every reported project and collect results
+	results := make([]*dto.ProjectResponse, 0, len(req.Projects))
+	for _, p := range req.Projects {
+		// Force the node ID from the top-level field so the agent cannot
+		// accidentally send mismatched node IDs inside the array.
+		p.NodeID = req.NodeID
+
+		project, err := s.repo.Queries.UpsertProject(s.ctx, db.UpsertProjectParams{
+			NodeID:   p.NodeID,
+			Name:     p.Name,
+			Path:     p.Path,
+			Tech:     dto.MarshalTech(p.Tech),
+			Commands: dto.MarshalCommands(p.Commands),
+			Logs:     dto.MarshalLogs(p.Logs),
+			Backups:  dto.MarshalBackups(p.Backups),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to upsert project %q: %w", p.Path, err)
+		}
+		results = append(results, dto.ConvertToProjectResponse(&project))
+	}
+
+	return results, nil
 }
 
-// ListProjects retrieves all projects with pagination
+// GetProject retrieves a single project with its node information.
+func (s *projectService) GetProject(id string) (*dto.ProjectResponse, error) {
+	row, err := s.repo.Queries.GetProjectWithNode(s.ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("project not found")
+	}
+	return dto.ConvertToProjectWithNodeResponse(&row), nil
+}
+
+// ListProjects retrieves all projects (across all nodes) with pagination.
 func (s *projectService) ListProjects(limit, offset int32) ([]*dto.ProjectResponse, error) {
 	if limit <= 0 {
 		limit = 10
@@ -97,19 +108,18 @@ func (s *projectService) ListProjects(limit, offset int32) ([]*dto.ProjectRespon
 		offset = 0
 	}
 
-	projects, err := s.repo.Queries.ListProjectsWithNodes(s.ctx, db.ListProjectsWithNodesParams{
+	rows, err := s.repo.Queries.ListProjectsWithNodes(s.ctx, db.ListProjectsWithNodesParams{
 		Limit:  int64(limit),
 		Offset: int64(offset),
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
 
-	return dto.ConvertToProjectListResponse(projects), nil
+	return dto.ConvertToProjectListResponse(rows), nil
 }
 
-// ListProjectsByNode retrieves projects for a specific node
+// ListProjectsByNode retrieves projects for a specific node with pagination.
 func (s *projectService) ListProjectsByNode(nodeID int32, limit, offset int32) ([]*dto.ProjectResponse, error) {
 	if limit <= 0 {
 		limit = 10
@@ -118,100 +128,35 @@ func (s *projectService) ListProjectsByNode(nodeID int32, limit, offset int32) (
 		offset = 0
 	}
 
-	projects, err := s.repo.Queries.ListProjectsByNode(s.ctx, db.ListProjectsByNodeParams{
+	rows, err := s.repo.Queries.ListProjectsByNode(s.ctx, db.ListProjectsByNodeParams{
 		NodeID: int64(nodeID),
 		Limit:  int64(limit),
 		Offset: int64(offset),
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects by node: %w", err)
 	}
 
-	// Convert to response format
-	responses := make([]*dto.ProjectResponse, len(projects))
-	for i, project := range projects {
-		responses[i] = dto.ConvertToProjectResponse(&project)
+	responses := make([]*dto.ProjectResponse, len(rows))
+	for i := range rows {
+		responses[i] = dto.ConvertToProjectResponse(&rows[i])
 	}
-
 	return responses, nil
 }
 
-// UpdateProject updates an existing project
-func (s *projectService) UpdateProject(id string, req *dto.UpdateProjectRequest) (*dto.ProjectResponse, error) {
-	// Check if project exists
-	_, err := s.repo.Queries.GetProject(s.ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("project not found")
-		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
-
-	project, err := s.repo.Queries.UpdateProject(s.ctx, db.UpdateProjectParams{
-		Name: req.Name,
-		Description: sql.NullString{
-			String: req.Description,
-			Valid:  req.Description != "",
-		},
-		RepoUrl: sql.NullString{
-			String: req.RepoURL,
-			Valid:  req.RepoURL != "",
-		},
-		Branch: sql.NullString{
-			String: req.Branch,
-			Valid:  req.Branch != "",
-		},
-		DeployPath: req.DeployPath,
-		Status: sql.NullString{
-			String: req.Status,
-			Valid:  req.Status != "",
-		},
-		ID: id,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to update project: %w", err)
-	}
-
-	return dto.ConvertToProjectResponse(&project), nil
-}
-
-// UpdateProjectStatus updates only the status of a project
-func (s *projectService) UpdateProjectStatus(id, status string) (*dto.ProjectResponse, error) {
-	project, err := s.repo.Queries.UpdateProjectStatus(s.ctx, db.UpdateProjectStatusParams{
-		Status: sql.NullString{
-			String: status,
-			Valid:  true,
-		},
-		ID: id,
-	})
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("project not found")
-		}
-		return nil, fmt.Errorf("failed to update project status: %w", err)
-	}
-
-	return dto.ConvertToProjectResponse(&project), nil
-}
-
-// DeleteProject deletes a project
+// DeleteProject removes a project record by ID.
 func (s *projectService) DeleteProject(id string) error {
-	rowsAffected, err := s.repo.Queries.DeleteProject(s.ctx, id)
+	rows, err := s.repo.Queries.DeleteProject(s.ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
-
-	if rowsAffected == 0 {
+	if rows == 0 {
 		return fmt.Errorf("project not found")
 	}
-
 	return nil
 }
 
-// CountProjects returns the total number of projects
+// CountProjects returns the total number of projects across all nodes.
 func (s *projectService) CountProjects() (int64, error) {
 	count, err := s.repo.Queries.CountProjects(s.ctx)
 	if err != nil {
@@ -220,7 +165,7 @@ func (s *projectService) CountProjects() (int64, error) {
 	return count, nil
 }
 
-// CountProjectsByNode returns the number of projects for a specific node
+// CountProjectsByNode returns the number of projects for a specific node.
 func (s *projectService) CountProjectsByNode(nodeID int32) (int64, error) {
 	count, err := s.repo.Queries.CountProjectsByNode(s.ctx, int64(nodeID))
 	if err != nil {

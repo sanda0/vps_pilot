@@ -1,121 +1,193 @@
 package dto
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/sanda0/vps_pilot/internal/db"
 )
 
-// CreateProjectRequest represents the request to create a new project
-type CreateProjectRequest struct {
-	Name        string `json:"name" binding:"required,min=1,max=100"`
-	Description string `json:"description" binding:"max=500"`
-	NodeID      int32  `json:"node_id" binding:"required"`
-	RepoURL     string `json:"repo_url" binding:"omitempty,url"`
-	Branch      string `json:"branch" binding:"required"`
-	DeployPath  string `json:"deploy_path" binding:"required,min=1"`
+// ProjectCommand represents a runnable command defined in config.vpspilot.json
+type ProjectCommand struct {
+	Name    string `json:"name"`
+	Command string `json:"command"`
 }
 
-// UpdateProjectRequest represents the request to update a project
-type UpdateProjectRequest struct {
-	Name        string `json:"name" binding:"required,min=1,max=100"`
-	Description string `json:"description" binding:"max=500"`
-	RepoURL     string `json:"repo_url" binding:"omitempty,url"`
-	Branch      string `json:"branch" binding:"required"`
-	DeployPath  string `json:"deploy_path" binding:"required,min=1"`
-	Status      string `json:"status" binding:"omitempty,oneof=inactive cloning active error"`
+// ProjectBackupDatabase holds DB connection info for backups
+type ProjectBackupDatabase struct {
+	Connection   string `json:"connection"`
+	Host         string `json:"host"`
+	Port         string `json:"port"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	DatabaseName string `json:"database_name"`
 }
 
-// ProjectResponse represents a project with additional node information
+// ProjectBackup holds the full backup configuration
+type ProjectBackup struct {
+	EnvFile     string                 `json:"env_file,omitempty"`
+	ZipFileName string                 `json:"zip_file_name,omitempty"`
+	Database    *ProjectBackupDatabase `json:"database,omitempty"`
+	Dirs        []string               `json:"dir,omitempty"`
+}
+
+// AgentProjectSyncRequest is what the agent POSTs when it discovers/updates a project.
+// It maps directly to config.vpspilot.json fields plus the node context.
+type AgentProjectSyncRequest struct {
+	NodeID   int64            `json:"node_id"   binding:"required"`
+	Name     string           `json:"name"      binding:"required"`
+	Path     string           `json:"path"      binding:"required"` // absolute path on disk
+	Tech     []string         `json:"tech"`
+	Commands []ProjectCommand `json:"commands"`
+	Logs     []string         `json:"logs"`
+	Backups  *ProjectBackup   `json:"backups"`
+}
+
+// AgentProjectsBulkSyncRequest allows the agent to sync all projects for a node in one call.
+type AgentProjectsBulkSyncRequest struct {
+	NodeID   int64                     `json:"node_id"  binding:"required"`
+	Projects []AgentProjectSyncRequest `json:"projects" binding:"required"`
+}
+
+// ProjectResponse is what the dashboard API returns.
 type ProjectResponse struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	Description    string     `json:"description"`
-	NodeID         int32      `json:"node_id"`
-	NodeName       string     `json:"node_name,omitempty"`
-	NodeIP         string     `json:"node_ip,omitempty"`
-	RepoURL        string     `json:"repo_url"`
-	Branch         string     `json:"branch"`
-	DeployPath     string     `json:"deploy_path"`
-	Status         string     `json:"status"`
-	LastDeployedAt *time.Time `json:"last_deployed_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID           string           `json:"id"`
+	NodeID       int64            `json:"node_id"`
+	NodeName     string           `json:"node_name,omitempty"`
+	NodeIP       string           `json:"node_ip,omitempty"`
+	Name         string           `json:"name"`
+	Path         string           `json:"path"`
+	Tech         []string         `json:"tech"`
+	Commands     []ProjectCommand `json:"commands"`
+	Logs         []string         `json:"logs"`
+	Backups      *ProjectBackup   `json:"backups"`
+	DiscoveredAt time.Time        `json:"discovered_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
 }
 
-// ConvertToProjectResponse converts a db.Project to ProjectResponse
+// ConvertToProjectResponse converts a db.Project to ProjectResponse.
 func ConvertToProjectResponse(p *db.Project) *ProjectResponse {
-	var lastDeployed *time.Time
-	if p.LastDeployedAt.Valid {
-		t := time.Unix(p.LastDeployedAt.Int64, 0)
-		lastDeployed = &t
-	}
-
 	return &ProjectResponse{
-		ID:             p.ID,
-		Name:           p.Name,
-		Description:    p.Description.String,
-		NodeID:         int32(p.NodeID),
-		RepoURL:        p.RepoUrl.String,
-		Branch:         p.Branch.String,
-		DeployPath:     p.DeployPath,
-		Status:         p.Status.String,
-		LastDeployedAt: lastDeployed,
-		CreatedAt:      time.Unix(p.CreatedAt, 0),
-		UpdatedAt:      time.Unix(p.UpdatedAt, 0),
+		ID:           p.ID,
+		NodeID:       p.NodeID,
+		Name:         p.Name,
+		Path:         p.Path,
+		Tech:         parseStringSlice(p.Tech),
+		Commands:     parseCommands(p.Commands),
+		Logs:         parseStringSlice(p.Logs),
+		Backups:      parseBackup(p.Backups),
+		DiscoveredAt: time.Unix(p.DiscoveredAt, 0),
+		UpdatedAt:    time.Unix(p.UpdatedAt, 0),
 	}
 }
 
-// ConvertToProjectWithNodeResponse converts a db.GetProjectWithNodeRow to ProjectResponse
+// ConvertToProjectWithNodeResponse converts a db.GetProjectWithNodeRow to ProjectResponse.
 func ConvertToProjectWithNodeResponse(row *db.GetProjectWithNodeRow) *ProjectResponse {
-	var lastDeployed *time.Time
-	if row.LastDeployedAt.Valid {
-		t := time.Unix(row.LastDeployedAt.Int64, 0)
-		lastDeployed = &t
-	}
-
 	return &ProjectResponse{
-		ID:             row.ID,
-		Name:           row.Name,
-		Description:    row.Description.String,
-		NodeID:         int32(row.NodeID),
-		NodeName:       row.NodeName.String,
-		NodeIP:         row.NodeIp.String,
-		RepoURL:        row.RepoUrl.String,
-		Branch:         row.Branch.String,
-		DeployPath:     row.DeployPath,
-		Status:         row.Status.String,
-		LastDeployedAt: lastDeployed,
-		CreatedAt:      time.Unix(row.CreatedAt, 0),
-		UpdatedAt:      time.Unix(row.UpdatedAt, 0),
+		ID:           row.ID,
+		NodeID:       row.NodeID,
+		NodeName:     row.NodeName.String,
+		NodeIP:       row.NodeIp.String,
+		Name:         row.Name,
+		Path:         row.Path,
+		Tech:         parseStringSlice(row.Tech),
+		Commands:     parseCommands(row.Commands),
+		Logs:         parseStringSlice(row.Logs),
+		Backups:      parseBackup(row.Backups),
+		DiscoveredAt: time.Unix(row.DiscoveredAt, 0),
+		UpdatedAt:    time.Unix(row.UpdatedAt, 0),
 	}
 }
 
-// ConvertToProjectListResponse converts a list of db.ListProjectsWithNodesRow to ProjectResponse slice
+// ConvertToProjectListResponse converts a slice of db.ListProjectsWithNodesRow to ProjectResponse slice.
 func ConvertToProjectListResponse(rows []db.ListProjectsWithNodesRow) []*ProjectResponse {
 	projects := make([]*ProjectResponse, len(rows))
 	for i, row := range rows {
-		var lastDeployed *time.Time
-		if row.LastDeployedAt.Valid {
-			t := time.Unix(row.LastDeployedAt.Int64, 0)
-			lastDeployed = &t
-		}
-
 		projects[i] = &ProjectResponse{
-			ID:             row.ID,
-			Name:           row.Name,
-			Description:    row.Description.String,
-			NodeID:         int32(row.NodeID),
-			NodeName:       row.NodeName.String,
-			NodeIP:         row.NodeIp.String,
-			RepoURL:        row.RepoUrl.String,
-			Branch:         row.Branch.String,
-			DeployPath:     row.DeployPath,
-			Status:         row.Status.String,
-			LastDeployedAt: lastDeployed,
-			CreatedAt:      time.Unix(row.CreatedAt, 0),
-			UpdatedAt:      time.Unix(row.UpdatedAt, 0),
+			ID:           row.ID,
+			NodeID:       row.NodeID,
+			NodeName:     row.NodeName.String,
+			NodeIP:       row.NodeIp.String,
+			Name:         row.Name,
+			Path:         row.Path,
+			Tech:         parseStringSlice(row.Tech),
+			Commands:     parseCommands(row.Commands),
+			Logs:         parseStringSlice(row.Logs),
+			Backups:      parseBackup(row.Backups),
+			DiscoveredAt: time.Unix(row.DiscoveredAt, 0),
+			UpdatedAt:    time.Unix(row.UpdatedAt, 0),
 		}
 	}
 	return projects
+}
+
+// MarshalTech serialises a []string to a JSON string for DB storage.
+func MarshalTech(tech []string) string {
+	if tech == nil {
+		return "[]"
+	}
+	b, _ := json.Marshal(tech)
+	return string(b)
+}
+
+// MarshalCommands serialises []ProjectCommand to a JSON string for DB storage.
+func MarshalCommands(commands []ProjectCommand) string {
+	if commands == nil {
+		return "[]"
+	}
+	b, _ := json.Marshal(commands)
+	return string(b)
+}
+
+// MarshalLogs serialises a []string to a JSON string for DB storage.
+func MarshalLogs(logs []string) string {
+	if logs == nil {
+		return "[]"
+	}
+	b, _ := json.Marshal(logs)
+	return string(b)
+}
+
+// MarshalBackups serialises a *ProjectBackup to a JSON string for DB storage.
+func MarshalBackups(backup *ProjectBackup) string {
+	if backup == nil {
+		return "{}"
+	}
+	b, _ := json.Marshal(backup)
+	return string(b)
+}
+
+// --- helpers ----------------------------------------------------------------
+
+func parseStringSlice(raw string) []string {
+	if raw == "" || raw == "null" {
+		return []string{}
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return []string{}
+	}
+	return out
+}
+
+func parseCommands(raw string) []ProjectCommand {
+	if raw == "" || raw == "null" {
+		return []ProjectCommand{}
+	}
+	var out []ProjectCommand
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return []ProjectCommand{}
+	}
+	return out
+}
+
+func parseBackup(raw string) *ProjectBackup {
+	if raw == "" || raw == "null" || raw == "{}" {
+		return nil
+	}
+	var out ProjectBackup
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil
+	}
+	return &out
 }
