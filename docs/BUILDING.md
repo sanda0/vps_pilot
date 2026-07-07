@@ -1,4 +1,4 @@
-# Building VPS Pilot with Embedded UI
+# Building VPS Pilot
 
 This guide explains how to build VPS Pilot as a single executable with the UI embedded.
 
@@ -71,7 +71,12 @@ cd server
 ./vps_pilot
 ```
 
-Access the application at: **http://localhost:8000**
+Access the application at: **http://localhost:8080**
+
+> The default port is `8080`. Use `-port` to change it:
+> ```bash
+> ./vps_pilot -port 9090
+> ```
 
 ## Development vs Production
 
@@ -83,10 +88,11 @@ go run main.go
 
 # Terminal 2: Run frontend dev server
 cd client
-npm run dev
+npm install   # or: bun install
+npm run dev   # or: bun run dev
 ```
 Frontend: http://localhost:5173 (hot reload)
-API: http://localhost:8000/api/v1
+API: http://localhost:8080/api/v1
 
 ### Production (Embedded UI)
 ```bash
@@ -94,7 +100,7 @@ API: http://localhost:8000/api/v1
 cd server
 ./vps_pilot
 ```
-Everything: http://localhost:8000
+Everything: http://localhost:8080
 
 ## Build Options
 
@@ -206,21 +212,36 @@ jobs:
 
 ## Environment Variables
 
-Create `server/.env`:
+Create `server/.env` (copy from `.env.example`):
 ```env
-# Database
+# Database directory
 DB_PATH=./data
 
-# JWT
+# JWT authentication
 TOKEN_LIFESPAN=60
-TOKEN_SECRET=your-secret-key-min-32-chars
+TOKEN_SECRET=your-secret-key-min-32-chars   # must be 32+ characters
 
-# TCP Server
+# TCP server (receives metrics from agents)
 TCP_SERVER_PORT=55001
+
+# Email alerts (optional)
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_FROM_ADDRESS=noreply@vpspilot.com
 ```
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `-port <port>` | HTTP server port (default: `8080`) |
+| `-migrate` | Run database migrations and exit |
+| `-create-superuser` | Create an admin user interactively and exit |
+| `-create-makefile` | Generate a `Makefile` in `server/` and exit |
 
 ## Next Steps
 
-- [Deployment Guide](DEPLOYMENT.md)
-- [Configuration Options](CONFIGURATION.md)
-- [API Documentation](API.md)
+- [Quick Start Guide](../QUICKSTART.md)
+- [Agent Repository](https://github.com/sanda0/vps_pilot_agent)

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:watch": "tsc -b && vite build --watch",
     "lint": "eslint .",
     "preview": "vite preview",
     "addcn": "bun x --bun shadcn@latest add $1"

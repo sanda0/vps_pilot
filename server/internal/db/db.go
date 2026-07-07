@@ -45,8 +45,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
 	}
-	if q.createProjectStmt, err = db.PrepareContext(ctx, createProject); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateProject: %w", err)
+	if q.upsertProjectStmt, err = db.PrepareContext(ctx, upsertProject); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertProject: %w", err)
 	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
@@ -150,14 +150,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateNodeSysInfoStmt, err = db.PrepareContext(ctx, updateNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNodeSysInfo: %w", err)
 	}
-	if q.updateProjectStmt, err = db.PrepareContext(ctx, updateProject); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateProject: %w", err)
-	}
-	if q.updateProjectLastDeployedStmt, err = db.PrepareContext(ctx, updateProjectLastDeployed); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateProjectLastDeployed: %w", err)
-	}
-	if q.updateProjectStatusStmt, err = db.PrepareContext(ctx, updateProjectStatus); err != nil {
-		return nil, fmt.Errorf("error preparing query UpdateProjectStatus: %w", err)
+	if q.deleteProjectsByNodeStmt, err = db.PrepareContext(ctx, deleteProjectsByNode); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteProjectsByNode: %w", err)
 	}
 	return &q, nil
 }
@@ -199,9 +193,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
 		}
 	}
-	if q.createProjectStmt != nil {
-		if cerr := q.createProjectStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createProjectStmt: %w", cerr)
+	if q.upsertProjectStmt != nil {
+		if cerr := q.upsertProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertProjectStmt: %w", cerr)
 		}
 	}
 	if q.createUserStmt != nil {
@@ -374,19 +368,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateNodeSysInfoStmt: %w", cerr)
 		}
 	}
-	if q.updateProjectStmt != nil {
-		if cerr := q.updateProjectStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateProjectStmt: %w", cerr)
-		}
-	}
-	if q.updateProjectLastDeployedStmt != nil {
-		if cerr := q.updateProjectLastDeployedStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateProjectLastDeployedStmt: %w", cerr)
-		}
-	}
-	if q.updateProjectStatusStmt != nil {
-		if cerr := q.updateProjectStatusStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing updateProjectStatusStmt: %w", cerr)
+	if q.deleteProjectsByNodeStmt != nil {
+		if cerr := q.deleteProjectsByNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteProjectsByNodeStmt: %w", cerr)
 		}
 	}
 	return err
@@ -435,7 +419,7 @@ type Queries struct {
 	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
 	createNodeStmt                     *sql.Stmt
-	createProjectStmt                  *sql.Stmt
+	upsertProjectStmt                  *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	deactivateAlertStmt                *sql.Stmt
 	deleteAlertStmt                    *sql.Stmt
@@ -470,9 +454,7 @@ type Queries struct {
 	updateNodeDiskInfoStmt             *sql.Stmt
 	updateNodeNameStmt                 *sql.Stmt
 	updateNodeSysInfoStmt              *sql.Stmt
-	updateProjectStmt                  *sql.Stmt
-	updateProjectLastDeployedStmt      *sql.Stmt
-	updateProjectStatusStmt            *sql.Stmt
+	deleteProjectsByNodeStmt           *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -486,7 +468,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
 		createNodeStmt:                     q.createNodeStmt,
-		createProjectStmt:                  q.createProjectStmt,
+		upsertProjectStmt:                  q.upsertProjectStmt,
 		createUserStmt:                     q.createUserStmt,
 		deactivateAlertStmt:                q.deactivateAlertStmt,
 		deleteAlertStmt:                    q.deleteAlertStmt,
@@ -521,8 +503,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,
 		updateNodeNameStmt:                 q.updateNodeNameStmt,
 		updateNodeSysInfoStmt:              q.updateNodeSysInfoStmt,
-		updateProjectStmt:                  q.updateProjectStmt,
-		updateProjectLastDeployedStmt:      q.updateProjectLastDeployedStmt,
-		updateProjectStatusStmt:            q.updateProjectStatusStmt,
+		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
 	}
 }

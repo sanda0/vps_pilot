@@ -3,6 +3,7 @@ package tcpserver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -64,6 +65,76 @@ func CreateNode(ctx context.Context, repo *db.Repo, ip string, data []byte) (*db
 	}
 	fmt.Println("Node sys info added", sysInfoDb)
 	return &node, nil
+}
+
+// SyncProjects upserts all projects reported by the agent for a given node.
+// Called when the TCP server receives a "projects" message.
+func SyncProjects(ctx context.Context, repo *db.Repo, nodeID int64, payload ProjectSyncPayload) {
+	for _, p := range payload.Projects {
+		// Marshal JSON fields for DB storage
+		techJSON, _ := json.Marshal(p.Tech)
+		commandsJSON, _ := json.Marshal(p.Commands)
+		logsJSON, _ := json.Marshal(p.Logs)
+
+		var backupsJSON []byte
+		if p.Backups != nil {
+			backupsJSON, _ = json.Marshal(p.Backups)
+		} else {
+			backupsJSON = []byte("{}")
+		}
+
+		_, err := repo.Queries.UpsertProject(ctx, db.UpsertProjectParams{
+			NodeID:   nodeID,
+			Name:     p.Name,
+			Path:     p.Path,
+			Tech:     string(techJSON),
+			Commands: string(commandsJSON),
+			Logs:     string(logsJSON),
+			Backups:  string(backupsJSON),
+		})
+		if err != nil {
+			fmt.Printf("Error upserting project %q (node %d): %v\n", p.Path, nodeID, err)
+		} else {
+			fmt.Printf("Project synced: %q (node %d)\n", p.Name, nodeID)
+		}
+	}
+
+	// Remove projects that are no longer present on the node.
+	// Build the set of reported paths and delete anything not in it.
+	if len(payload.Projects) == 0 {
+		// Agent explicitly reported zero projects — clear them all
+		if _, err := repo.Queries.DeleteProjectsByNode(ctx, nodeID); err != nil {
+			fmt.Printf("Error clearing projects for node %d: %v\n", nodeID, err)
+		}
+		return
+	}
+
+	// Fetch current DB rows for this node and delete any stale ones
+	existing, err := repo.Queries.ListProjectsByNode(ctx, db.ListProjectsByNodeParams{
+		NodeID: nodeID,
+		Limit:  1000,
+		Offset: 0,
+	})
+	if err != nil {
+		fmt.Printf("Error listing projects for node %d: %v\n", nodeID, err)
+		return
+	}
+
+	reported := make(map[string]struct{}, len(payload.Projects))
+	for _, p := range payload.Projects {
+		reported[p.Path] = struct{}{}
+	}
+
+	for _, row := range existing {
+		if _, found := reported[row.Path]; !found {
+			if _, err := repo.Queries.DeleteProject(ctx, row.ID); err != nil {
+				fmt.Printf("Error deleting stale project %q: %v\n", row.Path, err)
+			} else {
+				fmt.Printf("Stale project removed: %q (node %d)\n", row.Path, nodeID)
+			}
+		}
+	}
+
 }
 
 func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {

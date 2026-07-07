@@ -45,7 +45,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 
 	// CORS configuration - allow frontend origin in development
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8000"}, // Development + embedded
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8000", "http://127.0.0.1:8000"}, // Development + embedded
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -98,10 +98,8 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 		}
 		projects := dashbaord.Group("/projects")
 		{
-			projects.POST("", projectHandler.CreateProject)
 			projects.GET("", projectHandler.ListProjects)
 			projects.GET("/:id", projectHandler.GetProject)
-			projects.PUT("/:id", projectHandler.UpdateProject)
 			projects.DELETE("/:id", projectHandler.DeleteProject)
 		}
 	}
@@ -109,7 +107,7 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	// Serve embedded static files
 	serveEmbeddedFiles(server)
 
-	server.Run(":8000")
+	server.Run(":" + port)
 }
 
 // serveEmbeddedFiles serves the embedded frontend files
