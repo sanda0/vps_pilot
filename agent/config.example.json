@@ -2,7 +2,5 @@
   "server_host": "127.0.0.1",
   "server_port": 55001,
   "agent_token": "",
-  "metrics_interval_seconds": 5,
-  "projects_interval_seconds": 300,
-  "project_roots": ["/var/www", "/opt"]
+  "metrics_interval_seconds": 5
 }

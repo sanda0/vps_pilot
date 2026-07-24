@@ -9,9 +9,6 @@ import {
 import ProtectedRoute from "./protectedRoute";
 import NodesIndex from "@/pages/nodes";
 import NodeView from "@/pages/nodes/view";
-import ProjectsListPage from "@/pages/projects";
-import ProjectDetailsPage from "@/pages/projects/[id]";
-import GitHubSettings from "@/pages/settings/github";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -23,19 +20,6 @@ const router = createBrowserRouter(
           <Route path="nodes" element={<NodesIndex></NodesIndex>}></Route>
           <Route path="nodes/:id" element={<NodeView></NodeView>}></Route>
 
-          <Route
-            path="projects"
-            element={<ProjectsListPage></ProjectsListPage>}
-          ></Route>
-          <Route
-            path="projects/:id"
-            element={<ProjectDetailsPage></ProjectDetailsPage>}
-          ></Route>
-
-          <Route
-            path="settings/github"
-            element={<GitHubSettings></GitHubSettings>}
-          ></Route>
         </Route>
       </Route>
     </Route>,

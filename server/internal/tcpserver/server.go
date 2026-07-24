@@ -44,7 +44,6 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
 	router.Handle("connected", HandleConnected)
 	router.Handle("sys_info", HandleSysInfo)
 	router.Handle("sys_stat", HandleSysStat(chans))
-	router.Handle("projects", HandleProjects)
 
 	router.Serve(ctx, repo, listener)
 }

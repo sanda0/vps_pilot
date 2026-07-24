@@ -26,18 +26,8 @@ Config Config::load(const std::filesystem::path& path) {
     config.server_port = static_cast<std::uint16_t>(port);
     config.metrics_interval_seconds =
         json.value("metrics_interval_seconds", config.metrics_interval_seconds);
-    config.projects_interval_seconds =
-        json.value("projects_interval_seconds", config.projects_interval_seconds);
-
-    if (config.metrics_interval_seconds == 0 || config.projects_interval_seconds == 0) {
-        throw std::runtime_error("reporting intervals must be greater than zero");
-    }
-
-    if (json.contains("project_roots")) {
-        config.project_roots.clear();
-        for (const auto& root : json.at("project_roots")) {
-            config.project_roots.emplace_back(root.get<std::string>());
-        }
+    if (config.metrics_interval_seconds == 0) {
+        throw std::runtime_error("metrics_interval_seconds must be greater than zero");
     }
     return config;
 }

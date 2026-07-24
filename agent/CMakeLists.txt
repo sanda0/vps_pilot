@@ -9,7 +9,6 @@ add_executable(vps-pilot-agent
     src/agent.cpp
     src/config.cpp
     src/linux_metrics.cpp
-    src/project_scanner.cpp
 )
 
 target_compile_features(vps-pilot-agent PRIVATE cxx_std_20)
@@ -24,4 +23,3 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS vps-pilot-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES config.example.json DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/vps-pilot-agent)
-

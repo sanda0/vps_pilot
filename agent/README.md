@@ -1,8 +1,7 @@
 # VPS Pilot C++ Agent
 
 Linux monitoring agent for the VPS Pilot server. It collects per-core CPU,
-memory, root-filesystem disk, and non-loopback network usage. It also discovers
-`config.vpspilot.json` files under configured project roots.
+memory, root-filesystem disk, and non-loopback network usage.
 
 ## Requirements
 

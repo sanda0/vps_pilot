@@ -30,8 +30,7 @@ std::uint32_t decode_size(const std::array<unsigned char, 4>& bytes) {
 
 }  // namespace
 
-Agent::Agent(Config config)
-    : config_(std::move(config)), projects_(config_.project_roots) {}
+Agent::Agent(Config config) : config_(std::move(config)) {}
 
 void Agent::run() {
     std::chrono::seconds retry_delay{1};
@@ -73,20 +72,13 @@ void Agent::session() {
     }
     std::cout << "registered as node " << node_id_ << '\n';
 
-    send_message("projects", projects_.scan());
     auto next_metrics = std::chrono::steady_clock::now();
-    auto next_projects =
-        next_metrics + std::chrono::seconds(config_.projects_interval_seconds);
 
     while (true) {
         const auto now = std::chrono::steady_clock::now();
         if (now >= next_metrics) {
             send_message("sys_stat", metrics_.sample());
             next_metrics = now + std::chrono::seconds(config_.metrics_interval_seconds);
-        }
-        if (now >= next_projects) {
-            send_message("projects", projects_.scan());
-            next_projects = now + std::chrono::seconds(config_.projects_interval_seconds);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds{100});
     }

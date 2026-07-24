@@ -1,10 +1,7 @@
 import * as React from "react"
 import {
-  FolderGit2,
   GalleryVerticalEnd,
-  ReplaceAll,
   Server,
-  Settings2,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -41,31 +38,6 @@ const data = {
       url: "/nodes",
       icon: Server,
     },
-    {
-      title: "Projects",
-      url: "/projects",
-      icon: FolderGit2
-    },
-    {
-      title: "Cron Jobs",
-      url: "#",
-      icon: ReplaceAll
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "GitHub",
-          url: "/settings/github",
-        },
-        {
-          title: "Users",
-          url: "#",
-        }
-      ],
-    },
   ],
 }
 
@@ -98,7 +70,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

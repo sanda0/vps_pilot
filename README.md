@@ -1,7 +1,7 @@
 # VPS Pilot
 
-VPS Pilot is a **server monitoring and management platform** designed for private VPS servers.  
-It provides real-time monitoring, alerting, project management, and (future) cron job automation — all from a single dashboard.
+VPS Pilot is a **server monitoring platform** designed for private VPS servers.
+It provides real-time system metrics and threshold-based alerts from a single dashboard.
 
 ---
 
@@ -32,54 +32,6 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 ---
 
-### 🚀 Projects Management (Coming Soon)
-- Each node can have multiple projects
-- Projects require a `config.vpspilot.json` file
-- Agents scan disks for project config files and send project metadata to the central server
-- Central server will display available projects and allow:
-  - Running predefined commands
-  - Managing project logs
-  - Backing up project directories and databases
-
-**Sample `config.vpspilot.json`:**
-```vps_pilot/docs/readme_draft.md#L1-1
-{
-  "name": "meta ads dashboard",
-  "tech": ["laravel", "react", "mysql"],
-  "logs": [],
-  "commands": [
-    { "name": "node build", "command": "npm run build" },
-    { "name": "php build", "command": "composer install" }
-  ],
-  "backups": {
-    "env_file": ".env",
-    "zip_file_name": "project_backup",
-    "database": {
-      "connection": "DB_CONNECTION",
-      "host": "DB_HOST",
-      "port": "DB_PORT",
-      "username": "DB_USERNAME",
-      "password": "DB_PASSWORD",
-      "database_name": "DB_DATABASE"
-    },
-    "dir": [
-      "storage/app",
-      "database/companies"
-    ]
-  }
-}
-```
-
----
-
-### ⏲️ Cron Jobs Management (Planned)
-- Remote cron job creation and management
-- Schedule tasks across multiple nodes
-- Monitor job execution and logs
-- **Status:** Not yet implemented
-
----
-
 ## 🛠️ Tech Stack
 
 | Component          | Technology        |
@@ -91,7 +43,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 | **Deployment**     | Single executable |
 
 ### Architecture
-- **Operational DB**: Users, nodes, alerts, projects
+- **Operational DB**: Users, nodes, and alerts
 - **Timeseries DB**: Metrics data (CPU, Memory, Network stats)
 - **Embedded UI**: React app bundled into Go binary
 - **TCP Server**: Receives metrics from agents (default port `55001`)
@@ -433,9 +385,6 @@ ls server/cmd/app/dist/
 - [x] SQLite dual-database architecture
 - [x] Embedded UI in single binary
 - [x] User authentication with JWT
-- [ ] Project management via `config.vpspilot.json`
-- [ ] Remote command execution for projects
-- [ ] Project backups (database + directories)
 - [ ] Remote cron job creation and management
 - [ ] Docker Compose deployment
 - [ ] Multi-user support with roles
