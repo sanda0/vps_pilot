@@ -40,8 +40,6 @@ func (u *userService) Login(form dto.UserLoginDto) (*dto.UserLoginResponseDto, e
 
 	}
 
-	fmt.Println("user", user)
-
 	response := &dto.UserLoginResponseDto{
 		ID:       int32(user.ID),
 		Email:    user.Email,
