@@ -82,8 +82,12 @@ func main() {
 		return
 	}
 
-	//init tcp server
-	go tcpserver.StartTcpServer(ctx, repo, "55001")
+	// Start the TCP server used by node agents.
+	tcpPort := os.Getenv("TCP_SERVER_PORT")
+	if tcpPort == "" {
+		tcpPort = "55001"
+	}
+	go tcpserver.StartTcpServer(ctx, repo, tcpPort)
 
 	app.Run(ctx, repo, *port)
 
