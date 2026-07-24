@@ -3,6 +3,7 @@ package tcpserver
 import (
 	"context"
 	"fmt"
+	"net"
 	"strings"
 )
 
@@ -11,7 +12,10 @@ import (
 // ConnContext so subsequent handlers can use it, and tells the agent to start
 // streaming system stats.
 func HandleConnected(ctx context.Context, c *ConnContext, msg Msg) {
-	ip := strings.Split(c.RemoteAddr, ":")[0]
+	ip, _, err := net.SplitHostPort(c.RemoteAddr)
+	if err != nil {
+		ip = strings.Trim(c.RemoteAddr, "[]")
+	}
 
 	node, err := CreateNode(ctx, c.Repo(), ip, msg.Data)
 	if err != nil {

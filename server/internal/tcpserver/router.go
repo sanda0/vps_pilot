@@ -2,8 +2,10 @@ package tcpserver
 
 import (
 	"context"
-	"encoding/gob"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/sanda0/vps_pilot/internal/db"
@@ -26,8 +28,8 @@ type ConnContext struct {
 	// It is zero until then.
 	NodeID int64
 
-	// encoder is used to write messages back to the agent.
-	encoder *gob.Encoder
+	// conn is used to write framed JSON messages back to the agent.
+	conn net.Conn
 
 	// repo gives handlers access to both databases.
 	repo *db.Repo
@@ -35,7 +37,7 @@ type ConnContext struct {
 
 // Send encodes and writes a message back to the agent.
 func (c *ConnContext) Send(msg Msg) error {
-	if err := c.encoder.Encode(msg); err != nil {
+	if err := writeJSONFrame(c.conn, msg); err != nil {
 		return fmt.Errorf("send to %s: %w", c.RemoteAddr, err)
 	}
 	return nil
@@ -107,11 +109,13 @@ func (r *Router) Serve(ctx context.Context, repo *db.Repo, listener net.Listener
 		}
 
 		remoteAddr := conn.RemoteAddr().String()
+		agentConnectionsMu.Lock()
 		AgentConnections[remoteAddr] = conn
+		agentConnectionsMu.Unlock()
 
 		c := &ConnContext{
 			RemoteAddr: remoteAddr,
-			encoder:    gob.NewEncoder(conn),
+			conn:       conn,
 			repo:       repo,
 		}
 
@@ -123,21 +127,97 @@ func (r *Router) Serve(ctx context.Context, repo *db.Repo, listener net.Listener
 func (r *Router) serveConn(ctx context.Context, c *ConnContext, conn net.Conn) {
 	defer func() {
 		conn.Close()
+		agentConnectionsMu.Lock()
 		delete(AgentConnections, c.RemoteAddr)
+		agentConnectionsMu.Unlock()
 		fmt.Println("Connection closed:", c.RemoteAddr)
 	}()
 
 	fmt.Println("New connection from", c.RemoteAddr)
 
-	decoder := gob.NewDecoder(conn)
 	for {
-		var msg Msg
-		if err := decoder.Decode(&msg); err != nil {
+		msg, err := readJSONFrame(conn)
+		if err != nil {
 			// EOF or broken pipe — agent disconnected.
 			break
 		}
 		r.Dispatch(ctx, c, msg)
 	}
+}
+
+const maxAgentFrameSize = 4 * 1024 * 1024
+
+// readJSONFrame reads a four-byte big-endian length followed by one JSON object.
+func readJSONFrame(r io.Reader) (Msg, error) {
+	var header [4]byte
+	if _, err := io.ReadFull(r, header[:]); err != nil {
+		return Msg{}, err
+	}
+
+	size := binary.BigEndian.Uint32(header[:])
+	if size == 0 || size > maxAgentFrameSize {
+		return Msg{}, fmt.Errorf("invalid agent frame size: %d", size)
+	}
+
+	payload := make([]byte, size)
+	if _, err := io.ReadFull(r, payload); err != nil {
+		return Msg{}, err
+	}
+
+	var wire wireMessage
+	if err := json.Unmarshal(payload, &wire); err != nil {
+		return Msg{}, fmt.Errorf("decode agent frame: %w", err)
+	}
+	if wire.Type == "" {
+		return Msg{}, fmt.Errorf("agent frame is missing type")
+	}
+
+	return Msg{
+		Msg:    wire.Type,
+		NodeId: wire.NodeID,
+		Token:  wire.Token,
+		Data:   []byte(wire.Data),
+	}, nil
+}
+
+func writeJSONFrame(w io.Writer, msg Msg) error {
+	wire := wireMessage{
+		Type:   msg.Msg,
+		NodeID: msg.NodeId,
+		Token:  msg.Token,
+	}
+	if len(msg.Data) > 0 {
+		wire.Data = json.RawMessage(msg.Data)
+	}
+
+	payload, err := json.Marshal(wire)
+	if err != nil {
+		return fmt.Errorf("encode agent frame: %w", err)
+	}
+	if len(payload) > maxAgentFrameSize {
+		return fmt.Errorf("agent frame too large: %d", len(payload))
+	}
+
+	var header [4]byte
+	binary.BigEndian.PutUint32(header[:], uint32(len(payload)))
+	if err := writeAll(w, header[:]); err != nil {
+		return err
+	}
+	return writeAll(w, payload)
+}
+
+func writeAll(w io.Writer, data []byte) error {
+	for len(data) > 0 {
+		written, err := w.Write(data)
+		if err != nil {
+			return err
+		}
+		if written == 0 {
+			return io.ErrUnexpectedEOF
+		}
+		data = data[written:]
+	}
+	return nil
 }
 
 // RequireHandshake returns a middleware that ensures the "connected" handshake

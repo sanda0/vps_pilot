@@ -223,6 +223,7 @@ TOKEN_SECRET=your-secret-key-min-32-chars   # must be 32+ characters
 
 # TCP server (receives metrics from agents)
 TCP_SERVER_PORT=55001
+AGENT_TOKEN=use-the-same-long-random-value-on-every-agent
 
 # Email alerts (optional)
 MAIL_HOST=smtp.gmail.com
@@ -244,4 +245,4 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 ## Next Steps
 
 - [Quick Start Guide](../QUICKSTART.md)
-- [Agent Repository](https://github.com/sanda0/vps_pilot_agent)
+- [Build the C++ agent](../agent/README.md)

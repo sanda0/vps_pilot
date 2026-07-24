@@ -1,0 +1,18 @@
+[Unit]
+Description=VPS Pilot monitoring agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/vps-pilot-agent --config /etc/vps-pilot-agent/config.json
+Restart=always
+RestartSec=5
+User=root
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

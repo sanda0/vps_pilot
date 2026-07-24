@@ -82,8 +82,17 @@ func (s *SystemStat) FromBytes(data []byte) error {
 }
 
 type Msg struct {
-	Msg    string
-	NodeId int32
-	Token  string
-	Data   []byte
+	Msg    string `json:"type"`
+	NodeId int32  `json:"node_id,omitempty"`
+	Token  string `json:"token,omitempty"`
+	Data   []byte `json:"-"`
+}
+
+// wireMessage is the language-neutral message exchanged with agents.
+// Data remains raw JSON so agents do not need to base64-encode payloads.
+type wireMessage struct {
+	Type   string          `json:"type"`
+	NodeID int32           `json:"node_id,omitempty"`
+	Token  string          `json:"token,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"`
 }

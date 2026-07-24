@@ -8,7 +8,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 ## ✨ Features
 
 ### 📊 Real-time Monitoring
-- Agents installed on each node (server). ([Agent repo](https://github.com/sanda0/vps_pilot_agent))
+- The C++ agent in [`agent/`](agent/) is installed on each node.
 - Agents send system metrics to the central server via TCP:
   - **CPU usage**
   - **Memory usage**
@@ -84,7 +84,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 | Component          | Technology        |
 |--------------------|-------------------|
-| **Agent**          | Golang            |
+| **Agent**          | C++20 + Conan     |
 | **Central Server** | Golang            |
 | **Dashboard**      | React + Vite      |
 | **Database**       | SQLite (dual DB)  |
@@ -154,6 +154,7 @@ TOKEN_SECRET=your-secret-key-min-32-chars
 
 # TCP server (receives metrics from agents)
 TCP_SERVER_PORT=55001
+AGENT_TOKEN=use-the-same-long-random-value-on-every-agent
 
 # Email alerts (optional)
 MAIL_HOST=smtp.gmail.com
@@ -164,6 +165,7 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 ```
 
 > **Note:** `TOKEN_SECRET` must be at least 32 characters long.
+Set the same `AGENT_TOKEN` value in each agent's `config.json`.
 
 ---
 
@@ -478,7 +480,7 @@ This project is licensed under the MIT License.
 
 ## 🔗 Links
 
-- **Agent Repository**: https://github.com/sanda0/vps_pilot_agent
+- **C++ Agent**: [`agent/`](agent/)
 - **Issues**: https://github.com/sanda0/vps_pilot/issues
 - **Documentation**: [docs/](docs/)
 

@@ -64,6 +64,7 @@ TOKEN_SECRET=change-me-to-a-random-string-32-chars-min
 
 # Port the agent TCP server listens on
 TCP_SERVER_PORT=55001
+AGENT_TOKEN=use-the-same-long-random-value-on-every-agent
 
 # Email alerts (optional)
 MAIL_HOST=smtp.gmail.com
@@ -74,6 +75,7 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 ```
 
 > **Important:** `TOKEN_SECRET` must be at least 32 characters long.
+The C++ agent must use the same value as `AGENT_TOKEN`.
 
 ---
 
@@ -195,7 +197,7 @@ ls server/cmd/app/dist/
 ```
 
 **Metrics not appearing in the dashboard**
-- Make sure the [VPS Pilot Agent](https://github.com/sanda0/vps_pilot_agent) is installed and running on the target node
+- Make sure the C++ agent in [`agent/`](agent/) is built and running on the target node
 - Confirm TCP port `55001` is open on the server (check your firewall rules)
 - Verify the node is registered in the dashboard
 
@@ -203,6 +205,6 @@ ls server/cmd/app/dist/
 
 ## What's Next?
 
-- Install the agent on your nodes → [Agent Repository](https://github.com/sanda0/vps_pilot_agent)
+- Build and install the agent on your nodes → [`agent/README.md`](agent/README.md)
 - Read the full build guide → [docs/BUILDING.md](docs/BUILDING.md)
 - Configure alerts (Email / Slack / Discord) → see the **Alerts** section in the dashboard
