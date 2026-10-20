@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -110,33 +111,73 @@ func RunMigrationsWithConfig(db *sql.DB, dbType string, config *MigrationConfig)
 
 		fmt.Printf("Applying migration %s: %s\n", migration.Version, migration.Name)
 
-		// Start transaction
-		tx, err := db.Begin()
-		if err != nil {
-			return fmt.Errorf("failed to start transaction: %w", err)
-		}
-
-		// Execute migration
-		if _, err := tx.Exec(migration.UpSQL); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("failed to execute migration %s: %w", migration.Version, err)
-		}
-
-		// Record migration
-		if _, err := tx.Exec("INSERT INTO migrations (version, name) VALUES (?, ?)", migration.Version, migration.Name); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("failed to record migration %s: %w", migration.Version, err)
-		}
-
-		// Commit transaction
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit migration %s: %w", migration.Version, err)
+		if err := applyMigration(db, migration); err != nil {
+			return err
 		}
 
 		fmt.Printf("Migration %s applied successfully\n", migration.Version)
 	}
 
 	return nil
+}
+
+// applyMigration runs one migration on a dedicated connection with foreign
+// keys disabled, following SQLite's table-rebuild procedure: a DROP TABLE with
+// foreign keys on would cascade-delete child rows. Integrity is checked with
+// PRAGMA foreign_key_check before committing.
+func applyMigration(db *sql.DB, migration Migration) error {
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get connection: %w", err)
+	}
+	defer conn.Close()
+
+	// PRAGMA foreign_keys is a no-op inside a transaction, so set it first.
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return fmt.Errorf("failed to disable foreign keys: %w", err)
+	}
+	defer conn.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(migration.UpSQL); err != nil {
+		return fmt.Errorf("failed to execute migration %s: %w", migration.Version, err)
+	}
+
+	violations, err := countForeignKeyViolations(tx)
+	if err != nil {
+		return fmt.Errorf("failed to check foreign keys for migration %s: %w", migration.Version, err)
+	}
+	if violations > 0 {
+		return fmt.Errorf("migration %s leaves %d foreign key violation(s)", migration.Version, violations)
+	}
+
+	if _, err := tx.Exec("INSERT INTO migrations (version, name) VALUES (?, ?)", migration.Version, migration.Name); err != nil {
+		return fmt.Errorf("failed to record migration %s: %w", migration.Version, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migration %s: %w", migration.Version, err)
+	}
+	return nil
+}
+
+func countForeignKeyViolations(tx *sql.Tx) (int, error) {
+	rows, err := tx.Query("PRAGMA foreign_key_check")
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		n++
+	}
+	return n, rows.Err()
 }
 
 // createMigrationsTable creates the migrations tracking table

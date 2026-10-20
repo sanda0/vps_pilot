@@ -4,67 +4,125 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/sanda0/vps_pilot/internal/agentauth"
 	"github.com/sanda0/vps_pilot/internal/db"
 )
 
-func CreateNode(ctx context.Context, repo *db.Repo, ip string, data []byte) (*db.Node, error) {
-
-	node, err := repo.Queries.GetNodeByIP(ctx, ip)
-	if err == nil {
-		return &node, nil
+// EnrollNode consumes a join token and issues fresh node credentials. If the
+// token was created for an existing node, that node's credentials are rotated
+// (keeping its history); otherwise a new node is created. All of it runs in
+// one transaction so a token can't be spent without producing credentials.
+func EnrollNode(ctx context.Context, repo *db.Repo, joinSecret, ip string, sysInfo SystemInfo) (*EnrolledPayload, error) {
+	if joinSecret == "" {
+		return nil, errors.New("missing join secret")
 	}
 
-	node, err = repo.Queries.CreateNode(ctx, db.CreateNodeParams{
-		Name: sql.NullString{
-			String: "node-" + ip,
-			Valid:  true,
-		},
-		Ip: ip,
+	agentID, nodeKey, err := agentauth.NewNodeCredentials()
+	if err != nil {
+		return nil, err
+	}
+	keyHash := sqlString(agentauth.Hash(nodeKey))
+
+	tx, err := repo.OperationalDB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	q := repo.Queries.WithTx(tx)
+
+	token, err := q.ConsumeJoinToken(ctx, agentauth.Hash(joinSecret))
+	if err != nil {
+		return nil, fmt.Errorf("consume join token: %w", err)
+	}
+
+	var nodeID int64
+	if token.NodeID.Valid {
+		nodeID = token.NodeID.Int64
+		n, err := q.SetNodeCredentials(ctx, db.SetNodeCredentialsParams{
+			AgentID: sqlString(agentID),
+			KeyHash: keyHash,
+			ID:      nodeID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, fmt.Errorf("node %d no longer exists", nodeID)
+		}
+		if err := q.TouchNode(ctx, touchNodeParams(ip, nodeID)); err != nil {
+			return nil, err
+		}
+	} else {
+		name := sysInfo.Hostname
+		if name == "" {
+			name = "node-" + ip
+		}
+		node, err := q.CreateEnrolledNode(ctx, db.CreateEnrolledNodeParams{
+			Name:    sqlString(name),
+			Ip:      ip,
+			AgentID: sqlString(agentID),
+			KeyHash: keyHash,
+		})
+		if err != nil {
+			return nil, err
+		}
+		nodeID = node.ID
+	}
+
+	if err := q.SetJoinTokenUsedBy(ctx, db.SetJoinTokenUsedByParams{
+		UsedByNodeID: sql.NullInt64{Int64: nodeID, Valid: true},
+		ID:           token.ID,
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := UpsertSysInfo(ctx, q, nodeID, sysInfo); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &EnrolledPayload{AgentID: agentID, NodeKey: nodeKey, NodeID: nodeID}, nil
+}
+
+// UpsertSysInfo stores the latest system info for a node.
+func UpsertSysInfo(ctx context.Context, q *db.Queries, nodeID int64, s SystemInfo) error {
+	params := db.UpdateNodeSysInfoParams{
+		Os:              sqlString(s.OS),
+		Platform:        sqlString(s.Platform),
+		PlatformVersion: sqlString(s.PlatformVersion),
+		KernelVersion:   sqlString(s.KernelVersion),
+		Cpus:            sql.NullInt64{Int64: int64(s.CPUs), Valid: true},
+		TotalMemory:     sql.NullFloat64{Float64: float64(s.TotalMemory), Valid: true},
+		NodeID:          nodeID,
+	}
+	_, err := q.UpdateNodeSysInfo(ctx, params)
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	_, err = q.AddNodeSysInfo(ctx, db.AddNodeSysInfoParams{
+		NodeID:          nodeID,
+		Os:              params.Os,
+		Platform:        params.Platform,
+		PlatformVersion: params.PlatformVersion,
+		KernelVersion:   params.KernelVersion,
+		Cpus:            params.Cpus,
+		TotalMemory:     params.TotalMemory,
 	})
-	if err != nil {
-		fmt.Println("Error creating node", err)
-	}
-	fmt.Println("Node created", node)
-	sysInfo := SystemInfo{}
-	err = sysInfo.FromBytes(data)
-	if err != nil {
-		fmt.Println("Error unmarshalling system info", err)
-	}
-	sysInfoDb, err := repo.Queries.AddNodeSysInfo(ctx, db.AddNodeSysInfoParams{
-		NodeID: node.ID,
-		Os: sql.NullString{
-			String: sysInfo.OS,
-			Valid:  true,
-		},
-		Platform: sql.NullString{
-			String: sysInfo.Platform,
-			Valid:  true,
-		},
-		PlatformVersion: sql.NullString{
-			String: sysInfo.PlatformVersion,
-			Valid:  true,
-		},
-		KernelVersion: sql.NullString{
-			String: sysInfo.KernelVersion,
-			Valid:  true,
-		},
-		Cpus: sql.NullInt64{
-			Int64: int64(sysInfo.CPUs),
-			Valid: true,
-		},
-		TotalMemory: sql.NullFloat64{
-			Float64: float64(sysInfo.TotalMemory),
-			Valid:   true,
-		},
-	})
-	if err != nil {
-		fmt.Println("Error adding node sys info", err)
-	}
-	fmt.Println("Node sys info added", sysInfoDb)
-	return &node, nil
+	return err
+}
+
+func sqlString(s string) sql.NullString {
+	return sql.NullString{String: s, Valid: true}
+}
+
+func touchNodeParams(ip string, nodeID int64) db.TouchNodeParams {
+	return db.TouchNodeParams{Ip: ip, ID: nodeID}
 }
 
 // SyncProjects upserts all projects reported by the agent for a given node.

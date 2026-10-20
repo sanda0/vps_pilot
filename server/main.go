@@ -10,7 +10,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/sanda0/vps_pilot/cmd/app"
 	"github.com/sanda0/vps_pilot/cmd/cli"
+	"github.com/sanda0/vps_pilot/internal/agentauth"
 	"github.com/sanda0/vps_pilot/internal/db"
+	"github.com/sanda0/vps_pilot/internal/services"
 	"github.com/sanda0/vps_pilot/internal/tcpserver"
 )
 
@@ -26,6 +28,9 @@ func main() {
 	createSuperuser := flag.Bool("create-superuser", false, "create superuser")
 	createMakefile := flag.Bool("create-makefile", false, "create makefile")
 	migrate := flag.Bool("migrate", false, "run database migrations")
+	agentPort := flag.String("agent-port", envOr("TCP_SERVER_PORT", "55001"), "agent channel (TLS) port")
+	agentTLSCert := flag.String("agent-tls-cert", "", "agent channel TLS cert (default: self-signed in $DB_PATH/tls)")
+	agentTLSKey := flag.String("agent-tls-key", "", "agent channel TLS key")
 	flag.Parse()
 
 	// Get database directory from environment or use default
@@ -83,8 +88,24 @@ func main() {
 	}
 
 	//init tcp server
-	go tcpserver.StartTcpServer(ctx, repo, "55001")
+	cert, err := agentauth.LoadOrCreateCert(filepath.Join(dbDir, "tls"), *agentTLSCert, *agentTLSKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	agents := tcpserver.NewRegistry()
+	go tcpserver.StartTcpServer(ctx, repo, agents, cert, *agentPort)
 
-	app.Run(ctx, repo, *port)
+	app.Run(ctx, repo, *port, services.AgentEnrollment{
+		Fingerprint: cert.Fingerprint,
+		AgentPort:   *agentPort,
+		Agents:      agents,
+	})
 
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

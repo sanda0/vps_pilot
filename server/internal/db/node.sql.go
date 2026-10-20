@@ -110,24 +110,49 @@ func (q *Queries) AddNodeSysInfo(ctx context.Context, arg AddNodeSysInfoParams) 
 	return i, err
 }
 
-const createNode = `-- name: CreateNode :one
-INSERT INTO nodes (name, ip)
-VALUES (?, ?)
-RETURNING id, name, ip, created_at, updated_at
+const clearNodeKey = `-- name: ClearNodeKey :execrows
+UPDATE nodes
+SET key_hash = NULL,
+  updated_at = strftime('%s', 'now')
+WHERE id = ?
 `
 
-type CreateNodeParams struct {
-	Name sql.NullString `json:"name"`
-	Ip   string         `json:"ip"`
+func (q *Queries) ClearNodeKey(ctx context.Context, id int64) (int64, error) {
+	result, err := q.exec(ctx, q.clearNodeKeyStmt, clearNodeKey, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
-func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) (Node, error) {
-	row := q.queryRow(ctx, q.createNodeStmt, createNode, arg.Name, arg.Ip)
+const createEnrolledNode = `-- name: CreateEnrolledNode :one
+INSERT INTO nodes (name, ip, agent_id, key_hash, last_seen_at)
+VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+RETURNING id, name, ip, agent_id, key_hash, last_seen_at, created_at, updated_at
+`
+
+type CreateEnrolledNodeParams struct {
+	Name    sql.NullString `json:"name"`
+	Ip      string         `json:"ip"`
+	AgentID sql.NullString `json:"agent_id"`
+	KeyHash sql.NullString `json:"-"`
+}
+
+func (q *Queries) CreateEnrolledNode(ctx context.Context, arg CreateEnrolledNodeParams) (Node, error) {
+	row := q.queryRow(ctx, q.createEnrolledNodeStmt, createEnrolledNode,
+		arg.Name,
+		arg.Ip,
+		arg.AgentID,
+		arg.KeyHash,
+	)
 	var i Node
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Ip,
+		&i.AgentID,
+		&i.KeyHash,
+		&i.LastSeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -148,7 +173,7 @@ func (q *Queries) DeleteNode(ctx context.Context, id int64) (int64, error) {
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, name, ip, created_at, updated_at
+SELECT id, name, ip, agent_id, key_hash, last_seen_at, created_at, updated_at
 FROM nodes
 WHERE id = ?
 `
@@ -160,25 +185,31 @@ func (q *Queries) GetNode(ctx context.Context, id int64) (Node, error) {
 		&i.ID,
 		&i.Name,
 		&i.Ip,
+		&i.AgentID,
+		&i.KeyHash,
+		&i.LastSeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getNodeByIP = `-- name: GetNodeByIP :one
-SELECT id, name, ip, created_at, updated_at
+const getNodeByAgentID = `-- name: GetNodeByAgentID :one
+SELECT id, name, ip, agent_id, key_hash, last_seen_at, created_at, updated_at
 FROM nodes
-WHERE ip = ?
+WHERE agent_id = ?
 `
 
-func (q *Queries) GetNodeByIP(ctx context.Context, ip string) (Node, error) {
-	row := q.queryRow(ctx, q.getNodeByIPStmt, getNodeByIP, ip)
+func (q *Queries) GetNodeByAgentID(ctx context.Context, agentID sql.NullString) (Node, error) {
+	row := q.queryRow(ctx, q.getNodeByAgentIDStmt, getNodeByAgentID, agentID)
 	var i Node
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Ip,
+		&i.AgentID,
+		&i.KeyHash,
+		&i.LastSeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -293,7 +324,7 @@ func (q *Queries) GetNodeWithSysInfo(ctx context.Context, id int64) (GetNodeWith
 }
 
 const getNodes = `-- name: GetNodes :many
-SELECT id, name, ip, created_at, updated_at
+SELECT id, name, ip, agent_id, key_hash, last_seen_at, created_at, updated_at
 FROM nodes
 LIMIT ? OFFSET ?
 `
@@ -316,6 +347,9 @@ func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, err
 			&i.ID,
 			&i.Name,
 			&i.Ip,
+			&i.AgentID,
+			&i.KeyHash,
+			&i.LastSeenAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -418,13 +452,52 @@ func (q *Queries) GetNodesWithSysInfo(ctx context.Context, arg GetNodesWithSysIn
 	return items, nil
 }
 
+const setNodeCredentials = `-- name: SetNodeCredentials :execrows
+UPDATE nodes
+SET agent_id = ?,
+  key_hash = ?,
+  updated_at = strftime('%s', 'now')
+WHERE id = ?
+`
+
+type SetNodeCredentialsParams struct {
+	AgentID sql.NullString `json:"agent_id"`
+	KeyHash sql.NullString `json:"-"`
+	ID      int64          `json:"id"`
+}
+
+func (q *Queries) SetNodeCredentials(ctx context.Context, arg SetNodeCredentialsParams) (int64, error) {
+	result, err := q.exec(ctx, q.setNodeCredentialsStmt, setNodeCredentials, arg.AgentID, arg.KeyHash, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const touchNode = `-- name: TouchNode :exec
+UPDATE nodes
+SET ip = ?,
+  last_seen_at = strftime('%s', 'now')
+WHERE id = ?
+`
+
+type TouchNodeParams struct {
+	Ip string `json:"ip"`
+	ID int64  `json:"id"`
+}
+
+func (q *Queries) TouchNode(ctx context.Context, arg TouchNodeParams) error {
+	_, err := q.exec(ctx, q.touchNodeStmt, touchNode, arg.Ip, arg.ID)
+	return err
+}
+
 const updateNode = `-- name: UpdateNode :one
 UPDATE nodes
 SET name = ?,
   ip = ?,
   updated_at = strftime('%s', 'now')
 WHERE id = ?
-RETURNING id, name, ip, created_at, updated_at
+RETURNING id, name, ip, agent_id, key_hash, last_seen_at, created_at, updated_at
 `
 
 type UpdateNodeParams struct {
@@ -440,6 +513,9 @@ func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) (Node, e
 		&i.ID,
 		&i.Name,
 		&i.Ip,
+		&i.AgentID,
+		&i.KeyHash,
+		&i.LastSeenAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

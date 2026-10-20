@@ -52,7 +52,10 @@ func InitializeDatabases(dbDir string) (*sql.DB, *sql.DB, error) {
 
 // initSQLiteDB initializes a single SQLite database with optimized settings
 func initSQLiteDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path)
+	// foreign_keys and busy_timeout are per-connection settings, so they go in
+	// the DSN to apply to every pooled connection, not just the first one.
+	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database %s: %w", path, err)
 	}

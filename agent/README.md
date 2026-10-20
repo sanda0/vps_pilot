@@ -1,0 +1,53 @@
+# vps-pilot-agent
+
+The VPS Pilot agent runs on each server. It reports health to the hub over TLS. It's written in Rust, ships as one static binary, and speaks the protocol in [docs/PROTOCOL.md](../docs/PROTOCOL.md).
+
+## Install
+
+1. In the dashboard, open **Nodes → Add node** and copy the command.
+2. Run it on the server:
+
+```sh
+VPS_PILOT_TOKEN=vpsp1.… vps-pilot-agent --hub hub.example.com:55001
+```
+
+On first run the agent enrolls and saves its credentials to `--state` (default `/var/lib/vps-pilot-agent/state.json`, mode `0600`). After that it no longer needs the token. Restarts reconnect using the saved state.
+
+To move an existing node to a new machine or reinstall the agent, open the node and choose **Re-enroll agent**. The node keeps its history.
+
+## Options
+
+| Flag | Env | Default | |
+| --- | --- | --- | --- |
+| `--hub` | `VPS_PILOT_HUB` | (required) | Hub address `host[:port]`; port defaults to `55001` |
+| `--token` | `VPS_PILOT_TOKEN` | | One-time join token (first run only) |
+| `--state` | `VPS_PILOT_STATE` | `/var/lib/vps-pilot-agent/state.json` | Credentials file |
+| `--interval` | | `5` | Seconds between stat reports |
+| `--backoff` | | `10` | Seconds before reconnecting |
+
+Log level is controlled by `RUST_LOG` (e.g. `RUST_LOG=debug`).
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Stopped (Ctrl-C / SIGINT) |
+| `1` | Malformed join token |
+| `2` | Invalid command-line arguments |
+| `3` | The hub rejected the agent's credentials (key revoked, token used or expired). Restarting won't help; re-enroll. Under systemd, set `RestartPreventExitStatus=3`. |
+
+Network errors never exit. The agent reconnects after `--backoff`.
+
+## Develop
+
+```sh
+cargo run -- --hub 127.0.0.1:55001 --state ./tmp/state.json --token vpsp1.…
+cargo fmt && cargo clippy --all-targets -- -D warnings && cargo test
+```
+
+Static release builds use musl via `cargo zigbuild --release --target x86_64-unknown-linux-musl` (see `.github/workflows/release.yml`).
+
+## Roadmap
+
+- Project discovery (`config.vpspilot.json`) and named command execution (Phase 2)
+- Optional [osquery](https://osquery.io) integration for cron, listening ports, processes and packages

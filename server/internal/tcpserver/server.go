@@ -2,25 +2,26 @@ package tcpserver
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"net"
 
+	"github.com/sanda0/vps_pilot/internal/agentauth"
 	"github.com/sanda0/vps_pilot/internal/db"
 )
 
-var AgentConnections map[string]net.Conn
-
-func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
-
-	AgentConnections = make(map[string]net.Conn)
-
-	listener, err := net.Listen("tcp", ":"+port)
+func StartTcpServer(ctx context.Context, repo *db.Repo, registry *Registry, cert *agentauth.Cert, port string) {
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert.TLS},
+		MinVersion:   tls.VersionTLS13,
+	}
+	listener, err := tls.Listen("tcp", ":"+port, tlsConfig)
 	if err != nil {
 		fmt.Println("TCP server failed to start:", err)
 		return
 	}
 	defer listener.Close()
-	fmt.Println("TCP server listening on port", port)
+	fmt.Println("TCP server (TLS) listening on port", port)
+	fmt.Println("Agent TLS fingerprint:", cert.Fingerprint)
 
 	chans := statChans{
 		stat:    make(chan Msg, 100),
@@ -31,15 +32,19 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, port string) {
 	go MontiorAlerts(ctx, repo, chans.monitor)
 
 	router := NewRouter()
+	registerHandlers(router, chans)
 
+	router.Serve(ctx, repo, registry, listener)
+}
+
+func registerHandlers(router *Router, chans statChans) {
 	// Middleware
-	router.Use(RequireHandshake("connected"))
+	router.Use(RequireHandshake(MsgConnected, MsgEnroll))
 
 	// Handlers
-	router.Handle("connected", HandleConnected)
-	router.Handle("sys_info", HandleSysInfo)
-	router.Handle("sys_stat", HandleSysStat(chans))
-	router.Handle("projects", HandleProjects)
-
-	router.Serve(ctx, repo, listener)
+	router.Handle(MsgEnroll, HandleEnroll)
+	router.Handle(MsgConnected, HandleConnected)
+	router.Handle(MsgSysInfo, HandleSysInfo)
+	router.Handle(MsgSysStat, HandleSysStat(chans))
+	router.Handle(MsgProjects, HandleProjects)
 }

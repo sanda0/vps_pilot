@@ -8,6 +8,17 @@ import (
 	"database/sql"
 )
 
+type AgentJoinToken struct {
+	ID           int64         `json:"id"`
+	TokenHash    string        `json:"-"`
+	NodeID       sql.NullInt64 `json:"node_id"`
+	CreatedBy    int64         `json:"created_by"`
+	ExpiresAt    int64         `json:"expires_at"`
+	UsedAt       sql.NullInt64 `json:"used_at"`
+	UsedByNodeID sql.NullInt64 `json:"used_by_node_id"`
+	CreatedAt    int64         `json:"created_at"`
+}
+
 type Alert struct {
 	ID               int64           `json:"id"`
 	NodeID           int64           `json:"node_id"`
@@ -32,11 +43,14 @@ type NetStat struct {
 }
 
 type Node struct {
-	ID        int64          `json:"id"`
-	Name      sql.NullString `json:"name"`
-	Ip        string         `json:"ip"`
-	CreatedAt int64          `json:"created_at"`
-	UpdatedAt int64          `json:"updated_at"`
+	ID         int64          `json:"id"`
+	Name       sql.NullString `json:"name"`
+	Ip         string         `json:"ip"`
+	AgentID    sql.NullString `json:"agent_id"`
+	KeyHash    sql.NullString `json:"-"`
+	LastSeenAt sql.NullInt64  `json:"last_seen_at"`
+	CreatedAt  int64          `json:"created_at"`
+	UpdatedAt  int64          `json:"updated_at"`
 }
 
 type NodeDiskInfo struct {

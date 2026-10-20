@@ -26,11 +26,11 @@ func hasEmbeddedUI() bool {
 	return err == nil
 }
 
-func Run(ctx context.Context, repo *db.Repo, port string) {
+func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)
-	nodeService := services.NewNodeService(ctx, repo)
+	nodeService := services.NewNodeService(ctx, repo, enroll)
 	alertService := services.NewAlertService(ctx, repo)
 	projectService := services.NewProjectService(repo, ctx)
 
@@ -75,6 +75,8 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 			nodes.GET("/:id", nodeHander.GetNode)
 			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
 			nodes.GET("/:id/projects", projectHandler.ListProjectsByNode)
+			nodes.POST("/join-tokens", nodeHander.CreateJoinToken)
+			nodes.DELETE("/:id/key", nodeHander.RevokeNodeKey)
 		}
 		alerts := dashbaord.Group("/alerts")
 		{

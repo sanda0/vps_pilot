@@ -33,6 +33,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.addNodeSysInfoStmt, err = db.PrepareContext(ctx, addNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query AddNodeSysInfo: %w", err)
 	}
+	if q.clearNodeKeyStmt, err = db.PrepareContext(ctx, clearNodeKey); err != nil {
+		return nil, fmt.Errorf("error preparing query ClearNodeKey: %w", err)
+	}
+	if q.consumeJoinTokenStmt, err = db.PrepareContext(ctx, consumeJoinToken); err != nil {
+		return nil, fmt.Errorf("error preparing query ConsumeJoinToken: %w", err)
+	}
 	if q.countProjectsStmt, err = db.PrepareContext(ctx, countProjects); err != nil {
 		return nil, fmt.Errorf("error preparing query CountProjects: %w", err)
 	}
@@ -42,8 +48,11 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createAlertStmt, err = db.PrepareContext(ctx, createAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAlert: %w", err)
 	}
-	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
-		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
+	if q.createEnrolledNodeStmt, err = db.PrepareContext(ctx, createEnrolledNode); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateEnrolledNode: %w", err)
+	}
+	if q.createJoinTokenStmt, err = db.PrepareContext(ctx, createJoinToken); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateJoinToken: %w", err)
 	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
@@ -53,6 +62,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteAlertStmt, err = db.PrepareContext(ctx, deleteAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAlert: %w", err)
+	}
+	if q.deleteExpiredJoinTokensStmt, err = db.PrepareContext(ctx, deleteExpiredJoinTokens); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteExpiredJoinTokens: %w", err)
 	}
 	if q.deleteNodeStmt, err = db.PrepareContext(ctx, deleteNode); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteNode: %w", err)
@@ -84,8 +96,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodeStmt, err = db.PrepareContext(ctx, getNode); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNode: %w", err)
 	}
-	if q.getNodeByIPStmt, err = db.PrepareContext(ctx, getNodeByIP); err != nil {
-		return nil, fmt.Errorf("error preparing query GetNodeByIP: %w", err)
+	if q.getNodeByAgentIDStmt, err = db.PrepareContext(ctx, getNodeByAgentID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeByAgentID: %w", err)
 	}
 	if q.getNodeDiskInfoByNodeIDStmt, err = db.PrepareContext(ctx, getNodeDiskInfoByNodeID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodeDiskInfoByNodeID: %w", err)
@@ -126,6 +138,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listProjectsWithNodesStmt, err = db.PrepareContext(ctx, listProjectsWithNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListProjectsWithNodes: %w", err)
 	}
+	if q.setJoinTokenUsedByStmt, err = db.PrepareContext(ctx, setJoinTokenUsedBy); err != nil {
+		return nil, fmt.Errorf("error preparing query SetJoinTokenUsedBy: %w", err)
+	}
+	if q.setNodeCredentialsStmt, err = db.PrepareContext(ctx, setNodeCredentials); err != nil {
+		return nil, fmt.Errorf("error preparing query SetNodeCredentials: %w", err)
+	}
+	if q.touchNodeStmt, err = db.PrepareContext(ctx, touchNode); err != nil {
+		return nil, fmt.Errorf("error preparing query TouchNode: %w", err)
+	}
 	if q.updateAlertStmt, err = db.PrepareContext(ctx, updateAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAlert: %w", err)
 	}
@@ -164,6 +185,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing addNodeSysInfoStmt: %w", cerr)
 		}
 	}
+	if q.clearNodeKeyStmt != nil {
+		if cerr := q.clearNodeKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing clearNodeKeyStmt: %w", cerr)
+		}
+	}
+	if q.consumeJoinTokenStmt != nil {
+		if cerr := q.consumeJoinTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing consumeJoinTokenStmt: %w", cerr)
+		}
+	}
 	if q.countProjectsStmt != nil {
 		if cerr := q.countProjectsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing countProjectsStmt: %w", cerr)
@@ -179,9 +210,14 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createAlertStmt: %w", cerr)
 		}
 	}
-	if q.createNodeStmt != nil {
-		if cerr := q.createNodeStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
+	if q.createEnrolledNodeStmt != nil {
+		if cerr := q.createEnrolledNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createEnrolledNodeStmt: %w", cerr)
+		}
+	}
+	if q.createJoinTokenStmt != nil {
+		if cerr := q.createJoinTokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createJoinTokenStmt: %w", cerr)
 		}
 	}
 	if q.createUserStmt != nil {
@@ -197,6 +233,11 @@ func (q *Queries) Close() error {
 	if q.deleteAlertStmt != nil {
 		if cerr := q.deleteAlertStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteAlertStmt: %w", cerr)
+		}
+	}
+	if q.deleteExpiredJoinTokensStmt != nil {
+		if cerr := q.deleteExpiredJoinTokensStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteExpiredJoinTokensStmt: %w", cerr)
 		}
 	}
 	if q.deleteNodeStmt != nil {
@@ -249,9 +290,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNodeStmt: %w", cerr)
 		}
 	}
-	if q.getNodeByIPStmt != nil {
-		if cerr := q.getNodeByIPStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getNodeByIPStmt: %w", cerr)
+	if q.getNodeByAgentIDStmt != nil {
+		if cerr := q.getNodeByAgentIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeByAgentIDStmt: %w", cerr)
 		}
 	}
 	if q.getNodeDiskInfoByNodeIDStmt != nil {
@@ -317,6 +358,21 @@ func (q *Queries) Close() error {
 	if q.listProjectsWithNodesStmt != nil {
 		if cerr := q.listProjectsWithNodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listProjectsWithNodesStmt: %w", cerr)
+		}
+	}
+	if q.setJoinTokenUsedByStmt != nil {
+		if cerr := q.setJoinTokenUsedByStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setJoinTokenUsedByStmt: %w", cerr)
+		}
+	}
+	if q.setNodeCredentialsStmt != nil {
+		if cerr := q.setNodeCredentialsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setNodeCredentialsStmt: %w", cerr)
+		}
+	}
+	if q.touchNodeStmt != nil {
+		if cerr := q.touchNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing touchNodeStmt: %w", cerr)
 		}
 	}
 	if q.updateAlertStmt != nil {
@@ -391,13 +447,17 @@ type Queries struct {
 	activateAlertStmt                  *sql.Stmt
 	addNodeDiskInfoStmt                *sql.Stmt
 	addNodeSysInfoStmt                 *sql.Stmt
+	clearNodeKeyStmt                   *sql.Stmt
+	consumeJoinTokenStmt               *sql.Stmt
 	countProjectsStmt                  *sql.Stmt
 	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
-	createNodeStmt                     *sql.Stmt
+	createEnrolledNodeStmt             *sql.Stmt
+	createJoinTokenStmt                *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	deactivateAlertStmt                *sql.Stmt
 	deleteAlertStmt                    *sql.Stmt
+	deleteExpiredJoinTokensStmt        *sql.Stmt
 	deleteNodeStmt                     *sql.Stmt
 	deleteProjectStmt                  *sql.Stmt
 	deleteProjectsByNodeStmt           *sql.Stmt
@@ -408,7 +468,7 @@ type Queries struct {
 	getAlertsStmt                      *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
 	getNodeStmt                        *sql.Stmt
-	getNodeByIPStmt                    *sql.Stmt
+	getNodeByAgentIDStmt               *sql.Stmt
 	getNodeDiskInfoByNodeIDStmt        *sql.Stmt
 	getNodeSysInfoByNodeIDStmt         *sql.Stmt
 	getNodeWithSysInfoStmt             *sql.Stmt
@@ -422,6 +482,9 @@ type Queries struct {
 	listProjectsStmt                   *sql.Stmt
 	listProjectsByNodeStmt             *sql.Stmt
 	listProjectsWithNodesStmt          *sql.Stmt
+	setJoinTokenUsedByStmt             *sql.Stmt
+	setNodeCredentialsStmt             *sql.Stmt
+	touchNodeStmt                      *sql.Stmt
 	updateAlertStmt                    *sql.Stmt
 	updateNodeStmt                     *sql.Stmt
 	updateNodeDiskInfoStmt             *sql.Stmt
@@ -437,13 +500,17 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		activateAlertStmt:                  q.activateAlertStmt,
 		addNodeDiskInfoStmt:                q.addNodeDiskInfoStmt,
 		addNodeSysInfoStmt:                 q.addNodeSysInfoStmt,
+		clearNodeKeyStmt:                   q.clearNodeKeyStmt,
+		consumeJoinTokenStmt:               q.consumeJoinTokenStmt,
 		countProjectsStmt:                  q.countProjectsStmt,
 		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
-		createNodeStmt:                     q.createNodeStmt,
+		createEnrolledNodeStmt:             q.createEnrolledNodeStmt,
+		createJoinTokenStmt:                q.createJoinTokenStmt,
 		createUserStmt:                     q.createUserStmt,
 		deactivateAlertStmt:                q.deactivateAlertStmt,
 		deleteAlertStmt:                    q.deleteAlertStmt,
+		deleteExpiredJoinTokensStmt:        q.deleteExpiredJoinTokensStmt,
 		deleteNodeStmt:                     q.deleteNodeStmt,
 		deleteProjectStmt:                  q.deleteProjectStmt,
 		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
@@ -454,7 +521,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getAlertsStmt:                      q.getAlertsStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
 		getNodeStmt:                        q.getNodeStmt,
-		getNodeByIPStmt:                    q.getNodeByIPStmt,
+		getNodeByAgentIDStmt:               q.getNodeByAgentIDStmt,
 		getNodeDiskInfoByNodeIDStmt:        q.getNodeDiskInfoByNodeIDStmt,
 		getNodeSysInfoByNodeIDStmt:         q.getNodeSysInfoByNodeIDStmt,
 		getNodeWithSysInfoStmt:             q.getNodeWithSysInfoStmt,
@@ -468,6 +535,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listProjectsStmt:                   q.listProjectsStmt,
 		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
 		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
+		setJoinTokenUsedByStmt:             q.setJoinTokenUsedByStmt,
+		setNodeCredentialsStmt:             q.setNodeCredentialsStmt,
+		touchNodeStmt:                      q.touchNodeStmt,
 		updateAlertStmt:                    q.updateAlertStmt,
 		updateNodeStmt:                     q.updateNodeStmt,
 		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,

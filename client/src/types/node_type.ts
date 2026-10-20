@@ -19,3 +19,8 @@ export interface NodeSysInfo {
   cpus: number;
   total_memory: number;
 }
+export interface JoinToken {
+  token: string;
+  expires_at: number; // unix seconds
+  command: string;
+}

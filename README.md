@@ -8,8 +8,8 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 ## ✨ Features
 
 ### 📊 Real-time Monitoring
-- Agents installed on each node (server). ([Agent repo](https://github.com/sanda0/vps_pilot_agent))
-- Agents send system metrics to the central server via TCP:
+- A lightweight Rust agent ([agent/](agent/)) on each node (server), enrolled with a one-time join token
+- Agents send system metrics to the central server over TLS ([protocol](docs/PROTOCOL.md)):
   - **CPU usage**
   - **Memory usage**
   - **Network statistics**
@@ -84,7 +84,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 | Component          | Technology        |
 |--------------------|-------------------|
-| **Agent**          | Golang            |
+| **Agent**          | Rust              |
 | **Central Server** | Golang            |
 | **Dashboard**      | React + Vite      |
 | **Database**       | SQLite (dual DB)  |
@@ -94,7 +94,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 - **Operational DB**: Users, nodes, alerts, projects
 - **Timeseries DB**: Metrics data (CPU, Memory, Network stats)
 - **Embedded UI**: React app bundled into Go binary
-- **TCP Server**: Receives metrics from agents (default port `55001`)
+- **Agent channel**: TLS server that receives metrics from enrolled agents (default port `55001`)
 - **HTTP/WebSocket**: REST API + real-time data streaming (default port `8080`)
 
 ---
@@ -378,7 +378,9 @@ Docker Compose setup will be available in a future release.
 - Use a strong `TOKEN_SECRET` (minimum 32 characters)
 - Keep the `data/` directory in a secure, backed-up location
 - Use HTTPS in production (put a reverse proxy like nginx or Caddy in front)
-- Restrict access to TCP port `55001` to trusted agent IPs via firewall rules
+- Agents authenticate with a per-node key issued at enrollment; join tokens are single-use and expire after 1 hour
+- Keep `data/tls/` with the database: agents pin the hub certificate's fingerprint, so losing it means re-enrolling every agent
+- Optionally restrict TCP port `55001` to your servers' IPs via firewall rules
 
 ---
 
@@ -415,7 +417,8 @@ ls server/cmd/app/dist/
 ```
 
 **Metrics not showing up:**
-- Ensure the agent is installed and running on the target node
+- Ensure the agent is installed, enrolled (**Nodes → Add node**) and running on the target node
+- If the agent exits with code `3`, its credentials were rejected; re-enroll it from the node page
 - Check that TCP port `55001` is open and reachable from the node
 - Verify the node is registered in the dashboard
 
@@ -431,8 +434,8 @@ ls server/cmd/app/dist/
 - [x] SQLite dual-database architecture
 - [x] Embedded UI in single binary
 - [x] User authentication with JWT
-- [ ] Authenticated agent enrollment + TLS on the agent channel
-- [ ] Rust agent in this repo (`agent/`)
+- [x] Authenticated agent enrollment + TLS on the agent channel
+- [x] Rust agent in this repo (`agent/`)
 - [ ] Project discovery via `config.vpspilot.json`
 - [ ] Run named project commands (declared in the config file only) with audit log
 - [ ] Log tailing for declared log folders
@@ -482,7 +485,7 @@ This project is licensed under the MIT License.
 
 ## 🔗 Links
 
-- **Agent Repository**: https://github.com/sanda0/vps_pilot_agent
+- **Agent**: [agent/](agent/) · [protocol](docs/PROTOCOL.md)
 - **Issues**: https://github.com/sanda0/vps_pilot/issues
 - **Documentation**: [docs/](docs/)
 
