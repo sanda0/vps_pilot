@@ -45,9 +45,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createNodeStmt, err = db.PrepareContext(ctx, createNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNode: %w", err)
 	}
-	if q.upsertProjectStmt, err = db.PrepareContext(ctx, upsertProject); err != nil {
-		return nil, fmt.Errorf("error preparing query UpsertProject: %w", err)
-	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
 	}
@@ -63,6 +60,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteProjectStmt, err = db.PrepareContext(ctx, deleteProject); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteProject: %w", err)
 	}
+	if q.deleteProjectsByNodeStmt, err = db.PrepareContext(ctx, deleteProjectsByNode); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteProjectsByNode: %w", err)
+	}
 	if q.findUserByEmailStmt, err = db.PrepareContext(ctx, findUserByEmail); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserByEmail: %w", err)
 	}
@@ -77,9 +77,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
-	}
-	if q.getGitHubTokenStmt, err = db.PrepareContext(ctx, getGitHubToken); err != nil {
-		return nil, fmt.Errorf("error preparing query GetGitHubToken: %w", err)
 	}
 	if q.getNetStatsStmt, err = db.PrepareContext(ctx, getNetStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNetStats: %w", err)
@@ -129,12 +126,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listProjectsWithNodesStmt, err = db.PrepareContext(ctx, listProjectsWithNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListProjectsWithNodes: %w", err)
 	}
-	if q.removeGitHubTokenStmt, err = db.PrepareContext(ctx, removeGitHubToken); err != nil {
-		return nil, fmt.Errorf("error preparing query RemoveGitHubToken: %w", err)
-	}
-	if q.saveGitHubTokenStmt, err = db.PrepareContext(ctx, saveGitHubToken); err != nil {
-		return nil, fmt.Errorf("error preparing query SaveGitHubToken: %w", err)
-	}
 	if q.updateAlertStmt, err = db.PrepareContext(ctx, updateAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateAlert: %w", err)
 	}
@@ -150,8 +141,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.updateNodeSysInfoStmt, err = db.PrepareContext(ctx, updateNodeSysInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateNodeSysInfo: %w", err)
 	}
-	if q.deleteProjectsByNodeStmt, err = db.PrepareContext(ctx, deleteProjectsByNode); err != nil {
-		return nil, fmt.Errorf("error preparing query DeleteProjectsByNode: %w", err)
+	if q.upsertProjectStmt, err = db.PrepareContext(ctx, upsertProject); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertProject: %w", err)
 	}
 	return &q, nil
 }
@@ -193,11 +184,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createNodeStmt: %w", cerr)
 		}
 	}
-	if q.upsertProjectStmt != nil {
-		if cerr := q.upsertProjectStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing upsertProjectStmt: %w", cerr)
-		}
-	}
 	if q.createUserStmt != nil {
 		if cerr := q.createUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
@@ -223,6 +209,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteProjectStmt: %w", cerr)
 		}
 	}
+	if q.deleteProjectsByNodeStmt != nil {
+		if cerr := q.deleteProjectsByNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteProjectsByNodeStmt: %w", cerr)
+		}
+	}
 	if q.findUserByEmailStmt != nil {
 		if cerr := q.findUserByEmailStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing findUserByEmailStmt: %w", cerr)
@@ -246,11 +237,6 @@ func (q *Queries) Close() error {
 	if q.getAlertsStmt != nil {
 		if cerr := q.getAlertsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
-		}
-	}
-	if q.getGitHubTokenStmt != nil {
-		if cerr := q.getGitHubTokenStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing getGitHubTokenStmt: %w", cerr)
 		}
 	}
 	if q.getNetStatsStmt != nil {
@@ -333,16 +319,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listProjectsWithNodesStmt: %w", cerr)
 		}
 	}
-	if q.removeGitHubTokenStmt != nil {
-		if cerr := q.removeGitHubTokenStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing removeGitHubTokenStmt: %w", cerr)
-		}
-	}
-	if q.saveGitHubTokenStmt != nil {
-		if cerr := q.saveGitHubTokenStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing saveGitHubTokenStmt: %w", cerr)
-		}
-	}
 	if q.updateAlertStmt != nil {
 		if cerr := q.updateAlertStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateAlertStmt: %w", cerr)
@@ -368,9 +344,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing updateNodeSysInfoStmt: %w", cerr)
 		}
 	}
-	if q.deleteProjectsByNodeStmt != nil {
-		if cerr := q.deleteProjectsByNodeStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing deleteProjectsByNodeStmt: %w", cerr)
+	if q.upsertProjectStmt != nil {
+		if cerr := q.upsertProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertProjectStmt: %w", cerr)
 		}
 	}
 	return err
@@ -419,18 +395,17 @@ type Queries struct {
 	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
 	createNodeStmt                     *sql.Stmt
-	upsertProjectStmt                  *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	deactivateAlertStmt                *sql.Stmt
 	deleteAlertStmt                    *sql.Stmt
 	deleteNodeStmt                     *sql.Stmt
 	deleteProjectStmt                  *sql.Stmt
+	deleteProjectsByNodeStmt           *sql.Stmt
 	findUserByEmailStmt                *sql.Stmt
 	findUserByIdStmt                   *sql.Stmt
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
 	getAlertStmt                       *sql.Stmt
 	getAlertsStmt                      *sql.Stmt
-	getGitHubTokenStmt                 *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
 	getNodeStmt                        *sql.Stmt
 	getNodeByIPStmt                    *sql.Stmt
@@ -447,14 +422,12 @@ type Queries struct {
 	listProjectsStmt                   *sql.Stmt
 	listProjectsByNodeStmt             *sql.Stmt
 	listProjectsWithNodesStmt          *sql.Stmt
-	removeGitHubTokenStmt              *sql.Stmt
-	saveGitHubTokenStmt                *sql.Stmt
 	updateAlertStmt                    *sql.Stmt
 	updateNodeStmt                     *sql.Stmt
 	updateNodeDiskInfoStmt             *sql.Stmt
 	updateNodeNameStmt                 *sql.Stmt
 	updateNodeSysInfoStmt              *sql.Stmt
-	deleteProjectsByNodeStmt           *sql.Stmt
+	upsertProjectStmt                  *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -468,18 +441,17 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
 		createNodeStmt:                     q.createNodeStmt,
-		upsertProjectStmt:                  q.upsertProjectStmt,
 		createUserStmt:                     q.createUserStmt,
 		deactivateAlertStmt:                q.deactivateAlertStmt,
 		deleteAlertStmt:                    q.deleteAlertStmt,
 		deleteNodeStmt:                     q.deleteNodeStmt,
 		deleteProjectStmt:                  q.deleteProjectStmt,
+		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
 		findUserByEmailStmt:                q.findUserByEmailStmt,
 		findUserByIdStmt:                   q.findUserByIdStmt,
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
 		getAlertStmt:                       q.getAlertStmt,
 		getAlertsStmt:                      q.getAlertsStmt,
-		getGitHubTokenStmt:                 q.getGitHubTokenStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
 		getNodeStmt:                        q.getNodeStmt,
 		getNodeByIPStmt:                    q.getNodeByIPStmt,
@@ -496,13 +468,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listProjectsStmt:                   q.listProjectsStmt,
 		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
 		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
-		removeGitHubTokenStmt:              q.removeGitHubTokenStmt,
-		saveGitHubTokenStmt:                q.saveGitHubTokenStmt,
 		updateAlertStmt:                    q.updateAlertStmt,
 		updateNodeStmt:                     q.updateNodeStmt,
 		updateNodeDiskInfoStmt:             q.updateNodeDiskInfoStmt,
 		updateNodeNameStmt:                 q.updateNodeNameStmt,
 		updateNodeSysInfoStmt:              q.updateNodeSysInfoStmt,
-		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
+		upsertProjectStmt:                  q.upsertProjectStmt,
 	}
 }

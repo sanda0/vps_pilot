@@ -4,7 +4,9 @@
 
 package db
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type Alert struct {
 	ID               int64           `json:"id"`
@@ -67,10 +69,10 @@ type Project struct {
 	NodeID       int64  `json:"node_id"`
 	Name         string `json:"name"`
 	Path         string `json:"path"`
-	Tech         string `json:"tech"`     // JSON array stored as text
-	Commands     string `json:"commands"` // JSON array stored as text
-	Logs         string `json:"logs"`     // JSON array stored as text
-	Backups      string `json:"backups"`  // JSON object stored as text
+	Tech         string `json:"tech"`
+	Commands     string `json:"commands"`
+	Logs         string `json:"logs"`
+	Backups      string `json:"backups"`
 	DiscoveredAt int64  `json:"discovered_at"`
 	UpdatedAt    int64  `json:"updated_at"`
 }
@@ -84,11 +86,10 @@ type SystemStat struct {
 }
 
 type User struct {
-	ID           int64          `json:"id"`
-	Username     string         `json:"username"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	CreatedAt    sql.NullInt64  `json:"created_at"`
-	UpdatedAt    sql.NullInt64  `json:"updated_at"`
-	GithubToken  sql.NullString `json:"github_token"`
+	ID           int64         `json:"id"`
+	Username     string        `json:"username"`
+	Email        string        `json:"email"`
+	PasswordHash string        `json:"password_hash"`
+	CreatedAt    sql.NullInt64 `json:"created_at"`
+	UpdatedAt    sql.NullInt64 `json:"updated_at"`
 }

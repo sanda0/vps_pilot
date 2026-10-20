@@ -431,10 +431,14 @@ ls server/cmd/app/dist/
 - [x] SQLite dual-database architecture
 - [x] Embedded UI in single binary
 - [x] User authentication with JWT
-- [ ] Project management via `config.vpspilot.json`
-- [ ] Remote command execution for projects
+- [ ] Authenticated agent enrollment + TLS on the agent channel
+- [ ] Rust agent in this repo (`agent/`)
+- [ ] Project discovery via `config.vpspilot.json`
+- [ ] Run named project commands (declared in the config file only) with audit log
+- [ ] Log tailing for declared log folders
 - [ ] Project backups (database + directories)
-- [ ] Remote cron job creation and management
+- [ ] Cron jobs declared per project
+- [ ] Install script + systemd unit for the agent
 - [ ] Docker Compose deployment
 - [ ] Multi-user support with roles
 - [ ] API documentation (Swagger)
