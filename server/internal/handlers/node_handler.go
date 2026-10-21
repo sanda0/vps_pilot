@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -17,6 +18,8 @@ type NodeHandler interface {
 	UpdateName(c *gin.Context)
 	GetNode(c *gin.Context)
 	SystemStatWSHandler(c *gin.Context)
+	CreateJoinToken(c *gin.Context)
+	RevokeNodeKey(c *gin.Context)
 }
 
 type nodeHandler struct {
@@ -95,6 +98,45 @@ func (n *nodeHandler) GetNode(c *gin.Context) {
 		Cpus:   int32(node.Cpus.Int64),
 	}})
 
+}
+
+// CreateJoinToken implements NodeHandler.
+func (n *nodeHandler) CreateJoinToken(c *gin.Context) {
+	form := dto.CreateJoinTokenDto{}
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&form); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	userID, _ := c.Get("user_id")
+
+	// The agent dials the same host the dashboard is reached on.
+	host := c.Request.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+
+	token, err := n.nodeService.CreateJoinToken(userID.(int32), form.NodeID, host)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": token})
+}
+
+// RevokeNodeKey implements NodeHandler.
+func (n *nodeHandler) RevokeNodeKey(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if err := n.nodeService.RevokeNodeKey(id); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": "Node key revoked"})
 }
 
 // UpdateName implements NodeHandler.

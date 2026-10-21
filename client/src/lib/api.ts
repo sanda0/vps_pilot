@@ -1,5 +1,6 @@
 import axios from "axios";
 import { Project, ProjectListResponse } from "@/types/project";
+import { JoinToken } from "@/types/node_type";
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -49,25 +50,19 @@ export const projectsApi = {
   },
 };
 
-// GitHub API
-export const githubApi = {
-  saveToken: async (token: string) => {
-    const response = await api.post("/github/token", { token });
-    return response.data;
+// Agent enrollment
+export const nodesApi = {
+  // nodeId set = re-enroll that node instead of adding a new one
+  createJoinToken: async (nodeId?: number) => {
+    const response = await api.post<{ data: JoinToken }>(
+      "/nodes/join-tokens",
+      nodeId ? { node_id: nodeId } : {},
+    );
+    return response.data.data;
   },
 
-  getRepos: async () => {
-    const response = await api.get("/github/repos");
-    return response.data;
-  },
-
-  getStatus: async () => {
-    const response = await api.get("/github/status");
-    return response.data;
-  },
-
-  deleteToken: async () => {
-    const response = await api.delete("/github/token");
+  revokeKey: async (nodeId: number) => {
+    const response = await api.delete(`/nodes/${nodeId}/key`);
     return response.data;
   },
 };

@@ -2,12 +2,19 @@ package tcpserver
 
 import (
 	"context"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
+	"time"
 
 	"github.com/sanda0/vps_pilot/internal/db"
 )
+
+// HandshakeTimeout bounds how long an unauthenticated connection may stay open.
+var HandshakeTimeout = 10 * time.Second
+
+const writeTimeout = 10 * time.Second
 
 // HandlerFunc is the signature every message handler must implement.
 // ctx      — request context (carries cancellation / deadline)
@@ -16,29 +23,56 @@ import (
 type HandlerFunc func(ctx context.Context, c *ConnContext, msg Msg)
 
 // ConnContext holds everything that belongs to a single agent connection.
-// Handlers receive a pointer to it so they can read state (node ID, encoder)
-// and write back to the agent.
+// Handlers receive a pointer to it so they can read state (node ID) and
+// write back to the agent.
 type ConnContext struct {
 	// RemoteAddr is the agent's remote TCP address ("ip:port")
 	RemoteAddr string
 
-	// NodeID is populated after the "connected" handshake completes.
-	// It is zero until then.
+	// NodeID is populated once the agent has authenticated ("connected" or
+	// "enroll"). It is zero until then. Only the connection's own goroutine
+	// writes it.
 	NodeID int64
 
-	// encoder is used to write messages back to the agent.
-	encoder *gob.Encoder
+	conn   net.Conn
+	sendMu sync.Mutex
 
 	// repo gives handlers access to both databases.
 	repo *db.Repo
 }
 
-// Send encodes and writes a message back to the agent.
+// Send writes a message back to the agent. Safe for concurrent use.
 func (c *ConnContext) Send(msg Msg) error {
-	if err := c.encoder.Encode(msg); err != nil {
+	c.sendMu.Lock()
+	defer c.sendMu.Unlock()
+	c.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	if err := WriteFrame(c.conn, msg); err != nil {
 		return fmt.Errorf("send to %s: %w", c.RemoteAddr, err)
 	}
 	return nil
+}
+
+// Reject tells the agent why it was refused and closes the connection.
+func (c *ConnContext) Reject(reason string) {
+	data, _ := json.Marshal(AuthFailedPayload{Reason: reason})
+	if err := c.Send(Msg{Msg: MsgAuthFailed, Data: data}); err != nil {
+		fmt.Printf("Reject: %v\n", err)
+	}
+	c.Close()
+}
+
+// Close closes the underlying connection; the read loop then exits.
+func (c *ConnContext) Close() error {
+	return c.conn.Close()
+}
+
+// IP returns the remote IP without the port (IPv6-safe).
+func (c *ConnContext) IP() string {
+	host, _, err := net.SplitHostPort(c.RemoteAddr)
+	if err != nil {
+		return c.RemoteAddr
+	}
+	return host
 }
 
 // Repo exposes the database repo to handlers (read-only pointer, safe to share).
@@ -97,8 +131,9 @@ func (r *Router) Dispatch(ctx context.Context, c *ConnContext, msg Msg) {
 }
 
 // Serve accepts connections on the given listener, creates a ConnContext per
-// connection, and drives the decode → dispatch loop.
-func (r *Router) Serve(ctx context.Context, repo *db.Repo, listener net.Listener) {
+// connection, and drives the decode → dispatch loop. Authenticated
+// connections are tracked in registry.
+func (r *Router) Serve(ctx context.Context, repo *db.Repo, registry *Registry, listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -106,54 +141,63 @@ func (r *Router) Serve(ctx context.Context, repo *db.Repo, listener net.Listener
 			return
 		}
 
-		remoteAddr := conn.RemoteAddr().String()
-		AgentConnections[remoteAddr] = conn
-
 		c := &ConnContext{
-			RemoteAddr: remoteAddr,
-			encoder:    gob.NewEncoder(conn),
+			RemoteAddr: conn.RemoteAddr().String(),
+			conn:       conn,
 			repo:       repo,
 		}
 
-		go r.serveConn(ctx, c, conn)
+		go r.serveConn(ctx, c, registry)
 	}
 }
 
 // serveConn runs the decode → dispatch loop for a single agent connection.
-func (r *Router) serveConn(ctx context.Context, c *ConnContext, conn net.Conn) {
+func (r *Router) serveConn(ctx context.Context, c *ConnContext, registry *Registry) {
 	defer func() {
-		conn.Close()
-		delete(AgentConnections, c.RemoteAddr)
+		c.Close()
+		if c.NodeID != 0 {
+			registry.Unregister(c)
+		}
 		fmt.Println("Connection closed:", c.RemoteAddr)
 	}()
 
 	fmt.Println("New connection from", c.RemoteAddr)
 
-	decoder := gob.NewDecoder(conn)
+	// Covers the TLS handshake and the first message.
+	c.conn.SetReadDeadline(time.Now().Add(HandshakeTimeout))
+
 	for {
 		var msg Msg
-		if err := decoder.Decode(&msg); err != nil {
-			// EOF or broken pipe — agent disconnected.
-			break
+		if err := ReadFrame(c.conn, &msg); err != nil {
+			// EOF, broken pipe, deadline or a malformed frame — drop the agent.
+			return
 		}
+
+		authed := c.NodeID != 0
 		r.Dispatch(ctx, c, msg)
+
+		if !authed && c.NodeID != 0 {
+			c.conn.SetReadDeadline(time.Time{})
+			registry.Register(c)
+		}
 	}
 }
 
-// RequireHandshake returns a middleware that ensures the "connected" handshake
-// has completed before any other message type is dispatched.
-// The handshake message type (typically "connected") is always allowed through
-// so the handshake itself is never blocked.
-func RequireHandshake(handshakeMsgType string) MiddlewareFunc {
+// RequireHandshake returns a middleware that drops every message until the
+// agent has authenticated. The handshake message types themselves are always
+// let through so the handshake is never blocked.
+func RequireHandshake(handshakeMsgTypes ...string) MiddlewareFunc {
+	allowed := make(map[string]bool, len(handshakeMsgTypes))
+	for _, t := range handshakeMsgTypes {
+		allowed[t] = true
+	}
 	return func(next HandlerFunc) HandlerFunc {
 		return func(ctx context.Context, c *ConnContext, msg Msg) {
-			// Always allow the handshake message through.
-			if msg.Msg == handshakeMsgType {
+			if allowed[msg.Msg] {
 				next(ctx, c, msg)
 				return
 			}
 
-			// Block any other message until the handshake has set a NodeID.
 			if c.NodeID == 0 {
 				fmt.Printf("RequireHandshake: dropping %q from %s — handshake not complete\n", msg.Msg, c.RemoteAddr)
 				return

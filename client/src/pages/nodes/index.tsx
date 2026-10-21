@@ -1,7 +1,9 @@
 import { NodeCard } from "@/pages/nodes/components/node-card";
 
 import api from "@/lib/api";
-import {  Server } from "lucide-react";
+import { Plus, Server } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { JoinTokenDialog } from "@/components/join-token-dialog";
 import { useEffect, useState } from "react";
 import { NameEditDialog } from "./components/name-edit-dialog";
 import { useNavigate } from "react-router";
@@ -15,6 +17,7 @@ export default function NodesIndex() {
   const [currentEditNodeId, setCurrentEditNodeId] = useState<number | null>(null)
   const [currentEditNodeName, setCurrentEditNodeName] = useState<string | null>(null)
   const [openEditDialog, setOpenEditDialog] = useState(false)
+  const [openJoinDialog, setOpenJoinDialog] = useState(false)
 
   const navigate  = useNavigate()
 
@@ -45,10 +48,12 @@ export default function NodesIndex() {
   return (
     <>
       <NameEditDialog open={openEditDialog} onSaved={loadNodes} onOpenChange={(s) => { setOpenEditDialog(s) }} name={currentEditNodeName ?? undefined} id={currentEditNodeId ?? undefined}></NameEditDialog>
+      <JoinTokenDialog open={openJoinDialog} onOpenChange={(s) => { setOpenJoinDialog(s); if (!s) loadNodes() }}></JoinTokenDialog>
       <div className="w-full h-16 mx-auto rounded-xl ">
 
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center gap-2 text-2xl font-semibold"><Server className="w-6 h-6"></Server> Nodes</div>
+          <Button onClick={() => setOpenJoinDialog(true)}><Plus className="w-4 h-4" /> Add node</Button>
         </div>
       </div>
       <div className="w-full h-full mx-auto rounded-xl " >

@@ -48,6 +48,7 @@ func (p *ProjectSyncPayload) FromBytes(data []byte) error {
 }
 
 type SystemInfo struct {
+	Hostname        string `json:"hostname"`         // used as the default node name
 	OS              string `json:"os"`               // e.g. linux, windows
 	Platform        string `json:"platform"`         // e.g. ubuntu, centos
 	PlatformVersion string `json:"platform_version"` // e.g. 20.04, 8
@@ -81,9 +82,33 @@ func (s *SystemStat) FromBytes(data []byte) error {
 	return json.Unmarshal(data, s)
 }
 
+// Msg is the frame envelope on the agent channel. See docs/PROTOCOL.md.
 type Msg struct {
-	Msg    string
-	NodeId int32
-	Token  string
-	Data   []byte
+	Msg    string          `json:"type"`
+	NodeId int32           `json:"node_id,omitempty"`
+	Token  string          `json:"token,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"`
+}
+
+// Message types on the agent channel.
+const (
+	MsgEnroll     = "enroll"      // agent → hub, Token = join secret, Data = SystemInfo
+	MsgEnrolled   = "enrolled"    // hub → agent, Data = EnrolledPayload
+	MsgConnected  = "connected"   // agent → hub, Token = "<agent_id>:<node_key>", Data = SystemInfo
+	MsgAuthFailed = "auth_failed" // hub → agent, Data = AuthFailedPayload; connection is closed
+	MsgSysStat    = "sys_stat"    // hub → agent: start streaming; agent → hub: Data = SystemStat
+	MsgSysInfo    = "sys_info"    // agent → hub, Data = SystemInfo
+	MsgProjects   = "projects"    // agent → hub, Data = ProjectSyncPayload
+)
+
+// EnrolledPayload carries the long-lived credentials issued at enrollment.
+type EnrolledPayload struct {
+	AgentID string `json:"agent_id"`
+	NodeKey string `json:"node_key"`
+	NodeID  int64  `json:"node_id"`
+}
+
+// AuthFailedPayload tells the agent why it was rejected.
+type AuthFailedPayload struct {
+	Reason string `json:"reason"`
 }

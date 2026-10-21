@@ -4,13 +4,29 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
+	"time"
 
+	"github.com/sanda0/vps_pilot/internal/agentauth"
 	"github.com/sanda0/vps_pilot/internal/db"
 	"github.com/sanda0/vps_pilot/internal/dto"
 )
 
+// AgentKicker closes an agent's live connection (implemented by tcpserver.Registry).
+type AgentKicker interface {
+	Kick(nodeID int64) bool
+}
+
+// AgentEnrollment is what the node service needs to issue join tokens.
+type AgentEnrollment struct {
+	Fingerprint string // hub agent-channel TLS cert fingerprint
+	AgentPort   string // agent channel port, for the install command
+	Agents      AgentKicker
+}
+
 type NodeService interface {
-	CreateNode(ip string, data string) error
+	CreateJoinToken(userID int32, nodeID *int64, hubHost string) (*dto.JoinTokenDto, error)
+	RevokeNodeKey(nodeID int64) error
 	GetNodesWithSysInfo(search string, limit int32, page int32) ([]db.GetNodesWithSysInfoRow, error)
 	UpdateName(nodeId int32, name string) error
 	GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error)
@@ -18,8 +34,9 @@ type NodeService interface {
 }
 
 type nodeService struct {
-	repo *db.Repo
-	ctx  context.Context
+	repo   *db.Repo
+	ctx    context.Context
+	enroll AgentEnrollment
 }
 
 // GetSystemStat implements NodeService.
@@ -122,15 +139,64 @@ func (n *nodeService) GetNodesWithSysInfo(search string, limit int32, page int32
 	return nodes, nil
 }
 
-// CreateNode implements NodeService.
-func (n *nodeService) CreateNode(ip string, data string) error {
-	panic("unimplemented")
+// CreateJoinToken implements NodeService. With nodeID set, the token
+// re-enrolls that node (new agent install, rotated key) instead of adding one.
+func (n *nodeService) CreateJoinToken(userID int32, nodeID *int64, hubHost string) (*dto.JoinTokenDto, error) {
+	nodeRef := sql.NullInt64{}
+	if nodeID != nil {
+		if _, err := n.repo.Queries.GetNode(n.ctx, *nodeID); err != nil {
+			return nil, fmt.Errorf("node %d not found", *nodeID)
+		}
+		nodeRef = sql.NullInt64{Int64: *nodeID, Valid: true}
+	}
+
+	if _, err := n.repo.Queries.DeleteExpiredJoinTokens(n.ctx); err != nil {
+		fmt.Println("Error deleting expired join tokens", err)
+	}
+
+	token, secretHash, err := agentauth.NewJoinToken(n.enroll.Fingerprint)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := time.Now().Add(agentauth.JoinTokenTTL).Unix()
+	if _, err := n.repo.Queries.CreateJoinToken(n.ctx, db.CreateJoinTokenParams{
+		TokenHash: secretHash,
+		NodeID:    nodeRef,
+		CreatedBy: int64(userID),
+		ExpiresAt: expiresAt,
+	}); err != nil {
+		return nil, err
+	}
+
+	hub := net.JoinHostPort(hubHost, n.enroll.AgentPort)
+	return &dto.JoinTokenDto{
+		Token:     token,
+		ExpiresAt: expiresAt,
+		Command:   fmt.Sprintf("VPS_PILOT_TOKEN=%s vps-pilot-agent --hub %s", token, hub),
+	}, nil
 }
 
-func NewNodeService(ctx context.Context, repo *db.Repo) NodeService {
+// RevokeNodeKey implements NodeService. The agent is disconnected and can
+// only come back through a new join token.
+func (n *nodeService) RevokeNodeKey(nodeID int64) error {
+	rows, err := n.repo.Queries.ClearNodeKey(n.ctx, nodeID)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("node %d not found", nodeID)
+	}
+	if n.enroll.Agents != nil {
+		n.enroll.Agents.Kick(nodeID)
+	}
+	return nil
+}
+
+func NewNodeService(ctx context.Context, repo *db.Repo, enroll AgentEnrollment) NodeService {
 	return &nodeService{
-		repo: repo,
-		ctx:  ctx,
+		repo:   repo,
+		ctx:    ctx,
+		enroll: enroll,
 	}
 }
 

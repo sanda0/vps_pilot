@@ -9,3 +9,8 @@ sql:
         out: "internal/db"
         emit_json_tags: true
         emit_prepared_queries: true
+        overrides:
+          - column: "nodes.key_hash"
+            go_struct_tag: 'json:"-"'
+          - column: "agent_join_tokens.token_hash"
+            go_struct_tag: 'json:"-"'

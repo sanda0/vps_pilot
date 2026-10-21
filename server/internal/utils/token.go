@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -109,13 +110,23 @@ func ExtractTokenID(c *gin.Context) (int32, error) {
 	return 0, nil
 }
 
+// cookieSecure decides the cookie Secure flag. COOKIE_SECURE=true/false forces
+// it; when unset, it follows whether the request arrived over HTTPS (directly
+// or through a reverse proxy setting X-Forwarded-Proto).
+func cookieSecure(c *gin.Context) bool {
+	if v, err := strconv.ParseBool(os.Getenv("COOKIE_SECURE")); err == nil {
+		return v
+	}
+	return c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
+}
+
 func WriteTokenToCookie(c *gin.Context, token string) {
 	//set http only cookie
 	cookie := &http.Cookie{
 		Name:     "__tkn__",
 		Value:    token,
 		HttpOnly: true,
-		Secure:   false, //TODO: change to true in production
+		Secure:   cookieSecure(c),
 		Path:     "/",
 		SameSite: http.SameSiteLaxMode,
 	}

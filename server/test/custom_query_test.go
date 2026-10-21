@@ -8,18 +8,19 @@ import (
 )
 
 func TestGetCPUStats(t *testing.T) {
-	q := db.Queries{}
+	operationalDB, timeseriesDB, err := db.InitializeDatabases(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer operationalDB.Close()
+	defer timeseriesDB.Close()
 
-	// Test case 1
-	_, err := q.GetCPUStats(context.Background(), db.GetCPUStatsParams{
+	q := db.New(timeseriesDB)
+	if _, err := q.GetCPUStats(context.Background(), db.GetCPUStatsParams{
 		NodeID:    1,
 		TimeRange: 60 * 24,
 		CpuCount:  8,
-	})
-	if err != nil {
-		panic(err)
+	}); err != nil {
+		t.Fatal(err)
 	}
-
-	t.Log("GetCPUStats test case 1")
-
 }

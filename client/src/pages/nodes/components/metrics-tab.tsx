@@ -36,7 +36,10 @@ export default function MetricsTab() {
 
   // WebSocket connection - create once per node
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/api/v1/nodes/ws/system-stat`);
+    // Same origin as the page: the embedded UI is served by the hub, and the
+    // Vite dev server proxies /api to it.
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${wsProtocol}://${window.location.host}/api/v1/nodes/ws/system-stat`);
     wsRef.current = ws;
   
     ws.onopen = () => {

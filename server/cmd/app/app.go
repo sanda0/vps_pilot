@@ -26,11 +26,11 @@ func hasEmbeddedUI() bool {
 	return err == nil
 }
 
-func Run(ctx context.Context, repo *db.Repo, port string) {
+func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)
-	nodeService := services.NewNodeService(ctx, repo)
+	nodeService := services.NewNodeService(ctx, repo, enroll)
 	alertService := services.NewAlertService(ctx, repo)
 	projectService := services.NewProjectService(repo, ctx)
 
@@ -39,13 +39,12 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	nodeHander := handlers.NewNodeHandler(nodeService)
 	alertHandler := handlers.NewAlertHandler(alertService)
 	projectHandler := handlers.NewProjectHandler(projectService)
-	githubHandler := handlers.NewGitHubHandler(userService)
 
 	server := gin.Default()
 
 	// CORS configuration - allow frontend origin in development
 	server.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8000", "http://127.0.0.1:8000"}, // Development + embedded
+		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173"}, // Vite dev server; the embedded UI is same-origin
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -69,15 +68,6 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 	{
 		dashbaord.GET("/profile", userHandler.Profile)
 
-		// GitHub integration routes
-		github := dashbaord.Group("/github")
-		{
-			github.POST("/token", githubHandler.SaveToken)
-			github.GET("/repos", githubHandler.GetRepos)
-			github.GET("/status", githubHandler.GetStatus)
-			github.DELETE("/token", githubHandler.DeleteToken)
-		}
-
 		nodes := dashbaord.Group("/nodes")
 		{
 			nodes.GET("", nodeHander.GetNodes)
@@ -85,6 +75,8 @@ func Run(ctx context.Context, repo *db.Repo, port string) {
 			nodes.GET("/:id", nodeHander.GetNode)
 			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
 			nodes.GET("/:id/projects", projectHandler.ListProjectsByNode)
+			nodes.POST("/join-tokens", nodeHander.CreateJoinToken)
+			nodes.DELETE("/:id/key", nodeHander.RevokeNodeKey)
 		}
 		alerts := dashbaord.Group("/alerts")
 		{

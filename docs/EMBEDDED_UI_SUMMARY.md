@@ -28,7 +28,7 @@
 - Keeps repository clean
 
 **Updated CORS:**
-- Added `http://localhost:8000` for embedded UI
+- Embedded UI is served same-origin, so only the Vite dev server (`http://localhost:5173`) is allowed
 
 ### 4. Documentation
 **Created `docs/BUILDING.md`:**
@@ -53,7 +53,7 @@ cd server
 ./vps_pilot
 ```
 
-Visit: **http://localhost:8000**
+Visit: **http://localhost:8080**
 
 ## 🔧 Architecture
 
@@ -109,9 +109,9 @@ cd server
 ./vps_pilot
 
 # 3. Test endpoints
-curl http://localhost:8000/api/v1/auth/login  # API
-curl http://localhost:8000                     # UI (HTML)
-curl http://localhost:8000/assets/index.js     # Assets
+curl http://localhost:8080/api/v1/auth/login  # API
+curl http://localhost:8080                     # UI (HTML)
+curl http://localhost:8080/assets/index.js     # Assets
 ```
 
 ## 🎯 Benefits
@@ -162,7 +162,7 @@ cd server && ./vps_pilot
    ./vps_pilot
    ```
 
-2. **Verify UI loads at http://localhost:8000**
+2. **Verify UI loads at http://localhost:8080**
 
 3. **Test API endpoints work**
 

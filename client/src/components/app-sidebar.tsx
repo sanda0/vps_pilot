@@ -57,10 +57,6 @@ const data = {
       icon: Settings2,
       items: [
         {
-          title: "GitHub",
-          url: "/settings/github",
-        },
-        {
           title: "Users",
           url: "#",
         }

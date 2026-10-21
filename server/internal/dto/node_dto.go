@@ -36,6 +36,17 @@ type NodeNameUpdateDto struct {
 	Name   string `json:"name"`
 }
 
+type CreateJoinTokenDto struct {
+	// NodeID, when set, re-enrolls that existing node.
+	NodeID *int64 `json:"node_id"`
+}
+
+type JoinTokenDto struct {
+	Token     string `json:"token"`
+	ExpiresAt int64  `json:"expires_at"`
+	Command   string `json:"command"`
+}
+
 type NodeDto struct {
 	ID     int32   `json:"id"`
 	Name   string  `json:"name"`

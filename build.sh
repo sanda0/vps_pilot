@@ -47,24 +47,14 @@ else
     exit 1
 fi
 
-if [ ! -d "dist" ]; then
-    echo -e "${RED}❌ Error: React build failed - dist directory not found${NC}"
+# Vite writes straight into server/cmd/app/dist (see client/vite.config.ts)
+if [ ! -f "../server/cmd/app/dist/index.html" ]; then
+    echo -e "${RED}❌ Error: React build failed - server/cmd/app/dist/index.html not found${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ React UI built successfully${NC}"
-
-# Step 2: Copy built UI to server directory
-echo -e "${YELLOW}📁 Copying UI files to server...${NC}"
+echo -e "${GREEN}✅ React UI built into server/cmd/app/dist${NC}"
 cd ../server
-
-# Remove old embedded files if they exist
-rm -rf cmd/app/dist
-
-# Copy the built React app to cmd/app/dist for embedding
-cp -r ../client/dist cmd/app/
-
-echo -e "${GREEN}✅ UI files copied successfully${NC}"
 
 # Step 3: Build the Go server with embedded UI
 echo -e "${YELLOW}🔧 Building Go server with embedded UI...${NC}"
@@ -92,6 +82,15 @@ echo "  cd server"
 echo "  ./vps_pilot"
 echo ""
 echo -e "${YELLOW}🌐 Access:${NC}"
-echo "  Frontend: http://localhost:8000"
-echo "  API:      http://localhost:8000/api/v1"
+echo "  Frontend: http://localhost:8080"
+echo "  API:      http://localhost:8080/api/v1"
 echo ""
+
+# Step 5: Build the agent (Rust)
+if command -v cargo &> /dev/null; then
+    echo -e "${YELLOW}🦀 Building agent...${NC}"
+    (cd ../agent && cargo build --release)
+    echo -e "${GREEN}✅ Agent binary: agent/target/release/vps-pilot-agent${NC}"
+else
+    echo -e "${YELLOW}⚠️  cargo not found, skipping agent build${NC}"
+fi

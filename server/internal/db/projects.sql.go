@@ -10,53 +10,50 @@ import (
 	"database/sql"
 )
 
-const upsertProject = `-- name: UpsertProject :one
-INSERT INTO projects (node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
-ON CONFLICT (node_id, path) DO UPDATE SET
-    name       = excluded.name,
-    tech       = excluded.tech,
-    commands   = excluded.commands,
-    logs       = excluded.logs,
-    backups    = excluded.backups,
-    updated_at = strftime('%s', 'now')
-RETURNING id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+const countProjects = `-- name: CountProjects :one
+SELECT COUNT(*) FROM projects
 `
 
-type UpsertProjectParams struct {
-	NodeID   int64  `json:"node_id"`
-	Name     string `json:"name"`
-	Path     string `json:"path"`
-	Tech     string `json:"tech"`
-	Commands string `json:"commands"`
-	Logs     string `json:"logs"`
-	Backups  string `json:"backups"`
+func (q *Queries) CountProjects(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.countProjectsStmt, countProjects)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
-func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (Project, error) {
-	row := q.queryRow(ctx, q.upsertProjectStmt, upsertProject,
-		arg.NodeID,
-		arg.Name,
-		arg.Path,
-		arg.Tech,
-		arg.Commands,
-		arg.Logs,
-		arg.Backups,
-	)
-	var i Project
-	err := row.Scan(
-		&i.ID,
-		&i.NodeID,
-		&i.Name,
-		&i.Path,
-		&i.Tech,
-		&i.Commands,
-		&i.Logs,
-		&i.Backups,
-		&i.DiscoveredAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+const countProjectsByNode = `-- name: CountProjectsByNode :one
+SELECT COUNT(*) FROM projects WHERE node_id = ?
+`
+
+func (q *Queries) CountProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
+	row := q.queryRow(ctx, q.countProjectsByNodeStmt, countProjectsByNode, nodeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteProject = `-- name: DeleteProject :execrows
+DELETE FROM projects WHERE id = ?
+`
+
+func (q *Queries) DeleteProject(ctx context.Context, id string) (int64, error) {
+	result, err := q.exec(ctx, q.deleteProjectStmt, deleteProject, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteProjectsByNode = `-- name: DeleteProjectsByNode :execrows
+DELETE FROM projects WHERE node_id = ?
+`
+
+func (q *Queries) DeleteProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
+	result, err := q.exec(ctx, q.deleteProjectsByNodeStmt, deleteProjectsByNode, nodeID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getProject = `-- name: GetProject :one
@@ -289,48 +286,51 @@ func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWit
 	return items, nil
 }
 
-const deleteProject = `-- name: DeleteProject :execrows
-DELETE FROM projects WHERE id = ?
+const upsertProject = `-- name: UpsertProject :one
+INSERT INTO projects (node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+ON CONFLICT (node_id, path) DO UPDATE SET
+    name       = excluded.name,
+    tech       = excluded.tech,
+    commands   = excluded.commands,
+    logs       = excluded.logs,
+    backups    = excluded.backups,
+    updated_at = strftime('%s', 'now')
+RETURNING id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
 `
 
-func (q *Queries) DeleteProject(ctx context.Context, id string) (int64, error) {
-	result, err := q.exec(ctx, q.deleteProjectStmt, deleteProject, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
+type UpsertProjectParams struct {
+	NodeID   int64  `json:"node_id"`
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Tech     string `json:"tech"`
+	Commands string `json:"commands"`
+	Logs     string `json:"logs"`
+	Backups  string `json:"backups"`
 }
 
-const deleteProjectsByNode = `-- name: DeleteProjectsByNode :execrows
-DELETE FROM projects WHERE node_id = ?
-`
-
-func (q *Queries) DeleteProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
-	result, err := q.exec(ctx, q.deleteProjectsByNodeStmt, deleteProjectsByNode, nodeID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const countProjects = `-- name: CountProjects :one
-SELECT COUNT(*) FROM projects
-`
-
-func (q *Queries) CountProjects(ctx context.Context) (int64, error) {
-	row := q.queryRow(ctx, q.countProjectsStmt, countProjects)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countProjectsByNode = `-- name: CountProjectsByNode :one
-SELECT COUNT(*) FROM projects WHERE node_id = ?
-`
-
-func (q *Queries) CountProjectsByNode(ctx context.Context, nodeID int64) (int64, error) {
-	row := q.queryRow(ctx, q.countProjectsByNodeStmt, countProjectsByNode, nodeID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (Project, error) {
+	row := q.queryRow(ctx, q.upsertProjectStmt, upsertProject,
+		arg.NodeID,
+		arg.Name,
+		arg.Path,
+		arg.Tech,
+		arg.Commands,
+		arg.Logs,
+		arg.Backups,
+	)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.Name,
+		&i.Path,
+		&i.Tech,
+		&i.Commands,
+		&i.Logs,
+		&i.Backups,
+		&i.DiscoveredAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

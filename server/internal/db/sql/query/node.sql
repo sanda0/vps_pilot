@@ -1,7 +1,27 @@
--- name: CreateNode :one
-INSERT INTO nodes (name, ip)
-VALUES (?, ?)
+-- name: CreateEnrolledNode :one
+INSERT INTO nodes (name, ip, agent_id, key_hash, last_seen_at)
+VALUES (?, ?, ?, ?, strftime('%s', 'now'))
 RETURNING *;
+-- name: SetNodeCredentials :execrows
+UPDATE nodes
+SET agent_id = ?,
+  key_hash = ?,
+  updated_at = strftime('%s', 'now')
+WHERE id = ?;
+-- name: ClearNodeKey :execrows
+UPDATE nodes
+SET key_hash = NULL,
+  updated_at = strftime('%s', 'now')
+WHERE id = ?;
+-- name: GetNodeByAgentID :one
+SELECT *
+FROM nodes
+WHERE agent_id = ?;
+-- name: TouchNode :exec
+UPDATE nodes
+SET ip = ?,
+  last_seen_at = strftime('%s', 'now')
+WHERE id = ?;
 -- name: GetNode :one
 SELECT *
 FROM nodes
@@ -20,10 +40,6 @@ RETURNING *;
 -- name: DeleteNode :execrows
 DELETE FROM nodes
 WHERE id = ?;
--- name: GetNodeByIP :one
-SELECT *
-FROM nodes
-WHERE ip = ?;
 -- name: GetNodesWithSysInfo :many
 SELECT n.id,
   n.name,

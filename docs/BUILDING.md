@@ -244,4 +244,4 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 ## Next Steps
 
 - [Quick Start Guide](../QUICKSTART.md)
-- [Agent Repository](https://github.com/sanda0/vps_pilot_agent)
+- [Agent](../agent/README.md)

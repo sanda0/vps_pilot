@@ -195,14 +195,15 @@ ls server/cmd/app/dist/
 ```
 
 **Metrics not appearing in the dashboard**
-- Make sure the [VPS Pilot Agent](https://github.com/sanda0/vps_pilot_agent) is installed and running on the target node
+- Make sure the [agent](agent/README.md) is enrolled (**Nodes → Add node**) and running on the target node
 - Confirm TCP port `55001` is open on the server (check your firewall rules)
 - Verify the node is registered in the dashboard
+- An agent exiting with code `3` was rejected by the hub; re-enroll it from the node page
 
 ---
 
 ## What's Next?
 
-- Install the agent on your nodes → [Agent Repository](https://github.com/sanda0/vps_pilot_agent)
+- Install the agent on your nodes → [agent/README.md](agent/README.md)
 - Read the full build guide → [docs/BUILDING.md](docs/BUILDING.md)
 - Configure alerts (Email / Slack / Discord) → see the **Alerts** section in the dashboard
