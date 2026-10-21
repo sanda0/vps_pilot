@@ -36,8 +36,8 @@ hub: ensure-dist ## Run the hub with hot reload (air), or go run without it
 ui: ## Run the dashboard dev server (proxies /api to the hub)
 	cd client && $(JS) run dev
 
-agent: ## Run the agent against the local hub (first run: make agent TOKEN=vpsp1...)
-	cd agent && VPS_PILOT_TOKEN="$(TOKEN)" cargo run -- \
+agent: ## Run the agent against the local hub (first run: make agent VPS_PILOT_TOKEN=vpsp1...)
+	cd agent && VPS_PILOT_TOKEN="$(VPS_PILOT_TOKEN)" cargo run -- \
 		--hub 127.0.0.1:$(AGENT_PORT) --state $(AGENT_STATE)
 
 agent-reset: ## Forget the dev agent's enrollment
