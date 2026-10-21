@@ -10,6 +10,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // Dev only: forward API and WebSocket calls to the hub (make dev sets HUB_PORT).
+    proxy: {
+      "/api": {
+        target: `http://127.0.0.1:${process.env.HUB_PORT ?? "8080"}`,
+        ws: true,
+      },
+    },
+  },
   build: {
     outDir: "../server/cmd/app/dist",
     emptyOutDir: true,
