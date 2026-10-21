@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+# bun.lock is the lockfile (CI uses bun)
+package-lock.json
