@@ -74,13 +74,26 @@ async fn main() -> ExitCode {
         .init();
 
     let args = Args::parse();
-    let join = match args.token.as_deref().map(JoinToken::parse).transpose() {
+    // An empty token (e.g. VPS_PILOT_TOKEN= in an env file) means "no token".
+    let token = args
+        .token
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty());
+    let join = match token.map(JoinToken::parse).transpose() {
         Ok(join) => join,
         Err(e) => {
             error!("{e:#}");
             return ExitCode::FAILURE;
         }
     };
+    if join.is_none() && !args.state.exists() {
+        error!(
+            state = %args.state.display(),
+            "not enrolled yet: create a join token in the dashboard (Nodes → Add node) and pass it with --token or VPS_PILOT_TOKEN"
+        );
+        return ExitCode::FAILURE;
+    }
     if join.is_some() && args.state.exists() {
         warn!(
             state = %args.state.display(),
