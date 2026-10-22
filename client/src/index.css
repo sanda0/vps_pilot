@@ -89,6 +89,10 @@
     --chart-39: 85 73% 63%;
     --chart-40: 90 71% 61%;
 
+    /* Metrics chart series (validated pair: blue, orange) */
+    --viz-1: 213 68% 50%;
+    --viz-2: 17 82% 56%;
+
 
     --radius: 0;
 
@@ -192,6 +196,9 @@
     --chart-38: 320 71% 63%;
     --chart-39: 325 67% 57%;
     --chart-40: 330 73% 65%;
+
+    --viz-1: 213 77% 56%;
+    --viz-2: 17 70% 50%;
 
 
 
