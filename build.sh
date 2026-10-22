@@ -23,29 +23,20 @@ fi
 echo -e "${YELLOW}📦 Building React UI...${NC}"
 cd client
 
+if ! command -v bun &> /dev/null; then
+    echo -e "${RED}❌ Error: bun not found. Install it: curl -fsSL https://bun.sh/install | bash${NC}"
+    exit 1
+fi
+
 # Check if node_modules exists, if not install dependencies
 if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}📥 Installing Node.js dependencies...${NC}"
-    if command -v bun &> /dev/null; then
-        bun install
-    elif command -v npm &> /dev/null; then
-        npm install
-    else
-        echo -e "${RED}❌ Error: Neither bun nor npm found. Please install Node.js and bun/npm.${NC}"
-        exit 1
-    fi
+    echo -e "${YELLOW}📥 Installing dependencies...${NC}"
+    bun install
 fi
 
 # Build the React app
 echo -e "${YELLOW}⚛️  Building React application...${NC}"
-if command -v bun &> /dev/null; then
-    bun run build
-elif command -v npm &> /dev/null; then
-    npm run build
-else
-    echo -e "${RED}❌ Error: Neither bun nor npm found.${NC}"
-    exit 1
-fi
+bun run build
 
 # Vite writes straight into server/cmd/app/dist (see client/vite.config.ts)
 if [ ! -f "../server/cmd/app/dist/index.html" ]; then

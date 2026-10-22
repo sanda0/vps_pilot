@@ -23,8 +23,8 @@ This will:
 ```bash
 # 1. Build frontend
 cd client
-npm install
-npm run build
+bun install
+bun run build
 
 # 2. Copy to server
 cd ..
@@ -88,8 +88,8 @@ go run main.go
 
 # Terminal 2: Run frontend dev server
 cd client
-npm install   # or: bun install
-npm run dev   # or: bun run dev
+bun install
+bun run dev
 ```
 Frontend: http://localhost:5173 (hot reload)
 API: http://localhost:8080/api/v1
@@ -164,7 +164,7 @@ The embedded UI adds ~5-10MB. To reduce:
 ```bash
 # Optimize React build
 cd client
-npm run build
+bun run build
 
 # Strip Go binary
 cd ../server
@@ -190,10 +190,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
       
       - name: Setup Go
         uses: actions/setup-go@v4

@@ -103,7 +103,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 ### Prerequisites
 - **Go** 1.21+ ([install](https://go.dev/doc/install))
-- **Node.js** 18+ or **Bun** ([install node](https://nodejs.org/) or [install bun](https://bun.sh/))
+- **Bun** ([install](https://bun.sh/))
 - **Git**
 
 ---
@@ -126,7 +126,7 @@ chmod +x build.sh
 ```
 
 What it does:
-1. Installs Node.js dependencies (if needed)
+1. Installs dashboard dependencies with bun (if needed)
 2. Builds the React frontend (`client/dist/`)
 3. Copies the built UI into `server/cmd/app/dist/`
 4. Compiles the Go binary with the UI embedded
@@ -257,8 +257,8 @@ air
 ### Frontend (Terminal 2)
 ```vps_pilot/README.md#L1-1
 cd client
-npm install   # or: bun install
-npm run dev   # or: bun run dev
+bun install
+bun run dev
 ```
 
 **Access:**
@@ -389,7 +389,7 @@ Docker Compose setup will be available in a future release.
 **Build fails:**
 ```vps_pilot/README.md#L1-1
 # Check the frontend builds cleanly
-cd client && npm run build
+cd client && bun run build
 
 # Check the Go code compiles
 cd server && go build .

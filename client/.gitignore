@@ -24,5 +24,9 @@ dist-ssr
 *.sw?
 
 .env
-# bun.lock is the lockfile (CI uses bun)
+# The dashboard uses bun; lockfiles are not committed
+bun.lock
+bun.lockb
 package-lock.json
+yarn.lock
+pnpm-lock.yaml
