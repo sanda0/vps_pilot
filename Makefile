@@ -33,9 +33,10 @@ hub: ensure-dist ## Run the hub with hot reload (air), or go run without it
 ui: ensure-bun ## Run the dashboard dev server (proxies /api to the hub)
 	cd client && bun run dev
 
-agent: ## Run the agent against the local hub (first run: make agent VPS_PILOT_TOKEN=vpsp1...)
+agent: ## Run the agent against the local hub (first run: VPS_PILOT_TOKEN=vpsp1...; optional PROJECT_DIRS=~/dir)
 	cd agent && VPS_PILOT_TOKEN="$(VPS_PILOT_TOKEN)" cargo run -- \
-		--hub 127.0.0.1:$(AGENT_PORT) --state $(AGENT_STATE)
+		--hub 127.0.0.1:$(AGENT_PORT) --state $(AGENT_STATE) \
+		$(if $(PROJECT_DIRS),--projects-dir $(PROJECT_DIRS))
 
 agent-reset: ## Forget the dev agent's enrollment
 	rm -f $(AGENT_STATE)
