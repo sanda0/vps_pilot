@@ -3,16 +3,19 @@
 Monorepo: `server/` (Go hub), `client/` (dashboard), `agent/` (Rust agent).
 Read `SCOPE.md` before adding a feature. `make help` lists every task.
 
-## Pull requests: keep them small
+## Pull requests and commits: keep them small
 
-- Every PR must stay **under 200 changed lines** (additions + deletions, per
-  `git diff --stat main...HEAD`). Tests count. Lockfiles and sqlc-generated
-  code don't.
-- If a change will be bigger, plan it as a stack of PRs that each build and
-  work on their own (e.g. agent discovery → agent wiring → hub → dashboard),
-  and list that stack before writing code.
+- Every PR must stay **under 1000 changed lines** and every commit **under
+  200** (additions + deletions; `git diff --stat main...HEAD` for a PR,
+  `git show --stat <commit>` for a commit). Tests count. Lockfiles and
+  sqlc-generated code don't.
+- Split a PR into commits that each build and pass tests on their own, so it
+  can be reviewed commit by commit.
+- If a change will be bigger than one PR, plan it as a stack of PRs that each
+  build and work on their own (e.g. agent discovery → agent wiring → hub →
+  dashboard), and list that stack before writing code.
 - One concern per PR. No drive-by refactors or reformatting.
-- Check the size before opening a PR. If it's over the limit, split it.
+- Check the sizes before opening a PR. If either is over the limit, split it.
 
 ## Running locally
 

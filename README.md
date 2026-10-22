@@ -13,7 +13,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - **CPU usage**
   - **Memory usage**
   - **Network statistics**
-  - **Disk usage**
+  - **Disk usage** (reported by the agent; not charted yet)
 - Metrics are visualized in the dashboard with selectable time ranges:
   - 5 minutes, 15 minutes, 1 hour, 1 day, 2 days, 7 days
 - Real-time updates via WebSocket connection
@@ -27,16 +27,16 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - **Discord** ✅
   - **Email** ✅
   - **Slack** ✅
-- Flexible alert conditions (CPU, Memory, Disk, Network)
+- Alert conditions on CPU, memory and network
 - Alert history and tracking
 
 ---
 
-### 🚀 Projects Management (Coming Soon)
+### 🚀 Projects Management (Planned)
 - Each node can have multiple projects
 - Projects require a `config.vpspilot.json` file
-- Agents scan disks for project config files and send project metadata to the central server
-- Central server will display available projects and allow:
+- Agents will find these files and report them to the hub (the hub side exists; agent discovery is next)
+- The dashboard will then allow, for commands declared in the file only:
   - Running predefined commands
   - Managing project logs
   - Backing up project directories and databases
@@ -102,8 +102,9 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 ## 📦 Quick Start
 
 ### Prerequisites
-- **Go** 1.21+ ([install](https://go.dev/doc/install))
-- **Bun** ([install](https://bun.sh/))
+- **Go** 1.25+ ([install](https://go.dev/doc/install))
+- **Bun** ([install](https://bun.sh/)) for the dashboard
+- **Rust** stable ([install](https://rustup.rs/)) for the agent
 - **Git**
 
 ---
@@ -118,7 +119,7 @@ cd vps_pilot
 
 ### 2. Build Single Executable (Recommended)
 
-The `build.sh` script handles everything: installs frontend dependencies, builds the React UI, and compiles it into the Go binary.
+The `build.sh` script (or `make build`) installs dashboard dependencies, builds the UI into the Go binary, and builds the agent.
 
 ```sh
 chmod +x build.sh
@@ -127,11 +128,11 @@ chmod +x build.sh
 
 What it does:
 1. Installs dashboard dependencies with bun (if needed)
-2. Builds the React frontend (`client/dist/`)
-3. Copies the built UI into `server/cmd/app/dist/`
-4. Compiles the Go binary with the UI embedded
+2. Builds the dashboard straight into `server/cmd/app/dist/`
+3. Compiles the Go binary with the UI embedded
+4. Builds the agent with cargo (skipped if cargo isn't installed)
 
-**Output:** `server/vps_pilot`
+**Output:** `server/vps_pilot` (hub) and `agent/target/release/vps-pilot-agent` (agent)
 
 ---
 
@@ -142,28 +143,13 @@ cd server
 cp .env.example .env
 ```
 
-Then open `.env` and fill in your values:
+Then open `.env` and set at least `TOKEN_SECRET`:
 
 ```sh
-# Database directory
-DB_PATH=./data
-
-# JWT settings
-TOKEN_LIFESPAN=60
-TOKEN_SECRET=your-secret-key-min-32-chars
-
-# TCP server (receives metrics from agents)
-TCP_SERVER_PORT=55001
-
-# Email alerts (optional)
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-MAIL_FROM_ADDRESS=noreply@vpspilot.com
+openssl rand -hex 32   # paste the output as TOKEN_SECRET
 ```
 
-> **Note:** `TOKEN_SECRET` must be at least 32 characters long.
+The other settings (`DB_PATH`, `TOKEN_LIFESPAN`, `COOKIE_SECURE`, `TCP_SERVER_PORT`, SMTP for email alerts) are explained in [`server/.env.example`](server/.env.example).
 
 ---
 
@@ -209,6 +195,19 @@ Log in with the credentials you created in step 4.
 
 ---
 
+### 7. Connect a Server (Agent)
+
+1. In the dashboard, open **Nodes → Add node** and copy the join token.
+2. Copy `vps-pilot-agent` to the server and run it once with the token:
+
+```sh
+VPS_PILOT_TOKEN=vpsp1.… ./vps-pilot-agent --hub your-hub.example.com
+```
+
+The agent enrolls, saves its credentials to `/var/lib/vps-pilot-agent/state.json`, and doesn't need the token again. The hub's agent port (`55001`) must be reachable from the server. See [agent/README.md](agent/README.md) for options and exit codes.
+
+---
+
 ## 🚩 CLI Flags
 
 All flags are passed directly to the `vps_pilot` binary:
@@ -216,6 +215,8 @@ All flags are passed directly to the `vps_pilot` binary:
 | Flag                | Default  | Description                             |
 |---------------------|----------|-----------------------------------------|
 | `-port`             | `8080`   | HTTP server port                        |
+| `-agent-port`       | `55001`  | Agent channel (TLS) port; also `TCP_SERVER_PORT` |
+| `-agent-tls-cert` / `-agent-tls-key` | self-signed in `$DB_PATH/tls` | Your own certificate for the agent channel |
 | `-migrate`          | —        | Run database migrations and exit        |
 | `-create-superuser` | —        | Create an admin user interactively and exit |
 | `-create-makefile`  | —        | Generate a `Makefile` in `server/` and exit |
@@ -231,80 +232,21 @@ All flags are passed directly to the `vps_pilot` binary:
 
 # Create an admin user
 ./vps_pilot -create-superuser
-
-# Generate Makefile helper
-./vps_pilot -create-makefile
 ```
 
 ---
 
-## 🔧 Development Mode
+## 🔧 Development
 
-For development with hot reload:
-
-### Backend (Terminal 1)
-```sh
-cd server
-go run main.go
-```
-
-Or with [air](https://github.com/air-verse/air) for hot reload:
-```sh
-cd server
-air
-```
-
-### Frontend (Terminal 2)
-```sh
-cd client
-bun install
-bun run dev
-```
-
-**Access:**
-- Frontend (hot reload): http://localhost:5173
-- Backend API: http://localhost:8080
-
----
-
-## 📋 Makefile Commands
-
-Generate the Makefile first if you don't have one:
+From the repo root (`make help` lists every task):
 
 ```sh
-cd server
-./vps_pilot -create-makefile
-```
-
-Then use:
-
-```sh
-cd server
-
-# Migrations
-make migrate              # Run database migrations
-make db-info              # Show database info
-make db-reset             # Reset databases
-
-# Building
-make build                # Build server only
-make build-full           # Build with embedded UI (runs ../build.sh)
-make sqlc                 # Generate SQLC code
-
-# Running
-make run                  # Run server
-make dev                  # Run with hot reload (requires air)
-
-# User Management
-make create-superuser     # Create admin user
-
-# Testing
-make test                 # Run tests
-make test-coverage        # Run tests with coverage
-
-# Maintenance
-make backup               # Backup databases
-make clean                # Clean build artifacts
+cp server/.env.example server/.env   # then set TOKEN_SECRET
+make install migrate superuser       # one-time setup
+make dev                             # hub on :8080 (hot reload with air) + dashboard on http://localhost:5173
+make agent VPS_PILOT_TOKEN=vpsp1...  # run a local agent; later runs are just `make agent`
+make agent-reset                     # forget the local agent's enrollment
+make lint test                       # before pushing
 ```
 
 ---
@@ -337,31 +279,33 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 
 ```sh
 vps_pilot/
-├── client/                  # React + Vite frontend
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/           # Page components
-│   │   ├── hooks/           # Custom React hooks
-│   │   └── lib/             # Utilities and API client
-│   └── dist/                # Built frontend (generated, gitignored)
+├── agent/                   # Rust agent (one per server)
+├── client/                  # React + Vite dashboard (built into server/cmd/app/dist)
+│   └── src/
+│       ├── components/      # Reusable UI components
+│       ├── pages/           # Page components
+│       ├── hooks/           # Custom React hooks
+│       └── lib/             # Utilities and API client
 ├── server/                  # Go backend
 │   ├── cmd/
 │   │   ├── app/             # HTTP server + embedded UI
 │   │   │   └── dist/        # Embedded UI files (generated, gitignored)
-│   │   └── cli/             # CLI tools (migrations, superuser, makefile)
+│   │   └── cli/             # CLI tools (migrations, superuser)
 │   ├── internal/
 │   │   ├── db/              # Database layer (SQLC + migrations)
 │   │   ├── handlers/        # HTTP handlers
 │   │   ├── services/        # Business logic
 │   │   ├── middleware/       # HTTP middleware
-│   │   ├── tcpserver/       # TCP server for agent metrics
+│   │   ├── agentauth/       # Agent enrollment and keys
+│   │   ├── tcpserver/       # Agent channel (TLS)
 │   │   └── utils/           # Utilities
 │   ├── data/                # SQLite databases (gitignored)
 │   ├── main.go              # Entry point
 │   └── vps_pilot            # Compiled binary (gitignored)
-├── docs/                    # Documentation
+├── docs/                    # Documentation, agent protocol
 ├── build.sh                 # Full build script
-└── README.md
+├── Makefile                 # Development tasks
+└── SCOPE.md                 # What VPS Pilot does and doesn't do
 ```
 
 ---
@@ -374,8 +318,7 @@ Docker Compose setup will be available in a future release.
 
 ## 🔐 Security Notes
 
-- Change default admin credentials immediately after first login
-- Use a strong `TOKEN_SECRET` (minimum 32 characters)
+- Use a strong random `TOKEN_SECRET` (`openssl rand -hex 32`)
 - Keep the `data/` directory in a secure, backed-up location
 - Use HTTPS in production (put a reverse proxy like nginx or Caddy in front)
 - Agents authenticate with a per-node key issued at enrollment; join tokens are single-use and expire after 1 hour
@@ -451,13 +394,11 @@ ls server/cmd/app/dist/
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Before you start:
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- Read [SCOPE.md](SCOPE.md): it lists what VPS Pilot does and what belongs in other tools.
+- Keep pull requests under 1000 changed lines and each commit under 200, with one concern per pull request.
+- Run `make lint test` before pushing.
 
 ---
 
@@ -470,16 +411,6 @@ Made with ❤️ by [Sandakelum](https://github.com/sanda0)
 ## 📜 License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Versions released before this change remain available under the MIT License.
-
----
-
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](https://github.com/user-attachments/assets/fff1c368-9c8e-4bb6-9720-f9a7f46a2910)
-
-### Monitoring
-![Metrics View](https://github.com/user-attachments/assets/fff1c368-9c8e-4bb6-9720-f9a7f46a2910)
 
 ---
 
