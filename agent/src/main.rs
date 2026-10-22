@@ -1,7 +1,6 @@
 mod client;
+mod discovery;
 mod metrics;
-// Used by project discovery (next PR); only the tests use it for now.
-#[allow(dead_code)]
 mod project;
 mod protocol;
 mod state;
@@ -53,6 +52,15 @@ struct Args {
     /// Seconds to wait before reconnecting
     #[arg(long, default_value_t = 10)]
     backoff: u64,
+
+    /// Directory searched for config.vpspilot.json files (repeatable)
+    #[arg(
+        long = "projects-dir",
+        env = "VPS_PILOT_PROJECT_DIRS",
+        value_delimiter = ',',
+        default_values = ["/var/www", "/home"]
+    )]
+    projects_dirs: Vec<PathBuf>,
 }
 
 /// Appends the default agent port when the hub address has none.
@@ -112,6 +120,13 @@ async fn main() -> ExitCode {
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
+
+    // Not reported to the hub yet; logged so discovery can be checked.
+    let projects = discovery::discover(&args.projects_dirs);
+    info!(count = projects.len(), dirs = ?args.projects_dirs, "found projects");
+    for p in &projects {
+        info!(name = %p.name, path = %p.path, commands = p.commands.len(), "project");
+    }
 
     loop {
         tokio::select! {
