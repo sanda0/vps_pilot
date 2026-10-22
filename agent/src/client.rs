@@ -1,30 +1,30 @@
 //! One connection to the hub: handshake (enroll or connect), then stream stats.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
 use tokio::io::{AsyncRead, ReadHalf};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc, watch};
 use tokio::task::AbortHandle;
 use tokio::time::{MissedTickBehavior, timeout};
 use tracing::{debug, info, warn};
 
-use crate::discovery;
 use crate::metrics::Collector;
 use crate::project::ProjectConfig;
 use crate::protocol::{
     self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_CONNECTED,
-    MSG_ENROLL, MSG_ENROLLED, MSG_PROJECTS, MSG_SYS_STAT, Msg, ProjectsPayload,
+    MSG_ENROLL, MSG_ENROLLED, MSG_PROJECT_SETTINGS, MSG_PROJECTS, MSG_RESCAN_PROJECTS,
+    MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
 };
+use crate::scanner;
 use crate::state::State;
 use crate::tls;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
-/// How often the project directories are searched again for changes.
-const PROJECT_RESCAN: Duration = Duration::from_secs(60);
 
 /// Join token from the dashboard: `vpsp1.<secret>.<hub cert fingerprint>`.
 #[derive(Debug, Clone, PartialEq)]
@@ -138,10 +138,17 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
     let reader = tokio::spawn(read_loop(rd, tx));
     let _reader_guard = AbortOnDrop(reader.abort_handle());
 
-    // Project discovery walks the disk, so it runs in its own task and never
-    // delays stats. Each session reports the first scan, then only changes.
+    // Project searches run in their own task (see scanner.rs). A result is
+    // reported when it changed or when the scanner says it must be.
+    let (settings_tx, settings_rx) = watch::channel(ProjectSettings::default());
+    let rescan = Arc::new(Notify::new());
     let (projects_tx, mut projects_rx) = mpsc::channel(1);
-    let scanner = tokio::spawn(scan_loop(cfg.project_dirs.clone(), projects_tx));
+    let scanner = tokio::spawn(scanner::scan_loop(
+        cfg.project_dirs.clone(),
+        settings_rx,
+        rescan.clone(),
+        projects_tx,
+    ));
     let _scanner_guard = AbortOnDrop(scanner.abort_handle());
     let mut reported: Option<Vec<ProjectConfig>> = None;
 
@@ -151,6 +158,19 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
         tokio::select! {
             msg = inbox.recv() => match msg {
                 Some(Ok(msg)) if msg.kind == MSG_AUTH_FAILED => return Err(auth_failed(&msg)),
+                Some(Ok(msg)) if msg.kind == MSG_PROJECT_SETTINGS => {
+                    match msg.payload::<ProjectSettings>() {
+                        Ok(new) => {
+                            settings_tx.send_if_modified(|s| {
+                                let changed = *s != new;
+                                *s = new;
+                                changed
+                            });
+                        }
+                        Err(e) => warn!("ignoring invalid project_settings: {e:#}"),
+                    }
+                }
+                Some(Ok(msg)) if msg.kind == MSG_RESCAN_PROJECTS => rescan.notify_one(),
                 Some(Ok(msg)) => debug!("ignoring {:?} from hub", msg.kind),
                 Some(Err(e)) => return Err(e.into()),
                 None => return Err(anyhow!("hub closed the connection").into()),
@@ -159,8 +179,8 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 let stat = collector.collect();
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
             }
-            Some(projects) = projects_rx.recv() => {
-                if reported.as_ref() == Some(&projects) {
+            Some(scanner::ScanResult { projects, always_report }) = projects_rx.recv() => {
+                if !always_report && reported.as_ref() == Some(&projects) {
                     continue;
                 }
                 if let Some(msg) = projects_msg(&projects)? {
@@ -170,22 +190,6 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 reported = Some(projects);
             }
         }
-    }
-}
-
-/// Searches the project directories now and every PROJECT_RESCAN.
-async fn scan_loop(dirs: Vec<PathBuf>, tx: mpsc::Sender<Vec<ProjectConfig>>) {
-    loop {
-        let scan_dirs = dirs.clone();
-        let Ok(projects) =
-            tokio::task::spawn_blocking(move || discovery::discover(&scan_dirs)).await
-        else {
-            return;
-        };
-        if tx.send(projects).await.is_err() {
-            return;
-        }
-        tokio::time::sleep(PROJECT_RESCAN).await;
     }
 }
 
