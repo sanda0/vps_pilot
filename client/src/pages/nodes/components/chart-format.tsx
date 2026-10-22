@@ -57,14 +57,23 @@ export function formatPercent(v: number) {
   return `${v.toFixed(1)}%`
 }
 
+// Decimal units (1 KB = 1000 B), as network rates are usually shown.
 export function formatBytesPerSec(v: number) {
   const units = ["B/s", "KB/s", "MB/s", "GB/s"]
   let i = 0
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000
     i++
   }
   return `${i > 0 && v < 10 ? v.toFixed(1) : Math.round(v)} ${units[i]}`
+}
+
+// About four Y ticks on round values (0, 500 KB/s, 1.0 MB/s, ...) up to max.
+export function roundTicks(max: number) {
+  const raw = max / 4
+  const pow = 10 ** Math.floor(Math.log10(raw || 1))
+  const step = ([1, 2, 2.5, 5, 10].find((m) => m * pow >= raw) ?? 10) * pow
+  return Array.from({ length: Math.ceil(max / step) + 1 }, (_, i) => i * step)
 }
 
 // Tooltip row: colour key, series name, formatted value.
