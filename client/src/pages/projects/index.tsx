@@ -3,8 +3,9 @@ import { projectsApi } from "@/lib/api";
 import { Project } from "@/types/project";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDeleteDialog } from "@/components/project-delete-dialog";
+import { AddProjectDialog } from "@/components/add-project-dialog";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, PackageSearch } from "lucide-react";
+import { Search, Loader2, PackageSearch, FolderPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ export default function ProjectsListPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const limit = 12;
@@ -120,15 +122,23 @@ export default function ProjectsListPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
-        <p className="text-muted-foreground">
-          Projects are discovered automatically by agents scanning nodes for{" "}
-          <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-            config.vpspilot.json
-          </code>{" "}
-          files.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+          <p className="text-muted-foreground">
+            Projects are discovered automatically by agents scanning nodes for{" "}
+            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+              config.vpspilot.json
+            </code>{" "}
+            files.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setAddOpen(true)}>
+            <FolderPlus className="h-4 w-4" />
+            Add project
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
@@ -203,6 +213,8 @@ export default function ProjectsListPage() {
           )}
         </>
       )}
+
+      <AddProjectDialog open={addOpen} onOpenChange={setAddOpen} />
 
       <ProjectDeleteDialog
         open={deleteDialogOpen}
