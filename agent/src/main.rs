@@ -117,16 +117,10 @@ async fn main() -> ExitCode {
         state_path: args.state,
         join,
         interval: Duration::from_secs(args.interval),
+        project_dirs: args.projects_dirs,
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
-
-    // Not reported to the hub yet; logged so discovery can be checked.
-    let projects = discovery::discover(&args.projects_dirs);
-    info!(count = projects.len(), dirs = ?args.projects_dirs, "found projects");
-    for p in &projects {
-        info!(name = %p.name, path = %p.path, commands = p.commands.len(), "project");
-    }
 
     loop {
         tokio::select! {

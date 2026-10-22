@@ -6,6 +6,8 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use crate::project::ProjectConfig;
+
 /// Frames larger than this are rejected (matches the hub).
 pub const MAX_FRAME_SIZE: u32 = 1 << 20;
 
@@ -14,6 +16,7 @@ pub const MSG_ENROLLED: &str = "enrolled";
 pub const MSG_CONNECTED: &str = "connected";
 pub const MSG_AUTH_FAILED: &str = "auth_failed";
 pub const MSG_SYS_STAT: &str = "sys_stat";
+pub const MSG_PROJECTS: &str = "projects";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +73,13 @@ pub struct EnrolledPayload {
 pub struct AuthFailedPayload {
     #[serde(default)]
     pub reason: String,
+}
+
+/// Sent by the agent in `projects`: every project on the node. The hub
+/// removes projects missing from the list.
+#[derive(Debug, Serialize)]
+pub struct ProjectsPayload<'a> {
+    pub projects: &'a [ProjectConfig],
 }
 
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {
