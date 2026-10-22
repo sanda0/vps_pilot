@@ -33,8 +33,10 @@ func (q *Queries) GetCPUStats(ctx context.Context, arg GetCPUStatsParams) ([]map
 	}
 	defer rows.Close()
 
-	// Map to group by timestamp
+	// Map to group by timestamp; order keeps the timestamps sorted, since
+	// iterating a Go map is random and the chart needs points in time order
 	timeMap := make(map[int64]map[string]interface{})
+	var order []int64
 
 	for rows.Next() {
 		var timestamp int64
@@ -50,6 +52,7 @@ func (q *Queries) GetCPUStats(ctx context.Context, arg GetCPUStatsParams) ([]map
 			timeMap[timestamp] = make(map[string]interface{})
 			timeMap[timestamp]["timestamp"] = timestamp
 			timeMap[timestamp]["time"] = time.Unix(timestamp, 0).Format("2006-01-02 15:04:05")
+			order = append(order, timestamp)
 		}
 
 		// Add CPU value
@@ -57,9 +60,9 @@ func (q *Queries) GetCPUStats(ctx context.Context, arg GetCPUStatsParams) ([]map
 	}
 
 	// Convert map to slice
-	result := make([]map[string]interface{}, 0, len(timeMap))
-	for _, record := range timeMap {
-		result = append(result, record)
+	result := make([]map[string]interface{}, 0, len(order))
+	for _, ts := range order {
+		result = append(result, timeMap[ts])
 	}
 
 	return result, nil
