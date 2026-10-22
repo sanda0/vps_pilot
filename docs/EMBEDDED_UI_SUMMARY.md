@@ -144,7 +144,7 @@ curl http://localhost:8080/assets/index.js     # Assets
 cd server && go run main.go
 
 # Terminal 2: Frontend
-cd client && npm run dev
+cd client && bun run dev
 ```
 
 ### Production Build
@@ -187,4 +187,4 @@ cd server && ./vps_pilot
 **Build fails:**
 - Frontend build: Check `client/dist` created
 - Backend build: Check Go errors
-- Dependencies: Run `npm install` and `go mod download`
+- Dependencies: Run `bun install` and `go mod download`

@@ -11,12 +11,9 @@ SQLC        := go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
 
 export HUB_PORT
 
-# Prefer bun (used in CI), fall back to npm.
-JS := $(shell command -v bun >/dev/null 2>&1 && echo bun || echo npm)
-
 .DEFAULT_GOAL := help
 .PHONY: help dev hub ui agent agent-reset install superuser migrate sqlc \
-        test lint fmt build clean ensure-dist
+        test lint fmt build clean ensure-dist ensure-bun
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -33,8 +30,8 @@ hub: ensure-dist ## Run the hub with hot reload (air), or go run without it
 		go run . -port $(HUB_PORT) -agent-port $(AGENT_PORT); \
 	fi
 
-ui: ## Run the dashboard dev server (proxies /api to the hub)
-	cd client && $(JS) run dev
+ui: ensure-bun ## Run the dashboard dev server (proxies /api to the hub)
+	cd client && bun run dev
 
 agent: ## Run the agent against the local hub (first run: make agent VPS_PILOT_TOKEN=vpsp1...)
 	cd agent && VPS_PILOT_TOKEN="$(VPS_PILOT_TOKEN)" cargo run -- \
@@ -43,8 +40,8 @@ agent: ## Run the agent against the local hub (first run: make agent VPS_PILOT_T
 agent-reset: ## Forget the dev agent's enrollment
 	rm -f $(AGENT_STATE)
 
-install: ## Install dashboard dependencies
-	cd client && $(JS) install
+install: ensure-bun ## Install dashboard dependencies
+	cd client && bun install
 
 superuser: ## Create a dashboard login
 	cd server && go run . -create-superuser
@@ -55,10 +52,10 @@ migrate: ## Apply database migrations
 sqlc: ## Regenerate Go code from SQL queries
 	cd server && $(SQLC) generate
 
-test: ensure-dist ## Run hub and agent tests, type-check the dashboard
+test: ensure-dist ensure-bun ## Run hub and agent tests, type-check the dashboard
 	cd server && go test -race ./...
 	cd agent && cargo test
-	cd client && $(JS) run build
+	cd client && bun run build
 
 lint: ensure-dist ## go vet, rustfmt check, clippy
 	cd server && go vet ./...
@@ -68,7 +65,7 @@ fmt: ## Format Go and Rust code
 	cd server && gofmt -w .
 	cd agent && cargo fmt
 
-build: ## Production build: hub with embedded UI + agent
+build: ensure-bun ## Production build: hub with embedded UI + agent
 	./build.sh
 
 clean: ## Remove build output (keeps databases)
@@ -78,3 +75,8 @@ clean: ## Remove build output (keeps databases)
 ensure-dist:
 	@mkdir -p server/cmd/app/dist
 	@[ -n "$$(ls -A server/cmd/app/dist)" ] || touch server/cmd/app/dist/.gitkeep
+
+# The dashboard is built with bun (https://bun.sh).
+ensure-bun:
+	@command -v bun >/dev/null 2>&1 || { \
+		echo "bun not found: install it with 'curl -fsSL https://bun.sh/install | bash'"; exit 1; }

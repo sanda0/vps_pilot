@@ -9,8 +9,7 @@ Get up and running in minutes.
 | Tool | Version | Install |
 |------|---------|---------|
 | **Go** | 1.21+ | https://go.dev/doc/install |
-| **Node.js** | 18+ | https://nodejs.org/ |
-| **Bun** *(optional, faster)* | latest | https://bun.sh/ |
+| **Bun** | latest | https://bun.sh/ |
 | **Git** | any | https://git-scm.com/ |
 
 ---
@@ -151,8 +150,8 @@ air
 **Terminal 2 — Frontend**
 ```sh
 cd client
-npm install   # or: bun install
-npm run dev   # or: bun run dev
+bun install
+bun run dev
 ```
 
 | Service | URL |
@@ -167,7 +166,7 @@ npm run dev   # or: bun run dev
 **Build fails**
 ```sh
 # Test that the frontend builds on its own
-cd client && npm run build
+cd client && bun run build
 
 # Test that the Go code compiles on its own
 cd server && go build .
