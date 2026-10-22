@@ -5,6 +5,7 @@ import { apiErrorMessage, projectScanApi } from "@/lib/api";
 import { ProjectScan } from "@/types/project_scan";
 import { useToast } from "@/hooks/use-toast";
 import { NodeSelect } from "@/components/node-select";
+import { ScanPathsAndErrors } from "@/components/scan-paths-and-errors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,7 +42,8 @@ interface ScanSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Per-node project search settings: auto scan on/off, interval, rescan now.
+// Per-node project search settings: auto scan on/off, interval, rescan now,
+// manual paths and the problems from the last scan.
 export function ScanSettingsDialog({ open, onOpenChange }: ScanSettingsDialogProps) {
   const [nodeId, setNodeId] = useState<number | null>(null);
   const [scan, setScan] = useState<ProjectScan | null>(null);
@@ -86,6 +88,9 @@ export function ScanSettingsDialog({ open, onOpenChange }: ScanSettingsDialogPro
 
   const rescan = () =>
     run(() => projectScanApi.rescan(nodeId!), "Rescan requested; results appear in a few seconds");
+
+  const removePath = (pathId: number) =>
+    run(() => projectScanApi.deletePath(nodeId!, pathId), "Project path removed");
 
   const intervals = INTERVALS.some(([s]) => s === scanInterval) ? INTERVALS : [...INTERVALS, [scanInterval, `Every ${scanInterval} seconds`] as [number, string]];
   const changed = scan !== null && (scan.auto_scan !== autoScan || scan.scan_interval !== scanInterval);
@@ -145,6 +150,8 @@ export function ScanSettingsDialog({ open, onOpenChange }: ScanSettingsDialogPro
                   </SelectContent>
                 </Select>
               </div>
+
+              <ScanPathsAndErrors scan={scan} busy={busy} onRemovePath={removePath} />
             </>
           )}
         </div>
