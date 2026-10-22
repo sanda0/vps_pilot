@@ -3,6 +3,7 @@ mod discovery;
 mod metrics;
 mod project;
 mod protocol;
+mod scanner;
 mod state;
 mod tls;
 
