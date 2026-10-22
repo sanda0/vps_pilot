@@ -82,6 +82,8 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			nodes.GET("/:id/project-settings", projectScanHandler.Get)
 			nodes.PUT("/:id/project-settings", projectScanHandler.UpdateSettings)
 			nodes.POST("/:id/rescan-projects", projectScanHandler.Rescan)
+			nodes.POST("/:id/project-paths", projectScanHandler.AddPath)
+			nodes.DELETE("/:id/project-paths/:pathId", projectScanHandler.DeletePath)
 		}
 		alerts := dashbaord.Group("/alerts")
 		{

@@ -11,7 +11,7 @@ import (
 )
 
 // ProjectScanHandler serves a node's project search settings:
-// /nodes/:id/project-settings and /nodes/:id/rescan-projects.
+// /nodes/:id/project-settings, /project-paths and /rescan-projects.
 type ProjectScanHandler struct {
 	service services.ProjectScanService
 }
@@ -71,6 +71,43 @@ func (h *ProjectScanHandler) Rescan(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"data": "rescan requested"})
 }
 
+// AddPath handles POST /nodes/:id/project-paths
+func (h *ProjectScanHandler) AddPath(c *gin.Context) {
+	nodeID, ok := nodeIDParam(c)
+	if !ok {
+		return
+	}
+	var req dto.ProjectPathRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": services.ErrInvalidPath.Error()})
+		return
+	}
+	p, err := h.service.AddPath(nodeID, req.Path)
+	if err != nil {
+		serviceError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": p})
+}
+
+// DeletePath handles DELETE /nodes/:id/project-paths/:pathId
+func (h *ProjectScanHandler) DeletePath(c *gin.Context) {
+	nodeID, ok := nodeIDParam(c)
+	if !ok {
+		return
+	}
+	pathID, err := strconv.ParseInt(c.Param("pathId"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid path ID"})
+		return
+	}
+	if err := h.service.DeletePath(nodeID, pathID); err != nil {
+		serviceError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": "project path removed"})
+}
+
 func nodeIDParam(c *gin.Context) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -81,8 +118,15 @@ func nodeIDParam(c *gin.Context) (int64, bool) {
 }
 
 func serviceError(c *gin.Context, err error) {
-	if errors.Is(err, services.ErrNodeNotFound) {
+	switch {
+	case errors.Is(err, services.ErrNodeNotFound), errors.Is(err, services.ErrPathNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	case errors.Is(err, services.ErrInvalidPath):
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	case errors.Is(err, services.ErrPathExists):
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
