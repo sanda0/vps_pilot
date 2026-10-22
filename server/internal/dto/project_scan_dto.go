@@ -8,6 +8,11 @@ type ProjectScanSettingsRequest struct {
 	ScanInterval int64 `json:"scan_interval" binding:"required,min=60,max=86400"` // seconds
 }
 
+// ProjectPathRequest is the body of POST /nodes/:id/project-paths.
+type ProjectPathRequest struct {
+	Path string `json:"path" binding:"required"`
+}
+
 // ProjectPathDto is a project directory added by hand.
 type ProjectPathDto struct {
 	ID        int64  `json:"id"`
