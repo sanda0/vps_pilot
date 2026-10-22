@@ -79,9 +79,31 @@ A node can have only one live connection. A second successful `connected` closes
 | --- | --- | --- |
 | `sys_stat` | agent → hub | `SystemStat`, every interval (default 5s) |
 | `sys_info` | agent → hub | `SystemInfo`, whenever it changes |
-| `projects` | agent → hub | `ProjectSyncPayload`, after the handshake and then whenever the list changes (rescanned every 60s) |
+| `projects` | agent → hub | `ProjectSyncPayload`, see [Projects](#projects) |
+| `project_settings` | hub → agent | `ProjectSettings`, after the handshake and whenever they change |
+| `rescan_projects` | hub → agent | none. Search for projects now |
 
 Unknown types are ignored by both sides.
+
+## Projects
+
+Each project is a directory with a `config.vpspilot.json`. The agent finds them two ways:
+
+- **Search**: walk the agent's project directories (`--projects-dir`, default `/var/www` and `/home`), up to 4 levels deep. Hidden directories, `node_modules`, `vendor`, `target` and symlinked directories are skipped.
+- **Manual paths** from `ProjectSettings.paths`: the agent reads `<path>/config.vpspilot.json` directly, whatever its depth. A manual path must resolve (after `..` and symlinks) to a directory inside one of the agent's project directories, unless the agent runs with `--allow-any-project-path`. The server owner, not the dashboard, decides which parts of the disk can hold projects.
+
+When the agent searches:
+
+| Trigger | Search runs |
+| --- | --- |
+| Session starts | always |
+| `project_settings` received with different values | always |
+| `rescan_projects` received | always |
+| Timer, every `scan_interval` seconds | only if `auto_scan` is true |
+
+Until it receives `project_settings`, the agent uses `auto_scan: true`, `scan_interval: 900` and no manual paths. A hub that never sends settings gets that behaviour.
+
+After a search, the agent sends `projects` if the result (projects or errors) differs from what it last sent in this session. The first search of a session and a search requested by `rescan_projects` are always sent, so the hub knows when the node was last scanned. Each `projects` message is the complete state: the hub replaces the node's projects and errors with it.
 
 ## Payloads
 
@@ -115,4 +137,37 @@ Unknown types are ignored by both sides.
 
 `cpu_usage` holds one percentage per core. `mem_usage` and `disk_usage` (root filesystem) are percentages. Network values are bytes per second across non-loopback interfaces.
 
-`ProjectSyncPayload`: the full list of `config.vpspilot.json` files found on the node. See `server/internal/tcpserver/types.go`.
+`ProjectSettings`
+
+```json
+{
+  "auto_scan": true,
+  "scan_interval": 900,
+  "paths": ["/var/www/legacy/app"]
+}
+```
+
+`scan_interval` is in seconds; the agent clamps it to `60 ..= 86400`. `paths` are absolute project directories added from the dashboard.
+
+`ProjectSyncPayload`
+
+```json
+{
+  "projects": [
+    {
+      "name": "shop",
+      "path": "/var/www/shop",
+      "tech": ["laravel"],
+      "commands": [{ "name": "build", "command": "npm run build" }],
+      "logs": ["storage/logs"],
+      "backups": { "env_file": ".env", "dir": ["storage/app"] }
+    }
+  ],
+  "errors": [
+    { "path": "/opt/legacy-app", "error": "outside the agent's project directories" },
+    { "path": "/var/www/blog", "error": "parse config.vpspilot.json: missing field `name`" }
+  ]
+}
+```
+
+`projects` holds every valid config found, with `path` set by the agent to the absolute project directory. `errors` holds configs that couldn't be used and manual paths that were rejected, keyed by project directory. Both lists are complete each time. The Go types are in `server/internal/tcpserver/types.go`.
