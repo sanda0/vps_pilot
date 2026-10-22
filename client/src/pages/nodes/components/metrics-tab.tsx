@@ -5,8 +5,6 @@ import { useEffect, useState, useRef } from "react";
 import { MemoryChart } from "./memory-chart";
 import { NetworkChart } from "./netwrok-chart";
 import { useParams } from "react-router";
-import { NodeData } from "@/types/node_type";
-import api from "@/lib/api";
 
 export default function MetricsTab() {
 
@@ -14,7 +12,6 @@ export default function MetricsTab() {
   const { id } = useParams<{ id: string }>();
   const [memData, setMemData] = useState([]);
   const [cpuData, setCpuData] = useState<any>();
-  const [node, setNode] = useState<NodeData | null>(null);
   const [networkData, setNetworkData] = useState<any>();
   const wsRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null);
@@ -24,15 +21,6 @@ export default function MetricsTab() {
   useEffect(() => {
     timeRangeRef.current = currentTimeRange;
   }, [currentTimeRange]);
-
-  // Fetch node info once
-  useEffect(() => {
-    api.get(`/nodes/${id}`).then((res) => {
-      setNode(res.data.data)
-    }).catch((err) => {
-      console.error(err)
-    })
-  }, [id]);
 
   // WebSocket connection - create once per node
   useEffect(() => {
@@ -108,7 +96,7 @@ export default function MetricsTab() {
               <CardTitle>CPU usage</CardTitle>
             </CardHeader>
             <CardContent>
-                {cpuData && <CpuChart timeRange={currentTimeRange} cpuCount={node?.cpus??0} data={cpuData}></CpuChart>}
+                {cpuData && <CpuChart timeRange={currentTimeRange} data={cpuData}></CpuChart>}
             </CardContent>
           </Card>
           <Card>
