@@ -1,87 +1,70 @@
-
-
-
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-
 
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-
+import { formatBytesPerSec, formatTooltipTime, roundTicks, timeAxisProps, tooltipRow, TimePoint } from "./chart-format"
 
 const chartConfig = {
   recv: {
     label: "Received",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(var(--viz-1))",
   },
   sent: {
     label: "Sent",
-    color: "hsl(var(--chart-30))",
+    color: "hsl(var(--viz-2))",
   },
 } satisfies ChartConfig
 
 interface ChartProps {
   timeRange: string
-  data: Object[]
+  data: (TimePoint & { sent: number; recv: number })[]
 }
 
 export function NetworkChart(props: ChartProps) {
+  const data = props.data ?? []
+  const ticks = roundTicks(data.reduce((max, d) => Math.max(max, d.recv, d.sent), 0))
+
   return (
-
-    <ChartContainer config={chartConfig} className="w-full h-[250px]">
-      <AreaChart
-        accessibilityLayer
-        data={props.data}
-        margin={{
-          left: 20,
-          right: 0,
-        }}
-      >
-        <CartesianGrid vertical={true} />
-        <XAxis
-          dataKey="timestamp"
-          tickLine={false}
-          axisLine={false}
-          tickMargin={8}
-          tickFormatter={(value) => new Date(value * 1000).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
-        />
+    <ChartContainer config={chartConfig} className="w-full h-64">
+      <AreaChart data={data} margin={{ top: 8, left: 0, right: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis {...timeAxisProps(data, props.timeRange)} />
         <YAxis
+          domain={[0, ticks[ticks.length - 1] || 1]}
+          ticks={ticks}
+          tickFormatter={formatBytesPerSec}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value} B/s`}
-
+          width={72}
         />
-        <ChartTooltip cursor={false} content={<ChartTooltipContent
-          labelFormatter={(_, payload) => new Date(payload[0]?.payload.timestamp * 1000).toLocaleString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: "2-digit",
-            hour12: false
-          })}
-          
-        />} />
-        <Area
-          dataKey="recv"
-          type="natural"
-          fill="var(--color-recv)"
-          fillOpacity={0.1}
-          stroke="var(--color-recv)"
-          stackId="a"
+        <ChartTooltip
+          cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
+          content={<ChartTooltipContent
+            labelFormatter={(_, payload) => formatTooltipTime(payload[0]?.payload.timestamp)}
+            formatter={tooltipRow(formatBytesPerSec)}
+          />}
         />
-        <Area
-          dataKey="sent"
-          type="natural"
-          fill="var(--color-sent)"
-          fillOpacity={0.1}
-          stroke="var(--color-sent)"
-          stackId="b"
-
-        />
+        <ChartLegend content={<ChartLegendContent />} />
+        {(["recv", "sent"] as const).map((key) => (
+          <Area
+            key={key}
+            dataKey={key}
+            name={chartConfig[key].label}
+            type="monotone"
+            stroke={`var(--color-${key})`}
+            strokeWidth={2}
+            fill={`var(--color-${key})`}
+            fillOpacity={0.06}
+            dot={false}
+            isAnimationActive={false}
+          />
+        ))}
       </AreaChart>
     </ChartContainer>
   )
