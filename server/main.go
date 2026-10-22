@@ -99,7 +99,7 @@ func main() {
 		Fingerprint: cert.Fingerprint,
 		AgentPort:   *agentPort,
 		Agents:      agents,
-	})
+	}, agents)
 
 }
 
