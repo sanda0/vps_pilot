@@ -9,21 +9,31 @@ interface ScanPathsAndErrorsProps {
   onRemovePath: (pathId: number) => void;
 }
 
+// Shows a long path cut at the start ("…/clients/acme/app"), since the end is
+// what tells paths apart. <bdi> keeps the slashes in order under rtl.
+function PathText({ path, className = "" }: { path: string; className?: string }) {
+  return (
+    <code className={`truncate text-left [direction:rtl] ${className}`} title={path}>
+      <bdi>{path}</bdi>
+    </code>
+  );
+}
+
 // A node's project directories added by hand, and the problems its agent
 // reported in the last scan (broken configs, rejected paths).
 export function ScanPathsAndErrors({ scan, busy, onRemovePath }: ScanPathsAndErrorsProps) {
   return (
     <>
-      <div className="grid gap-2">
+      <div className="grid min-w-0 gap-2">
         <Label>Added by hand</Label>
         {scan.paths.length === 0 ? (
           <p className="text-sm text-muted-foreground">None. Use Add project to point the agent at a directory.</p>
         ) : (
-          <ul className="divide-y border">
+          <ul className="min-w-0 divide-y border">
             {scan.paths.map((p) => (
-              <li key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+              <li key={p.id} className="flex min-w-0 items-center gap-2 px-3 py-1.5 text-sm">
                 <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <code className="flex-1 truncate" title={p.path}>{p.path}</code>
+                <PathText path={p.path} className="min-w-0 flex-1" />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -41,15 +51,15 @@ export function ScanPathsAndErrors({ scan, busy, onRemovePath }: ScanPathsAndErr
       </div>
 
       {scan.errors.length > 0 && (
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           <Label className="flex items-center gap-1.5 text-destructive">
             <AlertTriangle className="h-4 w-4" />
             Problems in the last scan ({scan.errors.length})
           </Label>
-          <ul className="divide-y border border-destructive/40">
+          <ul className="min-w-0 divide-y border border-destructive/40">
             {scan.errors.map((e) => (
-              <li key={e.path} className="grid gap-0.5 px-3 py-1.5 text-sm">
-                <code className="truncate" title={e.path}>{e.path}</code>
+              <li key={e.path} className="grid min-w-0 gap-0.5 px-3 py-1.5 text-sm">
+                <PathText path={e.path} />
                 <span className="text-muted-foreground">{e.error}</span>
               </li>
             ))}

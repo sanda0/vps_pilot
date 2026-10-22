@@ -106,7 +106,7 @@ export function ScanSettingsDialog({ open, onOpenChange }: ScanSettingsDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-5 py-2">
+        <div className="grid min-w-0 gap-5 py-2">
           <div className="grid gap-2">
             <Label>Node</Label>
             <NodeSelect value={nodeId} onChange={setNodeId} />
