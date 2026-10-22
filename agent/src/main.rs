@@ -1,5 +1,8 @@
 mod client;
 mod metrics;
+// Used by project discovery (next PR); only the tests use it for now.
+#[allow(dead_code)]
+mod project;
 mod protocol;
 mod state;
 mod tls;
