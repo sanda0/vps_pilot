@@ -4,8 +4,9 @@ import { Project } from "@/types/project";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDeleteDialog } from "@/components/project-delete-dialog";
 import { AddProjectDialog } from "@/components/add-project-dialog";
+import { ScanSettingsDialog } from "@/components/scan-settings-dialog";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, PackageSearch, FolderPlus } from "lucide-react";
+import { Search, Loader2, PackageSearch, FolderPlus, Settings2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ export default function ProjectsListPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const limit = 12;
@@ -134,6 +136,10 @@ export default function ProjectsListPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setScanOpen(true)}>
+            <Settings2 className="h-4 w-4" />
+            Scan settings
+          </Button>
           <Button onClick={() => setAddOpen(true)}>
             <FolderPlus className="h-4 w-4" />
             Add project
@@ -215,6 +221,13 @@ export default function ProjectsListPage() {
       )}
 
       <AddProjectDialog open={addOpen} onOpenChange={setAddOpen} />
+      <ScanSettingsDialog
+        open={scanOpen}
+        onOpenChange={(open) => {
+          setScanOpen(open);
+          if (!open) fetchProjects(currentPage * limit);
+        }}
+      />
 
       <ProjectDeleteDialog
         open={deleteDialogOpen}
