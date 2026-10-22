@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/sanda0/vps_pilot/internal/agentauth"
@@ -200,9 +201,19 @@ func NewNodeService(ctx context.Context, repo *db.Repo, enroll AgentEnrollment) 
 	}
 }
 
-// Helper function to convert time range string to seconds
+// Helper function to convert a time range like "5 minutes" or "2 days" to seconds
 func parseTimeRangeToSeconds(timeRange string) int64 {
-	var seconds int64
-	fmt.Sscanf(timeRange, "%d", &seconds)
-	return seconds * 60
+	var n int64
+	var unit string
+	fmt.Sscanf(timeRange, "%d %s", &n, &unit)
+	switch strings.TrimSuffix(unit, "s") {
+	case "hour":
+		return n * 3600
+	case "day":
+		return n * 86400
+	case "week":
+		return n * 7 * 86400
+	default:
+		return n * 60
+	}
 }

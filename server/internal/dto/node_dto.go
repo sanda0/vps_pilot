@@ -90,6 +90,8 @@ func (n *NodeSystemStatRequestDto) FromBytes(data []byte) error {
 		n.TimeRange = "1 day"
 	} else if n.TimeRange == "2D" {
 		n.TimeRange = "2 days"
+	} else if n.TimeRange == "7D" {
+		n.TimeRange = "7 days"
 	} else if n.TimeRange == "1W" {
 		n.TimeRange = "1 week"
 	}
