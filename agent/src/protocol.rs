@@ -2,12 +2,14 @@
 //!
 //! Each frame is a 4-byte big-endian length followed by a JSON envelope.
 
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use crate::discovery::ProjectError;
 use crate::project::ProjectConfig;
 
 /// Frames larger than this are rejected (matches the hub).
@@ -87,6 +89,8 @@ pub struct ProjectSettings {
     pub auto_scan: bool,
     /// Seconds between automatic searches; see `interval()`.
     pub scan_interval: u64,
+    /// Project directories added from the dashboard.
+    pub paths: Vec<PathBuf>,
 }
 
 impl Default for ProjectSettings {
@@ -94,6 +98,7 @@ impl Default for ProjectSettings {
         ProjectSettings {
             auto_scan: true,
             scan_interval: 900,
+            paths: Vec::new(),
         }
     }
 }
@@ -110,6 +115,7 @@ impl ProjectSettings {
 #[derive(Debug, Serialize)]
 pub struct ProjectsPayload<'a> {
     pub projects: &'a [ProjectConfig],
+    pub errors: &'a [ProjectError],
 }
 
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {

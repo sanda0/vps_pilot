@@ -8,12 +8,11 @@ use std::sync::Arc;
 use tokio::sync::{Notify, mpsc, watch};
 use tokio::time::{Instant, sleep_until};
 
-use crate::discovery;
-use crate::project::ProjectConfig;
+use crate::discovery::{self, Found};
 use crate::protocol::ProjectSettings;
 
 pub struct ScanResult {
-    pub projects: Vec<ProjectConfig>,
+    pub found: Found,
     /// The first search of a session or one the hub asked for: report it
     /// even if nothing changed.
     pub always_report: bool,
@@ -23,6 +22,7 @@ pub struct ScanResult {
 /// Searches run on the blocking pool, so a slow disk never delays stats.
 pub async fn scan_loop(
     dirs: Vec<PathBuf>,
+    allow_any_path: bool,
     mut settings: watch::Receiver<ProjectSettings>,
     rescan: Arc<Notify>,
     tx: mpsc::Sender<ScanResult>,
@@ -31,13 +31,13 @@ pub async fn scan_loop(
     loop {
         let current = settings.borrow_and_update().clone();
         let scan_dirs = dirs.clone();
-        let Ok(projects) =
-            tokio::task::spawn_blocking(move || discovery::discover(&scan_dirs)).await
-        else {
+        let paths = current.paths.clone();
+        let search = move || discovery::discover(&scan_dirs, &paths, allow_any_path);
+        let Ok(found) = tokio::task::spawn_blocking(search).await else {
             return;
         };
         let result = ScanResult {
-            projects,
+            found,
             always_report,
         };
         if tx.send(result).await.is_err() {
@@ -74,7 +74,7 @@ mod tests {
         let rescan = Arc::new(Notify::new());
         let (tx, mut rx) = mpsc::channel(1);
         let dirs = vec![PathBuf::from("/nonexistent/vps-pilot-test")];
-        tokio::spawn(scan_loop(dirs, settings_rx, rescan.clone(), tx));
+        tokio::spawn(scan_loop(dirs, false, settings_rx, rescan.clone(), tx));
 
         assert_eq!(next(&mut rx).await, Some(true), "first scan");
         assert_eq!(next(&mut rx).await, None, "default interval is 15 min");
