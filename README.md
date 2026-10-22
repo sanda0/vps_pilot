@@ -397,7 +397,7 @@ ls server/cmd/app/dist/
 Contributions are welcome! Before you start:
 
 - Read [SCOPE.md](SCOPE.md): it lists what VPS Pilot does and what belongs in other tools.
-- Keep pull requests small (under 200 changed lines) and to one concern.
+- Keep pull requests under 1000 changed lines and each commit under 200, with one concern per pull request.
 - Run `make lint test` before pushing.
 
 ---
