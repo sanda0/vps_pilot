@@ -6,18 +6,20 @@ type ToastOptions = {
   variant?: 'default' | 'destructive'
 }
 
-export function useToast() {
-  const toast = ({ title, description, variant }: ToastOptions) => {
-    if (variant === 'destructive') {
-      sonnerToast.error(title, {
-        description,
-      })
-    } else {
-      sonnerToast.success(title, {
-        description,
-      })
-    }
+// Module-level so its identity is stable: components can list it as a hook
+// dependency without re-running effects on every render.
+function toast({ title, description, variant }: ToastOptions) {
+  if (variant === 'destructive') {
+    sonnerToast.error(title, {
+      description,
+    })
+  } else {
+    sonnerToast.success(title, {
+      description,
+    })
   }
+}
 
+export function useToast() {
   return { toast }
 }
