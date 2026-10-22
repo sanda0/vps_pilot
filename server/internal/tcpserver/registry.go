@@ -43,6 +43,12 @@ func (r *Registry) Get(nodeID int64) (*ConnContext, bool) {
 	return c, ok
 }
 
+// Online reports whether a node has a live connection.
+func (r *Registry) Online(nodeID int64) bool {
+	_, ok := r.Get(nodeID)
+	return ok
+}
+
 // Kick closes a node's live connection. It reports whether one was open.
 func (r *Registry) Kick(nodeID int64) bool {
 	c, ok := r.Get(nodeID)

@@ -44,16 +44,16 @@ func sendProjectSettings(ctx context.Context, c *ConnContext) {
 // PushProjectSettings sends a node's current settings to its agent if it is
 // connected. Call it after changing the settings or manual paths; an offline
 // node gets them when it reconnects.
-func PushProjectSettings(ctx context.Context, registry *Registry, nodeID int64) {
-	if c, ok := registry.Get(nodeID); ok {
+func (r *Registry) PushProjectSettings(ctx context.Context, nodeID int64) {
+	if c, ok := r.Get(nodeID); ok {
 		sendProjectSettings(ctx, c)
 	}
 }
 
 // RequestProjectRescan asks a node's agent to search for projects now. It
 // reports false if the node isn't connected.
-func RequestProjectRescan(registry *Registry, nodeID int64) (bool, error) {
-	c, ok := registry.Get(nodeID)
+func (r *Registry) RequestProjectRescan(nodeID int64) (bool, error) {
+	c, ok := r.Get(nodeID)
 	if !ok {
 		return false, nil
 	}
