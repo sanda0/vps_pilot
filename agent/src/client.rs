@@ -11,16 +11,20 @@ use tokio::task::AbortHandle;
 use tokio::time::{MissedTickBehavior, timeout};
 use tracing::{debug, info, warn};
 
+use crate::discovery;
 use crate::metrics::Collector;
+use crate::project::ProjectConfig;
 use crate::protocol::{
-    self, AuthFailedPayload, EnrolledPayload, MSG_AUTH_FAILED, MSG_CONNECTED, MSG_ENROLL,
-    MSG_ENROLLED, MSG_SYS_STAT, Msg,
+    self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_CONNECTED,
+    MSG_ENROLL, MSG_ENROLLED, MSG_PROJECTS, MSG_SYS_STAT, Msg, ProjectsPayload,
 };
 use crate::state::State;
 use crate::tls;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+/// How often the project directories are searched again for changes.
+const PROJECT_RESCAN: Duration = Duration::from_secs(60);
 
 /// Join token from the dashboard: `vpsp1.<secret>.<hub cert fingerprint>`.
 #[derive(Debug, Clone, PartialEq)]
@@ -47,6 +51,7 @@ pub struct Config {
     pub state_path: PathBuf,
     pub join: Option<JoinToken>,
     pub interval: Duration,
+    pub project_dirs: Vec<PathBuf>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -133,6 +138,13 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
     let reader = tokio::spawn(read_loop(rd, tx));
     let _reader_guard = AbortOnDrop(reader.abort_handle());
 
+    // Project discovery walks the disk, so it runs in its own task and never
+    // delays stats. Each session reports the first scan, then only changes.
+    let (projects_tx, mut projects_rx) = mpsc::channel(1);
+    let scanner = tokio::spawn(scan_loop(cfg.project_dirs.clone(), projects_tx));
+    let _scanner_guard = AbortOnDrop(scanner.abort_handle());
+    let mut reported: Option<Vec<ProjectConfig>> = None;
+
     let mut ticker = tokio::time::interval(cfg.interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
@@ -147,8 +159,50 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 let stat = collector.collect();
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
             }
+            Some(projects) = projects_rx.recv() => {
+                if reported.as_ref() == Some(&projects) {
+                    continue;
+                }
+                if let Some(msg) = projects_msg(&projects)? {
+                    protocol::write_frame(&mut wr, &msg).await?;
+                    info!(count = projects.len(), "reported projects");
+                }
+                reported = Some(projects);
+            }
         }
     }
+}
+
+/// Searches the project directories now and every PROJECT_RESCAN.
+async fn scan_loop(dirs: Vec<PathBuf>, tx: mpsc::Sender<Vec<ProjectConfig>>) {
+    loop {
+        let scan_dirs = dirs.clone();
+        let Ok(projects) =
+            tokio::task::spawn_blocking(move || discovery::discover(&scan_dirs)).await
+        else {
+            return;
+        };
+        if tx.send(projects).await.is_err() {
+            return;
+        }
+        tokio::time::sleep(PROJECT_RESCAN).await;
+    }
+}
+
+/// The `projects` message, or None (logged) when it wouldn't fit in a frame.
+/// Sending an oversized frame would fail and drop the connection on every
+/// reconnect, taking stats down with it.
+fn projects_msg(projects: &[ProjectConfig]) -> anyhow::Result<Option<Msg>> {
+    let msg = Msg::new(MSG_PROJECTS).with_data(&ProjectsPayload { projects })?;
+    let size = serde_json::to_vec(&msg)?.len();
+    if size > MAX_FRAME_SIZE as usize {
+        warn!(
+            count = projects.len(),
+            size, "project list is too large to report; not sending it"
+        );
+        return Ok(None);
+    }
+    Ok(Some(msg))
 }
 
 async fn read_loop<S: AsyncRead>(mut rd: ReadHalf<S>, tx: mpsc::Sender<anyhow::Result<Msg>>) {
@@ -196,5 +250,31 @@ mod tests {
         ] {
             assert!(JoinToken::parse(&bad).is_err(), "{bad:?}");
         }
+    }
+
+    fn project(name: &str, tech: &str) -> ProjectConfig {
+        ProjectConfig {
+            name: name.into(),
+            path: format!("/srv/{name}"),
+            tech: vec![tech.into()],
+            commands: vec![],
+            logs: vec![],
+            backups: None,
+        }
+    }
+
+    #[test]
+    fn projects_message_shape() {
+        let msg = projects_msg(&[project("app", "go")]).unwrap().unwrap();
+        assert_eq!(msg.kind, "projects");
+        let data = msg.data.unwrap();
+        assert_eq!(data["projects"][0]["path"], "/srv/app");
+        assert_eq!(data["projects"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn oversized_project_list_is_not_sent() {
+        let big = "x".repeat(MAX_FRAME_SIZE as usize);
+        assert!(projects_msg(&[project("app", &big)]).unwrap().is_none());
     }
 }

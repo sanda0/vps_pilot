@@ -79,7 +79,7 @@ A node can have only one live connection. A second successful `connected` closes
 | --- | --- | --- |
 | `sys_stat` | agent → hub | `SystemStat`, every interval (default 5s) |
 | `sys_info` | agent → hub | `SystemInfo`, whenever it changes |
-| `projects` | agent → hub | `ProjectSyncPayload` (Phase 2) |
+| `projects` | agent → hub | `ProjectSyncPayload`, after the handshake and then whenever the list changes (rescanned every 60s) |
 
 Unknown types are ignored by both sides.
 
