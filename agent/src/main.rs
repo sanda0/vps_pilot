@@ -62,6 +62,11 @@ struct Args {
         default_values = ["/var/www", "/home"]
     )]
     projects_dirs: Vec<PathBuf>,
+
+    /// Accept project paths added from the dashboard anywhere on disk, not
+    /// only inside --projects-dir
+    #[arg(long, env = "VPS_PILOT_ALLOW_ANY_PROJECT_PATH")]
+    allow_any_project_path: bool,
 }
 
 /// Appends the default agent port when the hub address has none.
@@ -119,6 +124,7 @@ async fn main() -> ExitCode {
         join,
         interval: Duration::from_secs(args.interval),
         project_dirs: args.projects_dirs,
+        allow_any_project_path: args.allow_any_project_path,
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
