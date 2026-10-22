@@ -65,6 +65,22 @@ type NodeDiskInfo struct {
 	UpdatedAt  int64           `json:"updated_at"`
 }
 
+type NodeProjectPath struct {
+	ID        int64  `json:"id"`
+	NodeID    int64  `json:"node_id"`
+	Path      string `json:"path"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+type NodeProjectScan struct {
+	NodeID        int64         `json:"node_id"`
+	AutoScan      int64         `json:"auto_scan"`
+	ScanInterval  int64         `json:"scan_interval"`
+	LastScannedAt sql.NullInt64 `json:"last_scanned_at"`
+	Errors        string        `json:"errors"`
+	UpdatedAt     int64         `json:"updated_at"`
+}
+
 type NodeSysInfo struct {
 	ID              int64           `json:"id"`
 	NodeID          int64           `json:"node_id"`
