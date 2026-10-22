@@ -42,11 +42,11 @@ export function NetworkChart(props: ChartProps) {
       >
         <CartesianGrid vertical={true} />
         <XAxis
-          dataKey="time"
+          dataKey="timestamp"
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          tickFormatter={(value) => new Date(value).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
+          tickFormatter={(value) => new Date(value * 1000).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
         />
         <YAxis
           tickLine={false}
@@ -55,7 +55,7 @@ export function NetworkChart(props: ChartProps) {
 
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent
-          labelFormatter={(value) => new Date(value).toLocaleString('en-US', {
+          labelFormatter={(_, payload) => new Date(payload[0]?.payload.timestamp * 1000).toLocaleString('en-US', {
             month: 'short',
             day: '2-digit',
             hour: '2-digit',

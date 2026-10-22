@@ -44,13 +44,13 @@ export function MemoryChart(props: ChartProps) {
       >
         <CartesianGrid vertical={true} />
         <XAxis
-          dataKey="time"
+          dataKey="timestamp"
           tickLine={false}
           axisLine={false}
           // tickMargin={8}
           // tickCount={10}
 
-          tickFormatter={(value) => new Date(value).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
+          tickFormatter={(value) => new Date(value * 1000).toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
         />
         <YAxis
           tickLine={false}
@@ -61,7 +61,7 @@ export function MemoryChart(props: ChartProps) {
           ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}
         />
         <ChartTooltip cursor={false} content={<ChartTooltipContent
-          labelFormatter={(value) => new Date(value).toLocaleString('en-US', {
+          labelFormatter={(_, payload) => new Date(payload[0]?.payload.timestamp * 1000).toLocaleString('en-US', {
             month: 'short',
             day: '2-digit',
             hour: '2-digit',
