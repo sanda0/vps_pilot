@@ -41,14 +41,14 @@ func TestProjectSettingsRescanAndScanErrors(t *testing.T) {
 	// Changed settings are pushed to the live agent.
 	q.UpdateNodeProjectScanSettings(ctx, db.UpdateNodeProjectScanSettingsParams{NodeID: creds.NodeID, AutoScan: 0, ScanInterval: 3600})
 	q.AddNodeProjectPath(ctx, db.AddNodeProjectPathParams{NodeID: creds.NodeID, Path: "/srv/legacy"})
-	go PushProjectSettings(ctx, h.registry, creds.NodeID)
+	go h.registry.PushProjectSettings(ctx, creds.NodeID)
 	if got := string(agent.expect(MsgProjectSettings).Data); got != `{"auto_scan":false,"scan_interval":3600,"paths":["/srv/legacy"]}` {
 		t.Fatalf("pushed settings: %s", got)
 	}
 
-	go RequestProjectRescan(h.registry, creds.NodeID)
+	go h.registry.RequestProjectRescan(creds.NodeID)
 	agent.expect(MsgRescanProjects)
-	if ok, _ := RequestProjectRescan(h.registry, creds.NodeID+1); ok {
+	if ok, _ := h.registry.RequestProjectRescan(creds.NodeID + 1); ok {
 		t.Fatal("rescan reported sent to a node that isn't connected")
 	}
 
