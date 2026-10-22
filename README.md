@@ -42,7 +42,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - Backing up project directories and databases
 
 **Sample `config.vpspilot.json`:**
-```vps_pilot/docs/readme_draft.md#L1-1
+```json
 {
   "name": "meta ads dashboard",
   "tech": ["laravel", "react", "mysql"],
@@ -109,7 +109,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 ---
 
 ### 1. Clone the Repository
-```vps_pilot/README.md#L1-1
+```sh
 git clone https://github.com/sanda0/vps_pilot.git
 cd vps_pilot
 ```
@@ -120,7 +120,7 @@ cd vps_pilot
 
 The `build.sh` script handles everything: installs frontend dependencies, builds the React UI, and compiles it into the Go binary.
 
-```vps_pilot/README.md#L1-1
+```sh
 chmod +x build.sh
 ./build.sh
 ```
@@ -137,14 +137,14 @@ What it does:
 
 ### 3. Configure Environment
 
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 cp .env.example .env
 ```
 
 Then open `.env` and fill in your values:
 
-```vps_pilot/README.md#L1-1
+```sh
 # Database directory
 DB_PATH=./data
 
@@ -171,14 +171,14 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 
 Migrations run automatically on startup, but you can also run them manually:
 
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 ./vps_pilot -migrate
 ```
 
 Then create your admin account:
 
-```vps_pilot/README.md#L1-1
+```sh
 ./vps_pilot -create-superuser
 ```
 
@@ -188,14 +188,14 @@ Follow the interactive prompts to set a username and password.
 
 ### 5. Start the Server
 
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 ./vps_pilot
 ```
 
 By default the server listens on port **8080**. To use a different port:
 
-```vps_pilot/README.md#L1-1
+```sh
 ./vps_pilot -port 9090
 ```
 
@@ -222,7 +222,7 @@ All flags are passed directly to the `vps_pilot` binary:
 
 **Examples:**
 
-```vps_pilot/README.md#L1-1
+```sh
 # Run on a custom port
 ./vps_pilot -port 3000
 
@@ -243,19 +243,19 @@ All flags are passed directly to the `vps_pilot` binary:
 For development with hot reload:
 
 ### Backend (Terminal 1)
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 go run main.go
 ```
 
 Or with [air](https://github.com/air-verse/air) for hot reload:
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 air
 ```
 
 ### Frontend (Terminal 2)
-```vps_pilot/README.md#L1-1
+```sh
 cd client
 bun install
 bun run dev
@@ -271,14 +271,14 @@ bun run dev
 
 Generate the Makefile first if you don't have one:
 
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 ./vps_pilot -create-makefile
 ```
 
 Then use:
 
-```vps_pilot/README.md#L1-1
+```sh
 cd server
 
 # Migrations
@@ -313,7 +313,7 @@ make clean                # Clean build artifacts
 
 ### Email Alerts
 Configure in `.env`:
-```vps_pilot/README.md#L1-1
+```sh
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
@@ -335,7 +335,7 @@ MAIL_FROM_ADDRESS=noreply@vpspilot.com
 
 ## 📂 Project Structure
 
-```vps_pilot/README.md#L1-1
+```sh
 vps_pilot/
 ├── client/                  # React + Vite frontend
 │   ├── src/
@@ -387,7 +387,7 @@ Docker Compose setup will be available in a future release.
 ## 🐛 Troubleshooting
 
 **Build fails:**
-```vps_pilot/README.md#L1-1
+```sh
 # Check the frontend builds cleanly
 cd client && bun run build
 
@@ -396,7 +396,7 @@ cd server && go build .
 ```
 
 **Server won't start:**
-```vps_pilot/README.md#L1-1
+```sh
 # Check if port 8080 is already in use
 lsof -i :8080
 
@@ -408,7 +408,7 @@ ls -la server/.env
 ```
 
 **UI doesn't load after build:**
-```vps_pilot/README.md#L1-1
+```sh
 # Check that dist was copied into the server
 ls server/cmd/app/dist/
 
