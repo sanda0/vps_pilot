@@ -32,11 +32,12 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 ---
 
-### 🚀 Projects Management (Planned)
-- Each node can have multiple projects
-- Projects require a `config.vpspilot.json` file
-- Agents will find these files and report them to the hub (the hub side exists; agent discovery is next)
-- The dashboard will then allow, for commands declared in the file only:
+### 🚀 Projects Management
+- Each node can have multiple projects; each needs a `config.vpspilot.json` in its directory
+- Agents find these files under their project directories (`--projects-dir`, default `/var/www` and `/home`, 4 levels deep) and report them to the hub
+- Per node, in **Projects → Scan settings**: automatic scan on/off, scan interval, **Rescan now**, and the problems from the last scan (broken configs, rejected paths)
+- **Projects → Add project** points a node's agent at a directory the search doesn't reach. The agent only accepts it inside its project directories unless started with `--allow-any-project-path`
+- Planned, for commands declared in the file only:
   - Running predefined commands
   - Managing project logs
   - Backing up project directories and databases
@@ -379,7 +380,7 @@ ls server/cmd/app/dist/
 - [x] User authentication with JWT
 - [x] Authenticated agent enrollment + TLS on the agent channel
 - [x] Rust agent in this repo (`agent/`)
-- [ ] Project discovery via `config.vpspilot.json`
+- [x] Project discovery via `config.vpspilot.json` (per-node scan settings, manual paths)
 - [ ] Run named project commands (declared in the config file only) with audit log
 - [ ] Log tailing for declared log folders
 - [ ] Project backups (database + directories)
