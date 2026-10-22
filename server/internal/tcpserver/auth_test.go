@@ -109,6 +109,7 @@ func (a *testAgent) enroll(secret string) EnrolledPayload {
 		a.t.Fatal(err)
 	}
 	a.expect(MsgSysStat)
+	a.expect(MsgProjectSettings)
 	return creds
 }
 
@@ -134,6 +135,7 @@ func TestEnrollThenConnect(t *testing.T) {
 	if got := agent.expect(MsgSysStat).NodeId; int64(got) != creds.NodeID {
 		t.Errorf("sys_stat node id %d, want %d", got, creds.NodeID)
 	}
+	agent.expect(MsgProjectSettings)
 
 	// Stats now flow, stamped with the authenticated node ID.
 	agent.send(MsgSysStat, "", SystemStat{MemUsage: 10})

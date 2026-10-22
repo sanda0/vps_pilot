@@ -41,6 +41,20 @@ type ProjectConfig struct {
 // can upsert all of them in one shot.
 type ProjectSyncPayload struct {
 	Projects []ProjectConfig `json:"projects"`
+	Errors   []ProjectError  `json:"errors"`
+}
+
+// ProjectError is a config the agent couldn't use, or a rejected manual path.
+type ProjectError struct {
+	Path  string `json:"path"`
+	Error string `json:"error"`
+}
+
+// ProjectSettings tells the agent how to search for projects.
+type ProjectSettings struct {
+	AutoScan     bool     `json:"auto_scan"`
+	ScanInterval int64    `json:"scan_interval"` // seconds
+	Paths        []string `json:"paths"`
 }
 
 func (p *ProjectSyncPayload) FromBytes(data []byte) error {
@@ -99,6 +113,9 @@ const (
 	MsgSysStat    = "sys_stat"    // hub → agent: start streaming; agent → hub: Data = SystemStat
 	MsgSysInfo    = "sys_info"    // agent → hub, Data = SystemInfo
 	MsgProjects   = "projects"    // agent → hub, Data = ProjectSyncPayload
+
+	MsgProjectSettings = "project_settings" // hub → agent, Data = ProjectSettings
+	MsgRescanProjects  = "rescan_projects"  // hub → agent: search for projects now
 )
 
 // EnrolledPayload carries the long-lived credentials issued at enrollment.

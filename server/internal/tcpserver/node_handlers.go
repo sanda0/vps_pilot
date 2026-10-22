@@ -49,6 +49,7 @@ func HandleEnroll(ctx context.Context, c *ConnContext, msg Msg) {
 	c.NodeID = creds.NodeID
 	fmt.Printf("HandleEnroll: node %d enrolled from %s\n", creds.NodeID, c.RemoteAddr)
 	startStats(c)
+	sendProjectSettings(ctx, c)
 }
 
 // HandleConnected is called when an enrolled agent sends "connected" with
@@ -86,6 +87,7 @@ func HandleConnected(ctx context.Context, c *ConnContext, msg Msg) {
 	c.NodeID = node.ID
 	fmt.Printf("HandleConnected: node %d connected from %s\n", node.ID, c.RemoteAddr)
 	startStats(c)
+	sendProjectSettings(ctx, c)
 }
 
 // startStats tells the agent its node ID and asks it to start sending stats.

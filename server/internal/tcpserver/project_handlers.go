@@ -27,4 +27,5 @@ func HandleProjects(ctx context.Context, c *ConnContext, msg Msg) {
 	// this does not block other connections. SyncProjects is DB-bound and
 	// relatively infrequent, so no extra goroutine is needed.
 	SyncProjects(ctx, c.Repo(), c.NodeID, payload)
+	recordProjectScan(ctx, c.Repo().Queries, c.NodeID, payload.Errors)
 }
