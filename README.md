@@ -412,6 +412,7 @@ Contributions are welcome! Before you start:
 - Read [SCOPE.md](SCOPE.md): it lists what VPS Pilot does and what belongs in other tools.
 - Keep pull requests under 1000 changed lines and each commit under 200, with one concern per pull request.
 - Run `make lint test` before pushing.
+- If your change affects users, add a line to [CHANGELOG.md](CHANGELOG.md). [RELEASING.md](RELEASING.md) explains versions and releases.
 
 ---
 
