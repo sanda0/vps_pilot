@@ -163,7 +163,7 @@ func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend
 	}
 	fmt.Println("Active alerts found", len(alerts))
 	for _, alert := range alerts {
-		if netSend > alert.Threshold.Float64 || netRecv > alert.Threshold.Float64 {
+		if netOverThreshold(netSend, netRecv, alert.NetSendThreshold.Float64, alert.NetReceThreshold.Float64) {
 			fmt.Println("Network usage exceeded threshold for alert", int32(alert.ID))
 			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
 			if ok {
@@ -179,10 +179,40 @@ func checkNetworkUsage(ctx context.Context, repo *db.Repo, nodeId int32, netSend
 				NodeName:     alert.NodeName.String,
 				NodeIp:       alert.NodeIp,
 				Metric:       "Network",
-				Threshold:    fmt.Sprintf("Send: %.2f%%, Recv: %.2f%%", alert.NetSendThreshold.Float64, alert.NetReceThreshold.Float64),
-				CurrentValue: fmt.Sprintf("Send: %.2f%%, Recv: %.2f%%", netSend, netRecv),
+				Threshold:    fmt.Sprintf("Send: %s, Recv: %s", netThresholdText(alert.NetSendThreshold.Float64), netThresholdText(alert.NetReceThreshold.Float64)),
+				CurrentValue: fmt.Sprintf("Send: %s, Recv: %s", formatBytesPerSec(netSend), formatBytesPerSec(netRecv)),
 				Timestamp:    time.Now(),
 			})
 		}
 	}
+}
+
+// netOverThreshold reports whether sent or received bytes per second are
+// above their own threshold. A threshold of 0 (left empty in the form) means
+// that direction isn't checked.
+func netOverThreshold(sent, recv, sendThreshold, recvThreshold float64) bool {
+	return (sendThreshold > 0 && sent > sendThreshold) ||
+		(recvThreshold > 0 && recv > recvThreshold)
+}
+
+// netThresholdText shows an unchecked (0) threshold as "off".
+func netThresholdText(threshold float64) string {
+	if threshold <= 0 {
+		return "off"
+	}
+	return formatBytesPerSec(threshold)
+}
+
+// formatBytesPerSec uses decimal units (1 KB = 1000 B), like the dashboard.
+func formatBytesPerSec(v float64) string {
+	units := []string{"B/s", "KB/s", "MB/s", "GB/s"}
+	i := 0
+	for v >= 1000 && i < len(units)-1 {
+		v /= 1000
+		i++
+	}
+	if i == 0 {
+		return fmt.Sprintf("%.0f %s", v, units[i])
+	}
+	return fmt.Sprintf("%.1f %s", v, units[i])
 }
