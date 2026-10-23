@@ -50,8 +50,9 @@ cd ../server
 # Step 3: Build the Go server with embedded UI
 echo -e "${YELLOW}🔧 Building Go server with embedded UI...${NC}"
 
-# Build the Go binary
-go build -ldflags "-s -w" -o vps_pilot .
+# Build the Go binary, stamped with the nearest tag (e.g. v0.1.0-3-gabc1234)
+VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo dev)"
+go build -ldflags "-s -w -X main.Version=${VERSION}" -o vps_pilot .
 
 if [ ! -f "vps_pilot" ]; then
     echo -e "${RED}❌ Error: Go build failed${NC}"

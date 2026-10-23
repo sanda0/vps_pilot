@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,6 +16,9 @@ import (
 	"github.com/sanda0/vps_pilot/internal/services"
 	"github.com/sanda0/vps_pilot/internal/tcpserver"
 )
+
+// Version is set at build time: go build -ldflags "-X main.Version=v0.1.0".
+var Version = "dev"
 
 func main() {
 
@@ -31,7 +35,13 @@ func main() {
 	agentPort := flag.String("agent-port", envOr("TCP_SERVER_PORT", "55001"), "agent channel (TLS) port")
 	agentTLSCert := flag.String("agent-tls-cert", "", "agent channel TLS cert (default: self-signed in $DB_PATH/tls)")
 	agentTLSKey := flag.String("agent-tls-key", "", "agent channel TLS key")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("vps_pilot", Version)
+		return
+	}
 
 	// Get database directory from environment or use default
 	dbDir := os.Getenv("DB_PATH")
@@ -65,6 +75,8 @@ func main() {
 		}
 		return
 	}
+
+	log.Printf("VPS Pilot %s\n", Version)
 
 	// Initialize databases
 	log.Printf("Initializing databases in: %s\n", dbDir)
