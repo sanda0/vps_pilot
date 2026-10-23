@@ -13,7 +13,7 @@ lets you do the few things each project allows, and nothing more.
 | Capability | What it means | Status |
 | --- | --- | --- |
 | Monitor | CPU, memory, network and disk per server, live and over 5 minutes to 7 days | Available, except disk: the agent reports it, but it isn't charted yet |
-| Alert | Thresholds with notifications to Discord, Slack or email | Available for CPU and memory |
+| Alert | Thresholds with notifications to Discord, Slack or email | Available for CPU, memory and network |
 | Run commands | Run a command *named* in `config.vpspilot.json` and stream its output | Coming soon |
 | Read logs | Tail the log folders a project declares | Coming soon |
 | Back up | Zip the declared folders, the env file and a database dump | Coming soon |
