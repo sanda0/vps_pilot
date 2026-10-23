@@ -86,8 +86,8 @@ backups, cron), then `1.0.0`.
 
 Pushing a `v*.*.*` tag runs
 [.github/workflows/release.yml](.github/workflows/release.yml). It builds the
-hub with the dashboard embedded (Linux, macOS and Windows) and the static agent
-(Linux amd64 and arm64), then creates the GitHub Release with the archives.
+hub with the dashboard embedded and the static agent, both for Linux amd64
+and arm64, then creates the GitHub Release with the archives.
 
 ### Patch releases
 
