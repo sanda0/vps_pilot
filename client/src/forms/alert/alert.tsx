@@ -158,7 +158,7 @@ export function AlertFrom(props: AlertFromProps) {
             name="net_rece_threshold"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Network Receive Threshold</FormLabel>
+                <FormLabel>Network Receive Threshold (B/s)</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Network Receive Threshold"
@@ -181,7 +181,7 @@ export function AlertFrom(props: AlertFromProps) {
               name="net_send_threshold"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <FormLabel>Network Send Threshold</FormLabel>
+                  <FormLabel>Network Send Threshold (B/s)</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Network Send Threshold"
