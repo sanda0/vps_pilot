@@ -6,6 +6,8 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.1.0 - 2026-10-23
+
 ### Added
 - Project discovery: the agent finds every `config.vpspilot.json` under its
   project directories and reports it to the hub.
