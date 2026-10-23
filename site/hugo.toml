@@ -3,7 +3,7 @@
 # Local preview: make site-dev
 
 baseURL = "https://vpspilot.dev/"
-languageCode = "en"
+locale = "en"
 title = "VPS Pilot"
 enableRobotsTXT = true
 disableKinds = ["taxonomy", "term", "rss"]

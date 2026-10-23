@@ -1,0 +1,37 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{- $title := cond .IsHome (printf "%s: self-hosted dashboard for your VPSs" site.Title) (printf "%s · %s" .Title site.Title) }}
+{{- $description := or .Description site.Params.description }}
+{{- $image := "og.png" | absURL }}
+<title>{{ $title }}</title>
+<meta name="description" content="{{ $description }}">
+<link rel="canonical" href="{{ .Permalink }}">
+<link rel="icon" href="{{ "favicon.svg" | relURL }}" type="image/svg+xml">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+
+<meta property="og:type" content="{{ cond .IsHome "website" "article" }}">
+<meta property="og:site_name" content="{{ site.Title }}">
+<meta property="og:title" content="{{ $title }}">
+<meta property="og:description" content="{{ $description }}">
+<meta property="og:url" content="{{ .Permalink }}">
+<meta property="og:image" content="{{ $image }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="VPS Pilot">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ $title }}">
+<meta name="twitter:description" content="{{ $description }}">
+<meta name="twitter:image" content="{{ $image }}">
+
+{{- /* Apply the saved theme, or the system one, before first paint. */}}
+<script>
+  (function () {
+    var saved;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    var dark = saved === "dark" || (saved !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark", dark);
+  })();
+</script>
+{{- $css := slice (resources.Get "css/main.css") (resources.Get "css/chroma-light.css") (resources.Get "css/chroma-dark.css") | resources.Concat "css/site.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
