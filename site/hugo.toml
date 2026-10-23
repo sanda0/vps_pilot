@@ -1,0 +1,37 @@
+# VPS Pilot website and docs. Built with Hugo v0.167.0 (standard edition is
+# enough). The same version is pinned in .github/workflows/site.yml.
+# Local preview: make site-dev
+
+baseURL = "https://vpspilot.dev/"
+locale = "en"
+title = "VPS Pilot"
+enableRobotsTXT = true
+disableKinds = ["taxonomy", "term", "rss"]
+
+[module.hugoVersion]
+  min = "0.167.0"
+
+[params]
+  description = "One self-hosted dashboard for the handful of Linux VPSs you run. A single Go binary with SQLite and the UI built in, plus a small Rust agent on each server."
+  repo = "https://github.com/sanda0/vps_pilot"
+  editBase = "https://github.com/sanda0/vps_pilot/edit/main/site/content/"
+  author = "Sandakelum"
+  authorURL = "https://sandakelum.me"
+
+[sitemap]
+  changeFreq = "weekly"
+  filename = "sitemap.xml"
+
+[markup]
+  [markup.highlight]
+    noClasses = false
+    lineNos = false
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
+
+[menus]
+  [[menus.main]]
+    name = "Docs"
+    url = "/docs/"
+    weight = 10

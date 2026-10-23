@@ -1,0 +1,137 @@
+{{ define "bodyClass" }}home{{ end }}
+{{ define "main" }}
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1 class="hero-title">
+        <span class="wordmark"><span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot</span>
+      </h1>
+      <p class="hero-pitch">{{ .Params.pitch }}</p>
+      <div class="button-row">
+        <a class="button" href="{{ "/docs/quick-start/" | relURL }}">Get started</a>
+        <a class="button button-outline" href="{{ site.Params.repo }}" rel="noopener">GitHub</a>
+      </div>
+      <p class="hero-note">Free and open source, AGPL-3.0-only.</p>
+    </div>
+    <figure class="terminal" aria-label="Starting the hub and enrolling an agent">
+      <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+      <pre><code><span class="t-comment"># on your hub</span>
+<span class="t-prompt">$</span> ./vps_pilot
+<span class="t-out">TCP server (TLS) listening on port 55001</span>
+
+<span class="t-comment"># on each server, with a token from Nodes → Add node</span>
+<span class="t-prompt">$</span> VPS_PILOT_TOKEN=vpsp1.… vps-pilot-agent --hub hub.example.com
+<span class="t-out">INFO enrolled; the join token is no longer needed</span></code></pre>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-tight" aria-label="Screenshot">
+  <div class="container">
+    {{- if fileExists "static/screenshot.png" }}
+    <img class="screenshot" src="{{ "screenshot.png" | relURL }}" alt="The VPS Pilot dashboard showing CPU, memory and network charts for a server" loading="lazy">
+    {{- else }}
+    <div class="screenshot-placeholder">
+      <p><strong>Dashboard screenshot coming soon</strong></p>
+      <p>Placeholder: add <code>site/static/screenshot.png</code></p>
+    </div>
+    {{- end }}
+  </div>
+</section>
+
+<section class="section" id="how-it-works">
+  <div class="container">
+    <h2 class="section-title">How it works</h2>
+    <p class="section-lead">One hub, one agent per server, and nothing in between.</p>
+    {{- partial "how-it-works.html" . }}
+    <ol class="steps">
+      <li><strong>Start the hub.</strong> On first start it creates its SQLite databases and a self-signed certificate for the agent channel.</li>
+      <li><strong>Add a node.</strong> The dashboard gives you a join token that works once, within an hour. It carries the fingerprint of the hub's certificate.</li>
+      <li><strong>Run the agent.</strong> It dials the hub over TLS 1.3 on port 55001, checks the certificate against that fingerprint, and saves its own key for next time.</li>
+      <li><strong>Watch.</strong> Stats arrive every five seconds, and the dashboard charts them.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="container">
+    <h2 class="section-title">Features</h2>
+    <p class="section-lead">What works today, and what's next. Everything under "Available now" is in the code and works end to end.</p>
+    <div class="features">
+      <div>
+        <p class="badge badge-now"><span class="dot"></span>Available now</p>
+        <div class="feature-grid">
+          {{- range .Params.available }}
+          <div class="feature">
+            <h3>{{ .title }}</h3>
+            <p>{{ .text }}</p>
+          </div>
+          {{- end }}
+        </div>
+      </div>
+      <div>
+        <p class="badge badge-soon"><span class="dot"></span>Coming soon</p>
+        <ul class="soon-list">
+          {{- range .Params.soon }}
+          <li>{{ . }}</li>
+          {{- end }}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="control">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">You stay in control</h2>
+      <p>Each project on a server carries a <code>config.vpspilot.json</code>, written by whoever owns the server. It's the complete list of what the dashboard may ever do with that project.</p>
+      <p>The hub sends names, never command strings. To run <code>build</code>, it sends the agent the word <code>"build"</code>. The agent looks that name up in the file on the server and runs the command written there. Even someone who took over your hub couldn't run anything that isn't already in a file you wrote.</p>
+      <p class="note">Running commands is coming soon. Today the dashboard shows what each project declares.</p>
+      <p><a href="{{ "/docs/projects/" | relURL }}">How projects work</a></p>
+    </div>
+    <div class="split-code">
+      {{- $config := `{
+  "name": "shop",
+  "tech": ["laravel", "mysql"],
+  "commands": [
+    { "name": "build", "command": "npm run build" },
+    { "name": "migrate", "command": "php artisan migrate --force" }
+  ],
+  "logs": ["storage/logs"]
+}` }}
+      {{ transform.Highlight $config "json" }}
+    </div>
+  </div>
+</section>
+
+<section class="section" id="not">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">What it's not</h2>
+      <p class="section-lead">VPS Pilot watches your servers and does what each project allows. It doesn't try to be a platform.</p>
+    </div>
+    <div>
+      <ul class="plain-list">
+        {{- range .Params.notList }}
+        <li>{{ . }}</li>
+        {{- end }}
+      </ul>
+      <p class="note">Those jobs have good tools already: <a href="https://coolify.io" rel="noopener">Coolify</a> or <a href="https://dokploy.com" rel="noopener">Dokploy</a> for Git deploys and containers, <a href="https://www.ansible.com" rel="noopener">Ansible</a> for provisioning, and plain SSH for the rest.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tech">
+  <div class="container">
+    <h2 class="section-title">Built small</h2>
+    <p class="section-lead">One hub binary, one agent binary, and no external services: no separate database server, no queue, no cloud account.</p>
+    <div class="feature-grid tech-grid">
+      <div class="feature"><h3>Go</h3><p>The hub: the API, the agent channel and the dashboard in one executable.</p></div>
+      <div class="feature"><h3>Rust</h3><p>The agent: a single binary on each server.</p></div>
+      <div class="feature"><h3>SQLite</h3><p>Two database files in one data directory, with a pure Go driver.</p></div>
+      <div class="feature"><h3>React</h3><p>The dashboard, built with Vite and embedded in the hub.</p></div>
+    </div>
+  </div>
+</section>
+{{ end }}

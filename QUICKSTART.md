@@ -69,7 +69,7 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-app-password
-MAIL_FROM_ADDRESS=noreply@vpspilot.com
+MAIL_FROM_ADDRESS=noreply@example.com
 ```
 
 > **Important:** `TOKEN_SECRET` must be at least 32 characters long.

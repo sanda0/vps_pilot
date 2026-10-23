@@ -1,0 +1,10 @@
+{{- /* Usage: {{< callout note|warning|soon >}}Markdown{{< /callout >}} */ -}}
+{{- $labels := dict "note" "Note" "warning" "Warning" "soon" "Coming soon" }}
+{{- $type := .Get 0 | default "note" }}
+{{- if not (isset $labels $type) }}
+  {{- errorf "%s: unknown callout type %q (use note, warning or soon)" .Position $type }}
+{{- end }}
+<aside class="callout callout-{{ $type }}">
+  <p class="callout-label">{{ index $labels $type }}</p>
+  {{ .Inner | .Page.RenderString (dict "display" "block") }}
+</aside>

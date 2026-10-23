@@ -13,7 +13,7 @@ export HUB_PORT
 
 .DEFAULT_GOAL := help
 .PHONY: help dev hub ui agent agent-reset install superuser migrate sqlc \
-        test lint fmt build clean ensure-dist ensure-bun
+        test lint fmt build clean site-dev site-build ensure-dist ensure-bun
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -68,6 +68,12 @@ fmt: ## Format Go and Rust code
 
 build: ensure-bun ## Production build: hub with embedded UI + agent
 	./build.sh
+
+site-dev: ## Preview the website (site/) with Hugo on http://localhost:1313
+	hugo server -s site --disableFastRender
+
+site-build: ## Build the website into site/public
+	hugo -s site --minify
 
 clean: ## Remove build output (keeps databases)
 	rm -rf server/vps_pilot server/tmp server/cmd/app/dist agent/target
