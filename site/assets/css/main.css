@@ -751,7 +751,17 @@ h3:hover .heading-anchor,
 
 .screenshot {
   width: 100%;
+  height: auto;
   border: 1px solid hsl(var(--border));
+}
+
+.screenshot-dark,
+.dark .screenshot-light {
+  display: none;
+}
+
+.dark .screenshot-dark {
+  display: block;
 }
 
 .screenshot-placeholder {
