@@ -121,6 +121,9 @@ Open the node in the dashboard:
   `3` the next time it tries to connect, and it can only come back with a new
   join token.
 
+Projects found under `--projects-dir` are covered in
+[Projects](/docs/projects/).
+
 If the hub's TLS certificate changes (for example because its data directory
 was lost), every agent refuses to connect, because the certificate no longer
 matches the pinned fingerprint. Re-enroll each one.
@@ -139,3 +142,6 @@ cargo zigbuild --release --target x86_64-unknown-linux-musl
 ```
 
 Use `aarch64-unknown-linux-musl` for ARM servers.
+
+The agent talks to the hub over a documented [protocol](/docs/protocol/), so
+you can also write your own.

@@ -31,8 +31,8 @@ cloud account.
 
 - **Monitoring.** CPU (per core), memory and network traffic for each server,
   charted over 5 minutes up to 7 days.
-- **Alerts.** CPU and memory thresholds, sent to Discord, Slack or email.
-- **Projects.** The agent finds every `config.vpspilot.json` on the server and
+- **[Alerts](/docs/alerts/).** CPU and memory thresholds, sent to Discord, Slack or email.
+- **[Projects](/docs/projects/).** The agent finds every `config.vpspilot.json` on the server and
   the dashboard lists those projects, with per-server scan settings.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
   without losing its history, or revoke its key.
@@ -49,7 +49,8 @@ The server owner stays in control. Anything the dashboard will ever be able to
 run on a server has to be written in that project's `config.vpspilot.json`
 first, on the server itself. The hub only sends the *name* of a declared
 command, never a command string, so even a compromised hub can't run anything
-the server owner didn't write down.
+the server owner didn't write down. [Security](/docs/security/) has the
+details.
 
 ## Where to go next
 
@@ -58,3 +59,5 @@ the server owner didn't write down.
 - [Agent](/docs/agent/): flags, environment variables and exit codes.
 - [Configuration](/docs/configuration/): the `.env` file and the hub's
   command-line flags.
+- [Security](/docs/security/): how agents authenticate and what a hub can do.
+- [Scope](/docs/scope/): what VPS Pilot will and won't do.

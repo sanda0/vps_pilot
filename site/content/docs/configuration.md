@@ -40,7 +40,7 @@ dashboard.
 {{< /callout >}}
 
 Email alerts need all five `MAIL_` settings. If one is missing, the hub skips
-email and logs why.
+email and logs why. See [Alerts](/docs/alerts/#email).
 
 ## Command-line flags
 
@@ -90,7 +90,8 @@ vps.example.com {
 ```
 
 The agent channel on `55001` is TLS already and doesn't go through the proxy.
-Open it to your servers only, if your firewall allows that.
+Open it to your servers only, if your firewall allows that. The
+[Security](/docs/security/#checklist) page has the full checklist.
 
 A minimal systemd unit for the hub. `WorkingDirectory` matters, because that's
 where the hub looks for `.env` and, by default, `./data`:

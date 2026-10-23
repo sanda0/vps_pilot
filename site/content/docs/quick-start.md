@@ -12,7 +12,8 @@ need:
 - [Rust](https://rustup.rs/) (stable), for the agent
 - Git and OpenSSL
 
-The agent runs on Linux. The hub runs anywhere Go does.
+The agent runs on Linux. The hub runs anywhere Go does. More detail on each
+step is in [Building from source](/docs/building/).
 
 ## 1. Clone the repository
 
@@ -110,3 +111,5 @@ The new node appears under **Nodes**, named after the server's hostname.
 
 - Keep the agent running with systemd: see [Agent](/docs/agent/#run-it-with-systemd).
 - Put the dashboard behind HTTPS: see [Configuration](/docs/configuration/#run-the-hub-in-production).
+- Add a `config.vpspilot.json` to your projects: see [Projects](/docs/projects/).
+- Get a message when a server runs hot: see [Alerts](/docs/alerts/).
