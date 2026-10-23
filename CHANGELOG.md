@@ -13,3 +13,6 @@ User-facing changes to VPS Pilot. The format follows
   **Rescan now**, and the problems from the last scan.
 - Projects added by hand, accepted only inside the agent's project directories
   unless it runs with `--allow-any-project-path`.
+- `vps_pilot -version` and `vps-pilot-agent --version` print the release
+  tag, and both log it at startup.
+- Releases include a `SHA256SUMS` file for checking the downloads.
