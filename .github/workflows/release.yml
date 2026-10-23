@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux builds
           - os: linux
             arch: amd64
             runner: ubuntu-latest
@@ -23,23 +22,6 @@ jobs:
             runner: ubuntu-latest
             goos: linux
             goarch: arm64
-          # macOS builds
-          - os: darwin
-            arch: amd64
-            runner: macos-latest
-            goos: darwin
-            goarch: amd64
-          - os: darwin
-            arch: arm64
-            runner: macos-latest
-            goos: darwin
-            goarch: arm64
-          # Windows build
-          - os: windows
-            arch: amd64
-            runner: ubuntu-latest
-            goos: windows
-            goarch: amd64
 
     steps:
       - name: Checkout code
@@ -71,9 +53,6 @@ jobs:
           CGO_ENABLED: 0
         run: |
           BINARY_NAME="vps_pilot-${{ matrix.os }}-${{ matrix.arch }}"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
-          fi
           go build -ldflags "-s -w -X main.Version=${{ github.ref_name }}" -o "${BINARY_NAME}" .
           
       - name: Create archive
@@ -81,15 +60,8 @@ jobs:
         run: |
           BINARY_NAME="vps_pilot-${{ matrix.os }}-${{ matrix.arch }}"
           ARCHIVE_NAME="vps_pilot-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}"
-          
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            BINARY_NAME="${BINARY_NAME}.exe"
-            zip "${ARCHIVE_NAME}.zip" "${BINARY_NAME}"
-            echo "ASSET_PATH=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
-          else
-            tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}"
-            echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
-          fi
+          tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}"
+          echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -167,7 +139,7 @@ jobs:
       - name: Checksums
         run: |
           mkdir dist
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec mv {} dist/ \;
+          find artifacts -type f -name '*.tar.gz' -exec mv {} dist/ \;
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
 
       - name: Create Release
