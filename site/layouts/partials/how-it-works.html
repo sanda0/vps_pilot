@@ -2,7 +2,7 @@
   phones; colors come from the CSS tokens so both themes work. */ -}}
 <figure class="diagram">
   <svg class="diagram-wide" viewBox="0 0 880 320" role="img" aria-labelledby="diagram-wide-title">
-    <title id="diagram-wide-title">Your browser opens the dashboard on the hub over HTTPS. Each server's agent dials the hub over TLS 1.3 on port 55001 and pins its certificate.</title>
+    <title id="diagram-wide-title">Your browser opens the dashboard on the hub over HTTPS. Each server's agent dials the hub over TLS 1.3 and pins its certificate.</title>
     <defs>
       <marker id="arrow-agent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-agent" d="M0 0L10 5L0 10z"/></marker>
       <marker id="arrow-browser" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-browser" d="M0 0L10 5L0 10z"/></marker>
@@ -13,8 +13,8 @@
     <path class="d-line-agent" d="M700 245L532 153" marker-end="url(#arrow-agent)"/>
     <text class="d-label" x="246" y="138">HTTPS</text>
     <text class="d-label d-muted" x="246" y="174">your domain</text>
-    <rect class="d-label-bg" x="560" y="125" width="110" height="18"/>
-    <text class="d-label" x="615" y="138">TLS 1.3 :55001</text>
+    <rect class="d-label-bg" x="585" y="125" width="60" height="18"/>
+    <text class="d-label" x="615" y="138">TLS 1.3</text>
     <rect class="d-label-bg" x="560" y="160" width="110" height="18"/>
     <text class="d-label d-muted" x="615" y="173">pinned certificate</text>
     <rect class="d-box" x="20" y="115" width="150" height="70"/>
@@ -33,7 +33,7 @@
     <text class="d-label d-muted" x="780" y="306">enrolls once with a join token</text>
   </svg>
   <svg class="diagram-tall" viewBox="0 0 340 540" role="img" aria-labelledby="diagram-tall-title">
-    <title id="diagram-tall-title">Your browser opens the dashboard on the hub over HTTPS. Each server's agent dials the hub over TLS 1.3 on port 55001 and pins its certificate.</title>
+    <title id="diagram-tall-title">Your browser opens the dashboard on the hub over HTTPS. Each server's agent dials the hub over TLS 1.3 and pins its certificate.</title>
     <defs>
       <marker id="arrow-agent-tall" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-agent" d="M0 0L10 5L0 10z"/></marker>
       <marker id="arrow-browser-tall" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-browser" d="M0 0L10 5L0 10z"/></marker>
@@ -44,8 +44,8 @@
     <path class="d-line-agent" d="M285 420L174 262" marker-end="url(#arrow-agent-tall)"/>
     <text class="d-label d-start" x="182" y="105">HTTPS</text>
     <text class="d-label d-muted d-start" x="182" y="122">your domain</text>
-    <rect class="d-label-bg" x="118" y="322" width="104" height="18"/>
-    <text class="d-label" x="170" y="335">TLS 1.3 :55001</text>
+    <rect class="d-label-bg" x="140" y="322" width="60" height="18"/>
+    <text class="d-label" x="170" y="335">TLS 1.3</text>
     <rect class="d-label-bg" x="118" y="350" width="104" height="18"/>
     <text class="d-label d-muted" x="170" y="363">pinned certificate</text>
     <rect class="d-box" x="95" y="10" width="150" height="60"/>
