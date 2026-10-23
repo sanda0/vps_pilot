@@ -25,9 +25,16 @@ const EXIT_AUTH_FAILED: u8 = 3;
 
 const DEFAULT_AGENT_PORT: u16 = 55001;
 
+/// The release tag when built by release.yml (VPS_PILOT_VERSION=v0.1.0),
+/// otherwise the Cargo.toml version.
+const VERSION: &str = match option_env!("VPS_PILOT_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
+
 /// VPS Pilot agent: reports this server's health to a VPS Pilot hub.
 #[derive(Parser, Debug)]
-#[command(version)]
+#[command(version = VERSION)]
 struct Args {
     /// Hub agent-channel address, host[:port]
     #[arg(long, env = "VPS_PILOT_HUB")]
@@ -91,6 +98,7 @@ async fn main() -> ExitCode {
         .init();
 
     let args = Args::parse();
+    info!("VPS Pilot agent {VERSION}");
     // An empty token (e.g. VPS_PILOT_TOKEN= in an env file) means "no token".
     let token = args
         .token

@@ -81,7 +81,7 @@ echo ""
 # Step 5: Build the agent (Rust)
 if command -v cargo &> /dev/null; then
     echo -e "${YELLOW}🦀 Building agent...${NC}"
-    (cd ../agent && cargo build --release)
+    (cd ../agent && VPS_PILOT_VERSION="${VERSION}" cargo build --release)
     echo -e "${GREEN}✅ Agent binary: agent/target/release/vps-pilot-agent${NC}"
 else
     echo -e "${YELLOW}⚠️  cargo not found, skipping agent build${NC}"
