@@ -1,13 +1,41 @@
+{{ define "bodyClass" }}home{{ end }}
 {{ define "main" }}
 <section class="hero">
-  <div class="container">
-    <h1 class="hero-title">
-      <span class="wordmark"><span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot</span>
-    </h1>
-    <p class="hero-pitch">{{ site.Params.description }}</p>
-    <div class="button-row">
-      <a class="button button-outline" href="{{ site.Params.repo }}" rel="noopener">GitHub</a>
+  <div class="container hero-grid">
+    <div>
+      <h1 class="hero-title">
+        <span class="wordmark"><span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot</span>
+      </h1>
+      <p class="hero-pitch">{{ .Params.pitch }}</p>
+      <div class="button-row">
+        <a class="button" href="{{ "/docs/quick-start/" | relURL }}">Get started</a>
+        <a class="button button-outline" href="{{ site.Params.repo }}" rel="noopener">GitHub</a>
+      </div>
+      <p class="hero-note">Free and open source, AGPL-3.0-only.</p>
     </div>
+    <figure class="terminal" aria-label="Starting the hub and enrolling an agent">
+      <div class="terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+      <pre><code><span class="t-comment"># on your hub</span>
+<span class="t-prompt">$</span> ./vps_pilot
+<span class="t-out">TCP server (TLS) listening on port 55001</span>
+
+<span class="t-comment"># on each server, with a token from Nodes → Add node</span>
+<span class="t-prompt">$</span> VPS_PILOT_TOKEN=vpsp1.… vps-pilot-agent --hub hub.example.com
+<span class="t-out">INFO enrolled; the join token is no longer needed</span></code></pre>
+    </figure>
+  </div>
+</section>
+
+<section class="section section-tight" aria-label="Screenshot">
+  <div class="container">
+    {{- if fileExists "static/screenshot.png" }}
+    <img class="screenshot" src="{{ "screenshot.png" | relURL }}" alt="The VPS Pilot dashboard showing CPU, memory and network charts for a server" loading="lazy">
+    {{- else }}
+    <div class="screenshot-placeholder">
+      <p><strong>Dashboard screenshot coming soon</strong></p>
+      <p>Placeholder: add <code>site/static/screenshot.png</code></p>
+    </div>
+    {{- end }}
   </div>
 </section>
 {{ end }}
