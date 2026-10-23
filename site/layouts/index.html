@@ -80,4 +80,58 @@
     </div>
   </div>
 </section>
+
+<section class="section" id="control">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">You stay in control</h2>
+      <p>Each project on a server carries a <code>config.vpspilot.json</code>, written by whoever owns the server. It's the complete list of what the dashboard may ever do with that project.</p>
+      <p>The hub sends names, never command strings. To run <code>build</code>, it sends the agent the word <code>"build"</code>. The agent looks that name up in the file on the server and runs the command written there. Even someone who took over your hub couldn't run anything that isn't already in a file you wrote.</p>
+      <p class="note">Running commands is coming soon. Today the dashboard shows what each project declares.</p>
+      <p><a href="{{ "/docs/projects/" | relURL }}">How projects work</a></p>
+    </div>
+    <div class="split-code">
+      {{- $config := `{
+  "name": "shop",
+  "tech": ["laravel", "mysql"],
+  "commands": [
+    { "name": "build", "command": "npm run build" },
+    { "name": "migrate", "command": "php artisan migrate --force" }
+  ],
+  "logs": ["storage/logs"]
+}` }}
+      {{ transform.Highlight $config "json" }}
+    </div>
+  </div>
+</section>
+
+<section class="section" id="not">
+  <div class="container split">
+    <div>
+      <h2 class="section-title">What it's not</h2>
+      <p class="section-lead">VPS Pilot watches your servers and does what each project allows. It doesn't try to be a platform.</p>
+    </div>
+    <div>
+      <ul class="plain-list">
+        {{- range .Params.notList }}
+        <li>{{ . }}</li>
+        {{- end }}
+      </ul>
+      <p class="note">Those jobs have good tools already: <a href="https://coolify.io" rel="noopener">Coolify</a> or <a href="https://dokploy.com" rel="noopener">Dokploy</a> for Git deploys and containers, <a href="https://www.ansible.com" rel="noopener">Ansible</a> for provisioning, and plain SSH for the rest.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tech">
+  <div class="container">
+    <h2 class="section-title">Built small</h2>
+    <p class="section-lead">One hub binary, one agent binary, and no external services: no separate database server, no queue, no cloud account.</p>
+    <div class="feature-grid tech-grid">
+      <div class="feature"><h3>Go</h3><p>The hub: the API, the agent channel and the dashboard in one executable.</p></div>
+      <div class="feature"><h3>Rust</h3><p>The agent: a single binary on each server.</p></div>
+      <div class="feature"><h3>SQLite</h3><p>Two database files in one data directory, with a pure Go driver.</p></div>
+      <div class="feature"><h3>React</h3><p>The dashboard, built with Vite and embedded in the hub.</p></div>
+    </div>
+  </div>
+</section>
 {{ end }}
