@@ -250,6 +250,17 @@ make agent-reset                     # forget the local agent's enrollment
 make lint test                       # before pushing
 ```
 
+### Working on the website
+
+The website and docs at [vpspilot.dev](https://vpspilot.dev) live in [`site/`](site/) and are built with [Hugo](https://gohugo.io) **v0.167.0** (the standard edition is enough; no Node needed). On Ubuntu, install that exact version from the release:
+
+```sh
+curl -fsSLO https://github.com/gohugoio/hugo/releases/download/v0.167.0/hugo_0.167.0_linux-amd64.deb
+sudo apt install ./hugo_0.167.0_linux-amd64.deb
+```
+
+Then `make site-dev` previews it at http://localhost:1313 and `make site-build` builds it into `site/public/`. Pushes to `main` that touch `site/` deploy it to GitHub Pages.
+
 ---
 
 ## ⚙️ Configuration
@@ -417,6 +428,7 @@ This project is licensed under the [GNU Affero General Public License v3.0](LICE
 
 ## 🔗 Links
 
+- **Website**: https://vpspilot.dev
 - **Agent**: [agent/](agent/) · [protocol](docs/PROTOCOL.md)
 - **Issues**: https://github.com/sanda0/vps_pilot/issues
 - **Documentation**: [docs/](docs/)
