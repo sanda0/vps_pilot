@@ -1,21 +1,25 @@
 //! One connection to the hub: handshake (enroll or connect), then stream stats.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
 use tokio::io::{AsyncRead, ReadHalf};
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc, watch};
 use tokio::task::AbortHandle;
 use tokio::time::{MissedTickBehavior, timeout};
 use tracing::{debug, info, warn};
 
+use crate::discovery::Found;
 use crate::metrics::Collector;
 use crate::protocol::{
-    self, AuthFailedPayload, EnrolledPayload, MSG_AUTH_FAILED, MSG_CONNECTED, MSG_ENROLL,
-    MSG_ENROLLED, MSG_SYS_STAT, Msg,
+    self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_CONNECTED,
+    MSG_ENROLL, MSG_ENROLLED, MSG_PROJECT_SETTINGS, MSG_PROJECTS, MSG_RESCAN_PROJECTS,
+    MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
 };
+use crate::scanner;
 use crate::state::State;
 use crate::tls;
 
@@ -47,6 +51,8 @@ pub struct Config {
     pub state_path: PathBuf,
     pub join: Option<JoinToken>,
     pub interval: Duration,
+    pub project_dirs: Vec<PathBuf>,
+    pub allow_any_project_path: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -133,12 +139,40 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
     let reader = tokio::spawn(read_loop(rd, tx));
     let _reader_guard = AbortOnDrop(reader.abort_handle());
 
+    // Project searches run in their own task (see scanner.rs). A result is
+    // reported when it changed or when the scanner says it must be.
+    let (settings_tx, settings_rx) = watch::channel(ProjectSettings::default());
+    let rescan = Arc::new(Notify::new());
+    let (projects_tx, mut projects_rx) = mpsc::channel(1);
+    let scanner = tokio::spawn(scanner::scan_loop(
+        cfg.project_dirs.clone(),
+        cfg.allow_any_project_path,
+        settings_rx,
+        rescan.clone(),
+        projects_tx,
+    ));
+    let _scanner_guard = AbortOnDrop(scanner.abort_handle());
+    let mut reported: Option<Found> = None;
+
     let mut ticker = tokio::time::interval(cfg.interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
         tokio::select! {
             msg = inbox.recv() => match msg {
                 Some(Ok(msg)) if msg.kind == MSG_AUTH_FAILED => return Err(auth_failed(&msg)),
+                Some(Ok(msg)) if msg.kind == MSG_PROJECT_SETTINGS => {
+                    match msg.payload::<ProjectSettings>() {
+                        Ok(new) => {
+                            settings_tx.send_if_modified(|s| {
+                                let changed = *s != new;
+                                *s = new;
+                                changed
+                            });
+                        }
+                        Err(e) => warn!("ignoring invalid project_settings: {e:#}"),
+                    }
+                }
+                Some(Ok(msg)) if msg.kind == MSG_RESCAN_PROJECTS => rescan.notify_one(),
                 Some(Ok(msg)) => debug!("ignoring {:?} from hub", msg.kind),
                 Some(Err(e)) => return Err(e.into()),
                 None => return Err(anyhow!("hub closed the connection").into()),
@@ -147,8 +181,39 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 let stat = collector.collect();
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
             }
+            Some(scanner::ScanResult { found, always_report }) = projects_rx.recv() => {
+                if !always_report && reported.as_ref() == Some(&found) {
+                    continue;
+                }
+                if let Some(msg) = projects_msg(&found)? {
+                    protocol::write_frame(&mut wr, &msg).await?;
+                    let (count, errors) = (found.projects.len(), found.errors.len());
+                    info!(count, errors, "reported projects");
+                }
+                reported = Some(found);
+            }
         }
     }
+}
+
+/// The `projects` message, or None (logged) when it wouldn't fit in a frame.
+/// Sending an oversized frame would fail and drop the connection on every
+/// reconnect, taking stats down with it.
+fn projects_msg(found: &Found) -> anyhow::Result<Option<Msg>> {
+    let payload = ProjectsPayload {
+        projects: &found.projects,
+        errors: &found.errors,
+    };
+    let msg = Msg::new(MSG_PROJECTS).with_data(&payload)?;
+    let size = serde_json::to_vec(&msg)?.len();
+    if size > MAX_FRAME_SIZE as usize {
+        warn!(
+            count = found.projects.len(),
+            size, "project list is too large to report; not sending it"
+        );
+        return Ok(None);
+    }
+    Ok(Some(msg))
 }
 
 async fn read_loop<S: AsyncRead>(mut rd: ReadHalf<S>, tx: mpsc::Sender<anyhow::Result<Msg>>) {
@@ -196,5 +261,40 @@ mod tests {
         ] {
             assert!(JoinToken::parse(&bad).is_err(), "{bad:?}");
         }
+    }
+
+    fn found(name: &str, tech: &str) -> Found {
+        let project = crate::project::ProjectConfig {
+            name: name.into(),
+            path: format!("/srv/{name}"),
+            tech: vec![tech.into()],
+            commands: vec![],
+            logs: vec![],
+            backups: None,
+        };
+        let error = crate::discovery::ProjectError {
+            path: "/opt/x".into(),
+            error: "outside".into(),
+        };
+        Found {
+            projects: vec![project],
+            errors: vec![error],
+        }
+    }
+
+    #[test]
+    fn projects_message_shape() {
+        let msg = projects_msg(&found("app", "go")).unwrap().unwrap();
+        assert_eq!(msg.kind, "projects");
+        let data = msg.data.unwrap();
+        assert_eq!(data["projects"][0]["path"], "/srv/app");
+        assert_eq!(data["errors"][0]["path"], "/opt/x");
+        assert_eq!(data["errors"][0]["error"], "outside");
+    }
+
+    #[test]
+    fn oversized_project_list_is_not_sent() {
+        let big = "x".repeat(MAX_FRAME_SIZE as usize);
+        assert!(projects_msg(&found("app", &big)).unwrap().is_none());
     }
 }

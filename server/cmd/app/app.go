@@ -26,19 +26,21 @@ func hasEmbeddedUI() bool {
 	return err == nil
 }
 
-func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment) {
+func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment, agents services.ProjectAgents) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)
 	nodeService := services.NewNodeService(ctx, repo, enroll)
 	alertService := services.NewAlertService(ctx, repo)
 	projectService := services.NewProjectService(repo, ctx)
+	projectScanService := services.NewProjectScanService(ctx, repo, agents)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
 	nodeHander := handlers.NewNodeHandler(nodeService)
 	alertHandler := handlers.NewAlertHandler(alertService)
 	projectHandler := handlers.NewProjectHandler(projectService)
+	projectScanHandler := handlers.NewProjectScanHandler(projectScanService)
 
 	server := gin.Default()
 
@@ -77,6 +79,11 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			nodes.GET("/:id/projects", projectHandler.ListProjectsByNode)
 			nodes.POST("/join-tokens", nodeHander.CreateJoinToken)
 			nodes.DELETE("/:id/key", nodeHander.RevokeNodeKey)
+			nodes.GET("/:id/project-settings", projectScanHandler.Get)
+			nodes.PUT("/:id/project-settings", projectScanHandler.UpdateSettings)
+			nodes.POST("/:id/rescan-projects", projectScanHandler.Rescan)
+			nodes.POST("/:id/project-paths", projectScanHandler.AddPath)
+			nodes.DELETE("/:id/project-paths/:pathId", projectScanHandler.DeletePath)
 		}
 		alerts := dashbaord.Group("/alerts")
 		{

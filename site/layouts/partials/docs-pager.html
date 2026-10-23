@@ -1,0 +1,14 @@
+{{- $index := 0 }}
+{{- range $i, $p := .pages }}{{ if eq $p $.page }}{{ $index = $i }}{{ end }}{{ end }}
+<nav class="docs-pager" aria-label="Previous and next page">
+  {{- if gt $index 0 }}
+  {{- with index .pages (sub $index 1) }}
+  <a class="docs-pager-prev" href="{{ .RelPermalink }}" rel="prev"><span>Previous</span>{{ .LinkTitle }}</a>
+  {{- end }}
+  {{- end }}
+  {{- if lt $index (sub (len .pages) 1) }}
+  {{- with index .pages (add $index 1) }}
+  <a class="docs-pager-next" href="{{ .RelPermalink }}" rel="next"><span>Next</span>{{ .LinkTitle }}</a>
+  {{- end }}
+  {{- end }}
+</nav>

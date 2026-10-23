@@ -32,11 +32,12 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 
 ---
 
-### 🚀 Projects Management (Planned)
-- Each node can have multiple projects
-- Projects require a `config.vpspilot.json` file
-- Agents will find these files and report them to the hub (the hub side exists; agent discovery is next)
-- The dashboard will then allow, for commands declared in the file only:
+### 🚀 Projects Management
+- Each node can have multiple projects; each needs a `config.vpspilot.json` in its directory
+- Agents find these files under their project directories (`--projects-dir`, default `/var/www` and `/home`, 4 levels deep) and report them to the hub
+- Per node, in **Projects → Scan settings**: automatic scan on/off, scan interval, **Rescan now**, and the problems from the last scan (broken configs, rejected paths)
+- **Projects → Add project** points a node's agent at a directory the search doesn't reach. The agent only accepts it inside its project directories unless started with `--allow-any-project-path`
+- Planned, for commands declared in the file only:
   - Running predefined commands
   - Managing project logs
   - Backing up project directories and databases
@@ -245,9 +246,21 @@ cp server/.env.example server/.env   # then set TOKEN_SECRET
 make install migrate superuser       # one-time setup
 make dev                             # hub on :8080 (hot reload with air) + dashboard on http://localhost:5173
 make agent VPS_PILOT_TOKEN=vpsp1...  # run a local agent; later runs are just `make agent`
+make agent PROJECT_DIRS=~/vpspilot-demo  # look for projects only there (default: /var/www,/home)
 make agent-reset                     # forget the local agent's enrollment
 make lint test                       # before pushing
 ```
+
+### Working on the website
+
+The website and docs at [vpspilot.dev](https://vpspilot.dev) live in [`site/`](site/) and are built with [Hugo](https://gohugo.io) **v0.167.0** (the standard edition is enough; no Node needed). On Ubuntu, install that exact version from the release:
+
+```sh
+curl -fsSLO https://github.com/gohugoio/hugo/releases/download/v0.167.0/hugo_0.167.0_linux-amd64.deb
+sudo apt install ./hugo_0.167.0_linux-amd64.deb
+```
+
+Then `make site-dev` previews it at http://localhost:1313 and `make site-build` builds it into `site/public/`. Pushes to `main` that touch `site/` deploy it to GitHub Pages.
 
 ---
 
@@ -260,7 +273,7 @@ MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-app-password
-MAIL_FROM_ADDRESS=noreply@vpspilot.com
+MAIL_FROM_ADDRESS=noreply@example.com
 ```
 
 ### Slack Alerts
@@ -379,7 +392,7 @@ ls server/cmd/app/dist/
 - [x] User authentication with JWT
 - [x] Authenticated agent enrollment + TLS on the agent channel
 - [x] Rust agent in this repo (`agent/`)
-- [ ] Project discovery via `config.vpspilot.json`
+- [x] Project discovery via `config.vpspilot.json` (per-node scan settings, manual paths)
 - [ ] Run named project commands (declared in the config file only) with audit log
 - [ ] Log tailing for declared log folders
 - [ ] Project backups (database + directories)
@@ -397,7 +410,7 @@ ls server/cmd/app/dist/
 Contributions are welcome! Before you start:
 
 - Read [SCOPE.md](SCOPE.md): it lists what VPS Pilot does and what belongs in other tools.
-- Keep pull requests small (under 200 changed lines) and to one concern.
+- Keep pull requests under 1000 changed lines and each commit under 200, with one concern per pull request.
 - Run `make lint test` before pushing.
 
 ---
@@ -416,6 +429,7 @@ This project is licensed under the [GNU Affero General Public License v3.0](LICE
 
 ## 🔗 Links
 
+- **Website**: https://vpspilot.dev
 - **Agent**: [agent/](agent/) · [protocol](docs/PROTOCOL.md)
 - **Issues**: https://github.com/sanda0/vps_pilot/issues
 - **Documentation**: [docs/](docs/)

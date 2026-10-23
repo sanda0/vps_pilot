@@ -1,6 +1,9 @@
 mod client;
+mod discovery;
 mod metrics;
+mod project;
 mod protocol;
+mod scanner;
 mod state;
 mod tls;
 
@@ -50,6 +53,20 @@ struct Args {
     /// Seconds to wait before reconnecting
     #[arg(long, default_value_t = 10)]
     backoff: u64,
+
+    /// Directory searched for config.vpspilot.json files (repeatable)
+    #[arg(
+        long = "projects-dir",
+        env = "VPS_PILOT_PROJECT_DIRS",
+        value_delimiter = ',',
+        default_values = ["/var/www", "/home"]
+    )]
+    projects_dirs: Vec<PathBuf>,
+
+    /// Accept project paths added from the dashboard anywhere on disk, not
+    /// only inside --projects-dir
+    #[arg(long, env = "VPS_PILOT_ALLOW_ANY_PROJECT_PATH")]
+    allow_any_project_path: bool,
 }
 
 /// Appends the default agent port when the hub address has none.
@@ -106,6 +123,8 @@ async fn main() -> ExitCode {
         state_path: args.state,
         join,
         interval: Duration::from_secs(args.interval),
+        project_dirs: args.projects_dirs,
+        allow_any_project_path: args.allow_any_project_path,
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();

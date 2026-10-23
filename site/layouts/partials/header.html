@@ -1,0 +1,18 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="{{ "/" | relURL }}" aria-label="VPS Pilot home">
+      <span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      {{- $page := . }}
+      {{- range site.Menus.main }}
+        {{- $external := strings.HasPrefix .URL "http" }}
+        <a href="{{ .URL | relURL }}"
+          {{- if and (not $external) (strings.HasPrefix $page.RelPermalink .URL) }} aria-current="page"{{ end }}
+          {{- if $external }} rel="noopener"{{ end }}>{{ .Name }}</a>
+      {{- end }}
+    </nav>
+    {{- partial "github-button.html" . }}
+    {{- partial "theme-toggle.html" . }}
+  </div>
+</header>

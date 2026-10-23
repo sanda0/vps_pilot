@@ -2,9 +2,15 @@
 //!
 //! Each frame is a 4-byte big-endian length followed by a JSON envelope.
 
+use std::path::PathBuf;
+use std::time::Duration;
+
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+use crate::discovery::ProjectError;
+use crate::project::ProjectConfig;
 
 /// Frames larger than this are rejected (matches the hub).
 pub const MAX_FRAME_SIZE: u32 = 1 << 20;
@@ -14,6 +20,9 @@ pub const MSG_ENROLLED: &str = "enrolled";
 pub const MSG_CONNECTED: &str = "connected";
 pub const MSG_AUTH_FAILED: &str = "auth_failed";
 pub const MSG_SYS_STAT: &str = "sys_stat";
+pub const MSG_PROJECTS: &str = "projects";
+pub const MSG_PROJECT_SETTINGS: &str = "project_settings";
+pub const MSG_RESCAN_PROJECTS: &str = "rescan_projects";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,6 +81,43 @@ pub struct AuthFailedPayload {
     pub reason: String,
 }
 
+/// Sent by the hub in `project_settings`. Missing fields keep their defaults,
+/// which are also used until the hub sends settings.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct ProjectSettings {
+    pub auto_scan: bool,
+    /// Seconds between automatic searches; see `interval()`.
+    pub scan_interval: u64,
+    /// Project directories added from the dashboard.
+    pub paths: Vec<PathBuf>,
+}
+
+impl Default for ProjectSettings {
+    fn default() -> Self {
+        ProjectSettings {
+            auto_scan: true,
+            scan_interval: 900,
+            paths: Vec::new(),
+        }
+    }
+}
+
+impl ProjectSettings {
+    /// The scan interval, clamped to 1 minute ..= 1 day.
+    pub fn interval(&self) -> Duration {
+        Duration::from_secs(self.scan_interval.clamp(60, 86_400))
+    }
+}
+
+/// Sent by the agent in `projects`: every project on the node. The hub
+/// removes projects missing from the list.
+#[derive(Debug, Serialize)]
+pub struct ProjectsPayload<'a> {
+    pub projects: &'a [ProjectConfig],
+    pub errors: &'a [ProjectError],
+}
+
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {
     let size = r.read_u32().await?;
     if size == 0 || size > MAX_FRAME_SIZE {
@@ -98,6 +144,21 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, msg: &Msg) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn project_settings_defaults_and_clamp() {
+        let parse = |json: &str| serde_json::from_str::<ProjectSettings>(json).unwrap();
+        assert_eq!(parse("{}"), ProjectSettings::default());
+        let s = parse(r#"{"auto_scan": false}"#);
+        assert!(!s.auto_scan);
+        assert_eq!(s.interval(), Duration::from_secs(900));
+        assert_eq!(
+            parse(r#"{"scan_interval": 5}"#).interval(),
+            Duration::from_secs(60)
+        );
+        let week = parse(r#"{"scan_interval": 604800}"#);
+        assert_eq!(week.interval(), Duration::from_secs(86_400));
+    }
 
     #[tokio::test]
     async fn frame_round_trip() {

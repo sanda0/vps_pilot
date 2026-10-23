@@ -1,0 +1,75 @@
+/* Code highlighting, light theme. Generated with
+   `hugo gen chromastyles --style=github`, then: backgrounds and the base
+   text color use the site tokens, and every rule is scoped to html:not(.dark). */
+html:not(.dark) .chroma { color:hsl(var(--foreground));background-color:transparent;-webkit-text-size-adjust:none; }
+html:not(.dark) .chroma .err { color:#f6f8fa;background-color:#82071e }
+html:not(.dark) .chroma .lnlinks { outline:none;text-decoration:none;color:inherit }
+html:not(.dark) .chroma .lntd { vertical-align:top;padding:0;margin:0;border:0; }
+html:not(.dark) .chroma .lntable { border-spacing:0;padding:0;margin:0;border:0; }
+html:not(.dark) .chroma .hl { background-color:#dedede }
+html:not(.dark) .chroma .lnt { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f }
+html:not(.dark) .chroma .ln { white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f }
+html:not(.dark) .chroma .line { display:flex; }
+html:not(.dark) .chroma .k { color:#cf222e }
+html:not(.dark) .chroma .kc { color:#cf222e }
+html:not(.dark) .chroma .kd { color:#cf222e }
+html:not(.dark) .chroma .kn { color:#cf222e }
+html:not(.dark) .chroma .kp { color:#cf222e }
+html:not(.dark) .chroma .kr { color:#cf222e }
+html:not(.dark) .chroma .kt { color:#cf222e }
+html:not(.dark) .chroma .na { color:#1f2328 }
+html:not(.dark) .chroma .nc { color:#1f2328 }
+html:not(.dark) .chroma .no { color:#0550ae }
+html:not(.dark) .chroma .nd { color:#0550ae }
+html:not(.dark) .chroma .ni { color:#6639ba }
+html:not(.dark) .chroma .nl { color:#900;font-weight:bold }
+html:not(.dark) .chroma .nn { color:#24292e }
+html:not(.dark) .chroma .nx { color:#1f2328 }
+html:not(.dark) .chroma .nt { color:#0550ae }
+html:not(.dark) .chroma .nb { color:#6639ba }
+html:not(.dark) .chroma .bp { color:#6a737d }
+html:not(.dark) .chroma .nv { color:#953800 }
+html:not(.dark) .chroma .vc { color:#953800 }
+html:not(.dark) .chroma .vg { color:#953800 }
+html:not(.dark) .chroma .vi { color:#953800 }
+html:not(.dark) .chroma .vm { color:#953800 }
+html:not(.dark) .chroma .nf { color:#6639ba }
+html:not(.dark) .chroma .fm { color:#6639ba }
+html:not(.dark) .chroma .s { color:#0a3069 }
+html:not(.dark) .chroma .sa { color:#0a3069 }
+html:not(.dark) .chroma .sb { color:#0a3069 }
+html:not(.dark) .chroma .sc { color:#0a3069 }
+html:not(.dark) .chroma .dl { color:#0a3069 }
+html:not(.dark) .chroma .sd { color:#0a3069 }
+html:not(.dark) .chroma .s2 { color:#0a3069 }
+html:not(.dark) .chroma .se { color:#0a3069 }
+html:not(.dark) .chroma .sh { color:#0a3069 }
+html:not(.dark) .chroma .si { color:#0a3069 }
+html:not(.dark) .chroma .sx { color:#0a3069 }
+html:not(.dark) .chroma .sr { color:#0a3069 }
+html:not(.dark) .chroma .s1 { color:#0a3069 }
+html:not(.dark) .chroma .ss { color:#032f62 }
+html:not(.dark) .chroma .m { color:#0550ae }
+html:not(.dark) .chroma .mb { color:#0550ae }
+html:not(.dark) .chroma .mf { color:#0550ae }
+html:not(.dark) .chroma .mh { color:#0550ae }
+html:not(.dark) .chroma .mi { color:#0550ae }
+html:not(.dark) .chroma .il { color:#0550ae }
+html:not(.dark) .chroma .mo { color:#0550ae }
+html:not(.dark) .chroma .o { color:#0550ae }
+html:not(.dark) .chroma .ow { color:#0550ae }
+html:not(.dark) .chroma .or { color:#0550ae }
+html:not(.dark) .chroma .p { color:#1f2328 }
+html:not(.dark) .chroma .c { color:#57606a }
+html:not(.dark) .chroma .ch { color:#57606a }
+html:not(.dark) .chroma .cm { color:#57606a }
+html:not(.dark) .chroma .c1 { color:#57606a }
+html:not(.dark) .chroma .cs { color:#57606a }
+html:not(.dark) .chroma .cp { color:#57606a }
+html:not(.dark) .chroma .cpf { color:#57606a }
+html:not(.dark) .chroma .gd { color:#82071e;background-color:#ffebe9 }
+html:not(.dark) .chroma .ge { color:#1f2328 }
+html:not(.dark) .chroma .gi { color:#116329;background-color:#dafbe1 }
+html:not(.dark) .chroma .go { color:#1f2328 }
+html:not(.dark) .chroma .gl { text-decoration:underline }
+html:not(.dark) .chroma .w { color:#fff }
