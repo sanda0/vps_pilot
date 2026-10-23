@@ -52,4 +52,32 @@
     </ol>
   </div>
 </section>
+
+<section class="section" id="features">
+  <div class="container">
+    <h2 class="section-title">Features</h2>
+    <p class="section-lead">What works today, and what's next. Everything under "Available now" is in the code and works end to end.</p>
+    <div class="features">
+      <div>
+        <p class="badge badge-now"><span class="dot"></span>Available now</p>
+        <div class="feature-grid">
+          {{- range .Params.available }}
+          <div class="feature">
+            <h3>{{ .title }}</h3>
+            <p>{{ .text }}</p>
+          </div>
+          {{- end }}
+        </div>
+      </div>
+      <div>
+        <p class="badge badge-soon"><span class="dot"></span>Coming soon</p>
+        <ul class="soon-list">
+          {{- range .Params.soon }}
+          <li>{{ . }}</li>
+          {{- end }}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
 {{ end }}
