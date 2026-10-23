@@ -352,3 +352,144 @@ hr {
   display: flex;
   gap: 1.25rem;
 }
+
+/* Docs layout */
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 3rem;
+  padding-top: 2.5rem;
+}
+
+.docs-menu-button {
+  display: none;
+}
+
+.docs-sidebar {
+  position: sticky;
+  top: calc(var(--header-height) + 2rem);
+  align-self: start;
+  font-size: 0.875rem;
+}
+
+.docs-sidebar-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.docs-sidebar ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid hsl(var(--border));
+}
+
+.docs-sidebar a {
+  display: block;
+  margin-left: -1px;
+  padding: 0.35rem 0.75rem;
+  border-left: 1px solid transparent;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+
+.docs-sidebar a:hover {
+  color: hsl(var(--foreground));
+}
+
+.docs-sidebar a[aria-current="page"] {
+  border-left-color: hsl(var(--foreground));
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.docs-content {
+  max-width: 46rem;
+}
+
+.docs-lead {
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.docs-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.edit-link {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.docs-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.docs-pager a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid hsl(var(--border));
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.docs-pager a:hover {
+  border-color: hsl(var(--viz-1));
+}
+
+.docs-pager span {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+}
+
+.docs-pager-next {
+  grid-column: 2;
+  text-align: right;
+}
+
+@media (max-width: 860px) {
+  .docs-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+  }
+
+  .docs-menu-button {
+    display: inline-flex;
+    justify-self: start;
+  }
+
+  .docs-sidebar {
+    position: static;
+    display: none;
+    padding: 1rem;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .docs-sidebar.open {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .docs-pager {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .docs-pager-next {
+    grid-column: 1;
+  }
+}
