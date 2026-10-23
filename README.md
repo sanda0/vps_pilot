@@ -246,6 +246,7 @@ cp server/.env.example server/.env   # then set TOKEN_SECRET
 make install migrate superuser       # one-time setup
 make dev                             # hub on :8080 (hot reload with air) + dashboard on http://localhost:5173
 make agent VPS_PILOT_TOKEN=vpsp1...  # run a local agent; later runs are just `make agent`
+make agent PROJECT_DIRS=~/vpspilot-demo  # look for projects only there (default: /var/www,/home)
 make agent-reset                     # forget the local agent's enrollment
 make lint test                       # before pushing
 ```

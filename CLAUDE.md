@@ -24,6 +24,8 @@ Read `SCOPE.md` before adding a feature. `make help` lists every task.
 2. `make dev`: hub on :8080 and dashboard on http://localhost:5173.
 3. Agent: in the dashboard, go to Nodes → Add node and copy the join token, then
    `make agent VPS_PILOT_TOKEN=vpsp1...`. Later runs are just `make agent`.
-   `make agent-reset` forgets the enrollment.
+   `make agent-reset` forgets the enrollment. `PROJECT_DIRS=~/some/dir` (comma-separated
+   for several) limits where it looks for `config.vpspilot.json`; the default is
+   `/var/www` and `/home`.
 
 Before pushing: `make lint test`.
