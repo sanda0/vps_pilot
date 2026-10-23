@@ -193,3 +193,162 @@ hr {
     animation: none;
   }
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background) / 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: var(--header-height);
+}
+
+.header-inner > .wordmark {
+  font-size: 1.05rem;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+
+.site-nav a {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
+  color: hsl(var(--foreground));
+}
+
+/* Buttons */
+
+.button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid hsl(var(--primary));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button {
+  height: 2.5rem;
+  padding: 0 1rem;
+}
+
+.button:hover {
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary) / 0.9);
+}
+
+.button-outline,
+.icon-button {
+  border-color: hsl(var(--input));
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.button-outline:hover,
+.icon-button:hover {
+  color: hsl(var(--accent-foreground));
+  background: hsl(var(--accent));
+}
+
+.icon-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.theme-toggle .icon-sun,
+.dark .theme-toggle .icon-moon {
+  display: none;
+}
+
+.dark .theme-toggle .icon-sun {
+  display: block;
+}
+
+/* Hero */
+
+.hero {
+  padding: 4rem 0 3rem;
+}
+
+.hero-title {
+  margin: 0 0 1rem;
+  font-size: clamp(2.25rem, 7vw, 3.75rem);
+}
+
+.hero-pitch {
+  max-width: 40rem;
+  margin: 0 0 2rem;
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Footer */
+
+.site-footer {
+  margin-top: 4rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.footer-inner p {
+  margin: 0;
+}
+
+.footer-nav {
+  display: flex;
+  gap: 1.25rem;
+}
