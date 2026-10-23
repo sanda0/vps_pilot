@@ -1,0 +1,23 @@
+{{- /* Shared by docs/list.html (the Introduction) and docs/single.html. The
+  sidebar and prev/next follow the same order: the section page first, then
+  pages by front-matter weight. */ -}}
+{{- $docs := site.GetPage "/docs" }}
+{{- $pages := slice $docs | append $docs.Pages.ByWeight }}
+<div class="container docs-layout">
+  <button class="button button-outline docs-menu-button" type="button" data-docs-menu aria-controls="docs-sidebar" aria-expanded="false">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    Docs menu
+  </button>
+  {{- partial "docs-sidebar.html" (dict "page" . "pages" $pages) }}
+  <article class="docs-content prose">
+    <h1>{{ .Title }}</h1>
+    {{- with .Description }}
+    <p class="docs-lead">{{ . }}</p>
+    {{- end }}
+    {{ .Content }}
+    <footer class="docs-footer">
+      <a class="edit-link" href="{{ site.Params.editBase }}{{ .File.Path }}" rel="noopener">Edit this page on GitHub</a>
+      {{- partial "docs-pager.html" (dict "page" . "pages" $pages) }}
+    </footer>
+  </article>
+</div>

@@ -1,0 +1,14 @@
+{{- /* Internal links resolve to the page's permalink, and a link to a page
+  that doesn't exist fails the build with a warning. */ -}}
+{{- $u := urls.Parse .Destination }}
+{{- $href := .Destination }}
+{{- if and (not $u.IsAbs) $u.Path }}
+  {{- with site.GetPage $u.Path }}
+    {{- $href = .RelPermalink }}
+    {{- with $u.Fragment }}{{ $href = printf "%s#%s" $href . }}{{ end }}
+  {{- else }}
+    {{- warnf "%s: link %q does not resolve" $.Page.File.Path $.Destination }}
+  {{- end }}
+{{- end -}}
+<a href="{{ $href }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if $u.IsAbs }} rel="noopener"{{ end }}>{{ .Text }}</a>
+{{- /* chomp */ -}}

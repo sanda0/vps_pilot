@@ -1,0 +1,8 @@
+<nav class="docs-sidebar" id="docs-sidebar" aria-label="Documentation">
+  <p class="docs-sidebar-title">Documentation</p>
+  <ul>
+    {{- range .pages }}
+    <li><a href="{{ .RelPermalink }}"{{ if eq . $.page }} aria-current="page"{{ end }}>{{ .LinkTitle }}</a></li>
+    {{- end }}
+  </ul>
+</nav>
