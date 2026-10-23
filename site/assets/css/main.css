@@ -783,3 +783,120 @@ h3:hover .heading-anchor,
     padding-top: 2.5rem;
   }
 }
+
+.section-title {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.section-lead {
+  max-width: 40rem;
+  margin: 0 0 2rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* How it works diagram */
+
+.diagram {
+  margin: 0 0 2rem;
+  padding: 1.5rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.diagram-tall {
+  display: none;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.diagram text {
+  font-family: var(--font-sans);
+  text-anchor: middle;
+  fill: hsl(var(--foreground));
+}
+
+.d-box {
+  fill: hsl(var(--card));
+  stroke: hsl(var(--border));
+}
+
+.d-hub {
+  stroke: hsl(var(--foreground));
+}
+
+.d-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.diagram .d-sub,
+.diagram .d-muted {
+  font-size: 12px;
+  fill: hsl(var(--muted-foreground));
+}
+
+.d-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.diagram .d-mono {
+  font-family: var(--font-mono);
+}
+
+.diagram .d-start {
+  text-anchor: start;
+}
+
+.d-label-bg {
+  fill: hsl(var(--background));
+}
+
+.d-line-agent,
+.d-line-browser {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.d-line-agent {
+  stroke: hsl(var(--viz-1));
+}
+
+.d-line-browser {
+  stroke: hsl(var(--viz-2));
+}
+
+.d-arrow-agent {
+  fill: hsl(var(--viz-1));
+}
+
+.d-arrow-browser {
+  fill: hsl(var(--viz-2));
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem 2rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.steps strong {
+  color: hsl(var(--foreground));
+}
+
+@media (max-width: 640px) {
+  .diagram {
+    padding: 1rem 0.5rem;
+  }
+
+  .diagram-wide {
+    display: none;
+  }
+
+  .diagram-tall {
+    display: block;
+  }
+}
