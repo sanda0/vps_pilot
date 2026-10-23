@@ -35,7 +35,3 @@ disableKinds = ["taxonomy", "term", "rss"]
     name = "Docs"
     url = "/docs/"
     weight = 10
-  [[menus.main]]
-    name = "GitHub"
-    url = "https://github.com/sanda0/vps_pilot"
-    weight = 90

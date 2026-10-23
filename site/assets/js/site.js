@@ -1,6 +1,6 @@
-// VPS Pilot site: theme toggle, copy buttons on code blocks and the mobile
-// docs menu. The saved theme is applied before first paint by the inline
-// script in partials/head.html.
+// VPS Pilot site: theme toggle, GitHub star count, copy buttons on code
+// blocks and the mobile docs menu. The saved theme is applied before first
+// paint by the inline script in partials/head.html.
 (function () {
   var root = document.documentElement;
 
@@ -67,4 +67,41 @@
     var open = sidebar.classList.toggle("open");
     button.setAttribute("aria-expanded", open ? "true" : "false");
   });
+})();
+
+// GitHub star count in the header, from the GitHub API. Cached for an hour
+// per tab so page views don't eat the API's rate limit. On any failure the
+// button just shows no count.
+(function () {
+  var link = document.querySelector("[data-github-repo]");
+  if (!link || !window.fetch) return;
+  var stars = link.querySelector("[data-github-stars]");
+  var key = "github-stars:" + link.getAttribute("data-github-repo");
+
+  function show(count) {
+    var text = count >= 1000 ? (count / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(count);
+    stars.querySelector("[data-github-stars-count]").textContent = text;
+    stars.hidden = false;
+    link.setAttribute("aria-label", "VPS Pilot on GitHub, " + count + " stars");
+  }
+
+  try {
+    var cached = JSON.parse(sessionStorage.getItem(key));
+    if (cached && Date.now() - cached.at < 3600000) return show(cached.count);
+  } catch (e) {}
+
+  fetch("https://api.github.com/repos/" + link.getAttribute("data-github-repo"), {
+    headers: { Accept: "application/vnd.github+json" },
+  })
+    .then(function (res) {
+      return res.ok ? res.json() : Promise.reject(res.status);
+    })
+    .then(function (repo) {
+      if (typeof repo.stargazers_count !== "number") return;
+      show(repo.stargazers_count);
+      try {
+        sessionStorage.setItem(key, JSON.stringify({ count: repo.stargazers_count, at: Date.now() }));
+      } catch (e) {}
+    })
+    .catch(function () {});
 })();

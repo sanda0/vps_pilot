@@ -12,6 +12,7 @@
           {{- if $external }} rel="noopener"{{ end }}>{{ .Name }}</a>
       {{- end }}
     </nav>
+    {{- partial "github-button.html" . }}
     {{- partial "theme-toggle.html" . }}
   </div>
 </header>
