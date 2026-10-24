@@ -6,6 +6,17 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.2.0 - 2026-10-24
+
+### Upgrade notes
+- Upgrading the hub adds a `disk_stat` table to the timeseries database on
+  start. Agents from v0.1.x keep working and already send disk usage.
+- To move an agent you run by hand to the systemd service, stop it and run
+  `curl -fsSL https://vpspilot.dev/install-agent.sh | sudo sh -s -- --hub <hub>:55001`.
+  If it used the default state file (`/var/lib/vps-pilot-agent/state.json`),
+  it keeps its enrollment and needs no token. Otherwise use the command from
+  **Re-enroll agent**.
+
 ### Added
 - Disk usage: the hub stores the root filesystem's percent used, the
   Metrics tab charts it, and alerts can watch it (**Disk** metric). Agents

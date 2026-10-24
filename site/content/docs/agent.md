@@ -16,23 +16,12 @@ Every five seconds (`--interval`) it sends:
 - network traffic sent and received, in bytes per second, across all
   interfaces except loopback
 
-{{< callout soon >}}
-The hub stores and charts disk usage, and alerts on it, from v0.2.0, which
-isn't released yet. The agent already sends it, so agents you install today
-will work with it.
-{{< /callout >}}
-
 When it connects, it also sends the hostname, OS, distribution and version,
 kernel version, CPU count and total memory. The hostname names the node the
 first time it enrolls. While the agent is connected, the dashboard shows the
 node as **Online**; otherwise it shows **Offline** and when it was last seen.
 
 ## Install
-
-{{< callout soon >}}
-The install script and the `.deb` package come with v0.2.0, which isn't
-released yet. Until then, install the agent [by hand](#by-hand).
-{{< /callout >}}
 
 ### With the install script
 
