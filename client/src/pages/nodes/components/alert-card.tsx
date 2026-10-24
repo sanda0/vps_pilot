@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Edit, Trash2 } from "lucide-react";
 import { SocialIcon } from "react-social-icons";
+import { formatBytesPerSec } from "./chart-format";
 
 
 interface AlertCardProps {
@@ -58,7 +59,7 @@ export default function AlertCard(props: AlertCardProps) {
               {props.matric == "mem" ? "Memory" : null}
               {props.matric == "net" ? "Network" : null}
             </div>
-            <div className="text-sm text-gray-500">{props.matric == "net" ? "Sent: " + props.net_sent + " B/s | Recv: " + props.net_recv + " B/s" : props.value + "%"}</div>
+            <div className="text-sm text-gray-500">{props.matric == "net" ? "Sent: " + formatBytesPerSec(props.net_sent) + " | Recv: " + formatBytesPerSec(props.net_recv) : props.value + "%"}</div>
           </div>
           <div className="flex items-center gap-2">
             {props.email == "" ? null : <SocialIcon network="email" style={{ height: 32, width: 32 }}></SocialIcon>}

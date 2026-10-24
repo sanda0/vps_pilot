@@ -39,6 +39,58 @@ import api from "@/lib/api"
 import { useParams } from "react-router"
 import { Alert } from "@/models/alert"
 
+// Decimal units (1 KB = 1000 B), like the network chart. The form keeps B/s.
+const rateUnits = [
+  { label: "B/s", factor: 1 },
+  { label: "KB/s", factor: 1000 },
+  { label: "MB/s", factor: 1000 * 1000 },
+]
+
+// Largest unit the stored value divides into evenly, so 10000000 opens as 10 MB/s.
+function initialUnit(bytes?: number) {
+  return [...rateUnits].reverse().find((u) => bytes && bytes % u.factor === 0) ?? rateUnits[0]
+}
+
+interface RateInputProps {
+  placeholder: string;
+  value?: number;
+  onChange: (bytes: number) => void;
+}
+
+function RateInput(props: RateInputProps) {
+  const [unit, setUnit] = useState(() => initialUnit(props.value))
+  const shown = props.value === undefined ? undefined : props.value / unit.factor
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        placeholder={props.placeholder}
+        type={"number"}
+        value={shown}
+        onChange={(e) => props.onChange(Math.round(+e.target.value * unit.factor))}
+      />
+      <Select
+        value={unit.label}
+        onValueChange={(label) => {
+          const next = rateUnits.find((u) => u.label === label) ?? rateUnits[0]
+          setUnit(next)
+          // Keep the number typed and change what it means.
+          if (shown !== undefined) props.onChange(Math.round(shown * next.factor))
+        }}
+      >
+        <SelectTrigger className="w-28">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {rateUnits.map((u) => (
+            <SelectItem key={u.label} value={u.label}>{u.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 interface AlertFromProps {
   onFinished: () => void;
   alert?: Alert | null;
@@ -158,16 +210,12 @@ export function AlertFrom(props: AlertFromProps) {
             name="net_rece_threshold"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Network Receive Threshold (B/s)</FormLabel>
+                <FormLabel>Network Receive Threshold</FormLabel>
                 <FormControl>
-                  <Input
+                  <RateInput
                     placeholder="Network Receive Threshold"
-                    type={"number"}
                     value={field.value}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      field.onChange(+val);
-                    }}
+                    onChange={field.onChange}
                   />
                 </FormControl>
 
@@ -181,16 +229,12 @@ export function AlertFrom(props: AlertFromProps) {
               name="net_send_threshold"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <FormLabel>Network Send Threshold (B/s)</FormLabel>
+                  <FormLabel>Network Send Threshold</FormLabel>
                   <FormControl>
-                    <Input
+                    <RateInput
                       placeholder="Network Send Threshold"
-                      type={"number"}
                       value={field.value}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        field.onChange(+val);
-                      }}
+                      onChange={field.onChange}
                     />
                   </FormControl>
 
