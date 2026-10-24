@@ -66,6 +66,8 @@ backups, cron), then `1.0.0`.
 
 1. **Release PR.** Rename `## Unreleased` in `CHANGELOG.md` to
    `## vX.Y.Z - YYYY-MM-DD` and start a new empty `## Unreleased` above it.
+   Set `version` in `site/hugo.toml` to `vX.Y.Z`; the website shows it next
+   to the logo.
 2. **Release candidate.** After the PR is merged:
 
    ```sh
