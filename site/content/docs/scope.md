@@ -12,7 +12,7 @@ lets you do the few things each project allows, and nothing more.
 
 | Capability | What it means | Status |
 | --- | --- | --- |
-| Monitor | CPU, memory, network and disk per server, live and over 5 minutes to 7 days | Available, except disk: the agent reports it, but it isn't charted yet |
+| Monitor | CPU, memory, network and disk per server, live and over 5 minutes to 7 days | Available. Disk charts and alerts come with v0.2.0 |
 | Alert | Thresholds with notifications to Discord, Slack or email | Available for CPU, memory and network |
 | Run commands | Run a command *named* in `config.vpspilot.json` and stream its output | Coming soon |
 | Read logs | Tail the log folders a project declares | Coming soon |

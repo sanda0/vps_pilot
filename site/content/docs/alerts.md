@@ -1,7 +1,7 @@
 ---
 title: Alerts
 weight: 40
-description: Get a Discord, Slack or email message when a server's CPU, memory or network traffic crosses a threshold.
+description: Get a Discord, Slack or email message when a server's CPU, memory, disk or network traffic crosses a threshold.
 ---
 
 An alert watches one metric on one node. The hub checks it against every
@@ -13,14 +13,16 @@ every channel you filled in.
 1. Open the node and switch to the **Alerts** tab.
 2. Choose **Create Alert**.
 3. Fill in the form:
-   - **Metric**: CPU, Memory or Network.
-   - **Threshold (%)**: for CPU and memory, the alert fires when the value
-     goes *above* it. For CPU, the value is the average across all cores.
-   - **Network Send Threshold (B/s)** and **Network Receive Threshold
-     (B/s)**: for network, the alert fires when traffic sent goes above the
-     send threshold, or traffic received goes above the receive threshold.
-     Both are in bytes per second across all interfaces, so `1000000` is
-     1 MB/s. Leave one empty to watch only the other direction.
+   - **Metric**: CPU, Memory, Disk or Network.
+   - **Threshold (%)**: for CPU, memory and disk, the alert fires when the
+     value goes *above* it. For CPU, the value is the average across all
+     cores. For disk, it's the percent used of the root filesystem (`/`).
+   - **Network Send Threshold** and **Network Receive Threshold**: for
+     network, the alert fires when traffic sent goes above the send
+     threshold, or traffic received goes above the receive threshold. Pick
+     B/s, KB/s or MB/s next to each (1 KB/s = 1000 B/s). Traffic is counted
+     across all interfaces except loopback. Leave one empty to watch only
+     the other direction.
    - **Duration (in minutes)**: how long to wait before notifying again
      while the value stays above the threshold. With `10`, you get at most
      one message every ten minutes.
@@ -43,7 +45,8 @@ fired on any traffic. Upgrade the hub before relying on them.
 {{< /callout >}}
 
 {{< callout soon >}}
-Disk alerts, and a history of past alerts, are planned.
+Disk alerts come with v0.2.0, which isn't released yet. A history of past
+alerts is planned.
 {{< /callout >}}
 
 ## Discord

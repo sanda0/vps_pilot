@@ -17,17 +17,79 @@ Every five seconds (`--interval`) it sends:
   interfaces except loopback
 
 {{< callout soon >}}
-The hub doesn't store or chart disk usage yet. The agent already sends it, so
-disk charts and disk alerts will work with agents you install today.
+The hub stores and charts disk usage, and alerts on it, from v0.2.0, which
+isn't released yet. The agent already sends it, so agents you install today
+will work with it.
 {{< /callout >}}
 
 When it connects, it also sends the hostname, OS, distribution and version,
 kernel version, CPU count and total memory. The hostname names the node the
-first time it enrolls.
+first time it enrolls. While the agent is connected, the dashboard shows the
+node as **Online**; otherwise it shows **Offline** and when it was last seen.
 
 ## Install
 
-1. In the dashboard, open **Nodes → Add node** and copy the command.
+{{< callout soon >}}
+The install script and the `.deb` package come with v0.2.0, which isn't
+released yet. Until then, install the agent [by hand](#by-hand).
+{{< /callout >}}
+
+### With the install script
+
+In the dashboard, open **Nodes → Add node**, copy the install command and run
+it on the server:
+
+```sh
+curl -fsSL https://vpspilot.dev/install-agent.sh \
+  | sudo VPS_PILOT_TOKEN=vpsp1.… sh -s -- --hub hub.example.com:55001 --version v0.2.0
+```
+
+The script:
+
+1. downloads the agent release for the server's architecture (amd64 or
+   arm64) and checks it against the release's `SHA256SUMS`;
+2. installs `/usr/local/bin/vps-pilot-agent` and the
+   [systemd unit](#run-it-with-systemd);
+3. saves the hub address in `/etc/vps-pilot-agent/agent.env` (mode `0600`);
+4. starts the service, waits for the agent to enroll, then removes the token
+   from `agent.env`.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--hub` | required on the first install | Hub address, `host[:port]`. |
+| `--version` | latest release | Release to install. The command from the dashboard pins the hub's version. |
+| `--projects-dir` | `/var/www,/home` | Comma-separated directories to search for `config.vpspilot.json`. |
+| `--token` | `VPS_PILOT_TOKEN` | Join token. Prefer the environment variable, so it doesn't show up in `ps`. |
+
+To upgrade, run the script again, with `--version` for a specific release.
+It keeps the enrollment and the saved settings; options you pass replace the
+saved ones.
+
+### From the .deb
+
+Each release has `vps-pilot-agent_<version>_amd64.deb` and `_arm64.deb`.
+
+```sh
+sudo apt install ./vps-pilot-agent_0.2.0_amd64.deb
+```
+
+The package installs `/usr/bin/vps-pilot-agent` and the systemd unit, and
+creates an empty `/etc/vps-pilot-agent/agent.env`. To enroll, put the hub
+address and the join token from **Nodes → Add node** in that file:
+
+```sh
+VPS_PILOT_HUB=hub.example.com:55001
+VPS_PILOT_TOKEN=vpsp1.…
+```
+
+Then run `sudo systemctl enable --now vps-pilot-agent`. Once the node shows
+as online, delete the `VPS_PILOT_TOKEN` line. Installing a newer `.deb`
+upgrades the agent and restarts it.
+
+### By hand
+
+1. In the dashboard, open **Nodes → Add node** and copy the command under
+   **Agent already installed?**.
 2. Put `vps-pilot-agent` on the server, for example in `/usr/local/bin/`.
 3. Run the command there:
 
@@ -75,17 +137,21 @@ for as long as it takes.
 
 ## Run it with systemd
 
-There's no packaged service unit yet. This one works with the current agent:
+The install script and the `.deb` install this unit. It is also in every
+agent release archive, as `vps-pilot-agent.service`. The `.deb` runs
+`/usr/bin/vps-pilot-agent` instead.
 
 ```ini
 # /etc/systemd/system/vps-pilot-agent.service
 [Unit]
 Description=VPS Pilot agent
+Documentation=https://vpspilot.dev/docs/agent/
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-Environment=VPS_PILOT_HUB=hub.example.com
+# VPS_PILOT_HUB, and VPS_PILOT_TOKEN until the agent has enrolled.
+EnvironmentFile=/etc/vps-pilot-agent/agent.env
 ExecStart=/usr/local/bin/vps-pilot-agent
 Restart=on-failure
 RestartSec=10
@@ -98,7 +164,13 @@ KillSignal=SIGINT
 WantedBy=multi-user.target
 ```
 
-Enroll once by hand (step 3 above), then:
+Settings go in `/etc/vps-pilot-agent/agent.env`, one `NAME=value` per line,
+using the [environment variables](#options) above. After changing it, run
+`sudo systemctl restart vps-pilot-agent`.
+
+To use the unit with an agent installed by hand, copy it to
+`/etc/systemd/system/`, create `agent.env` with at least `VPS_PILOT_HUB`,
+enroll once (step 3 above), then:
 
 ```sh
 systemctl daemon-reload
@@ -106,9 +178,23 @@ systemctl enable --now vps-pilot-agent
 journalctl -u vps-pilot-agent -f
 ```
 
-{{< callout soon >}}
-An install script and an official systemd unit for the agent are planned.
-{{< /callout >}}
+## Uninstall
+
+- **`.deb`:** `sudo apt remove vps-pilot-agent` stops the agent and keeps its
+  enrollment. `sudo apt purge vps-pilot-agent` also deletes
+  `/etc/vps-pilot-agent` and the credentials in `/var/lib/vps-pilot-agent`.
+- **Install script or by hand:**
+
+  ```sh
+  sudo systemctl disable --now vps-pilot-agent
+  sudo rm -rf /usr/local/bin/vps-pilot-agent \
+    /etc/systemd/system/vps-pilot-agent.service \
+    /etc/vps-pilot-agent /var/lib/vps-pilot-agent
+  sudo systemctl daemon-reload
+  ```
+
+The node and its history stay in the hub. Use **Revoke agent key** on the
+node so a copy of the old credentials can't connect.
 
 ## Re-enroll or revoke
 
@@ -116,7 +202,9 @@ Open the node in the dashboard:
 
 - **Re-enroll agent** creates a join token for that node. Use it to move the
   node to a new machine or reinstall the agent. The node keeps its ID and its
-  history, and the old key stops working.
+  history, and the old key stops working. On a machine that is already
+  enrolled, delete `/var/lib/vps-pilot-agent/state.json` first: the agent
+  ignores a token while it has credentials.
 - **Revoke agent key** disconnects the agent straight away. It exits with code
   `3` the next time it tries to connect, and it can only come back with a new
   join token.
