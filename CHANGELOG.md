@@ -6,6 +6,25 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Added
+- Disk usage: the hub stores the root filesystem's percent used, the
+  Metrics tab charts it, and alerts can watch it (**Disk** metric). Agents
+  already sent it, so they don't need upgrading.
+- Nodes show whether their agent is connected: **Online**, or **Offline**
+  with when it was last seen, on the node page and the node list.
+- One-line agent install: **Nodes → Add node** shows a command that runs
+  `https://vpspilot.dev/install-agent.sh`. It installs the agent release
+  matching the hub, checks it against `SHA256SUMS`, sets it up as a systemd
+  service, enrolls it, and removes the token from disk. Running it again
+  upgrades the agent.
+- Agent `.deb` packages for amd64 and arm64, with the systemd unit.
+- Agent release archives include the systemd unit,
+  `vps-pilot-agent.service`.
+
+### Changed
+- The dashboard sidebar shows the VPS Pilot wordmark instead of a
+  placeholder icon and "Enterprise".
+
 ## v0.1.1 - 2026-10-24
 
 ### Fixed
