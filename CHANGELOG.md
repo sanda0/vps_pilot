@@ -6,10 +6,18 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.1.1 - 2026-10-24
+
 ### Fixed
 - Network alerts compare sent traffic with the send threshold and received
   traffic with the receive threshold. Before, they compared both with an
   unset field and fired on any traffic. A threshold left empty isn't checked.
+- Network alert thresholds can be entered in B/s, KB/s or MB/s, and alert
+  cards show them in a readable unit. Before, they had to be typed in bytes
+  per second with no unit shown.
+- Alert cards show whether an alert is enabled. Before, every alert showed as
+  Inactive and the edit form opened with Enabled off, so saving an edit
+  turned the alert off.
 
 ## v0.1.0 - 2026-10-23
 
