@@ -156,6 +156,7 @@ export function AlertFrom(props: AlertFromProps) {
               const options = [
                 { value: 'cpu', label: 'CPU' },
                 { value: 'mem', label: 'Memory' },
+                { value: 'disk', label: 'Disk' },
                 { value: 'net', label: 'Network' },
               ]
               return (
@@ -181,7 +182,7 @@ export function AlertFrom(props: AlertFromProps) {
               )
             }}
           />
-          {(form.watch("metric") === "cpu" || form.watch("metric") === "mem") && <FormField
+          {["cpu", "mem", "disk"].includes(form.watch("metric")) && <FormField
             control={form.control}
             name="threshold"
             render={({ field }) => (
