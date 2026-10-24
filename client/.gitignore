@@ -24,8 +24,8 @@ dist-ssr
 *.sw?
 
 .env
-# The dashboard uses bun; lockfiles are not committed
-bun.lock
+# The dashboard uses bun and commits bun.lock (Dependabot reads it); other
+# package managers' lockfiles stay out
 bun.lockb
 package-lock.json
 yarn.lock

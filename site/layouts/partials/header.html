@@ -2,6 +2,7 @@
   <div class="container header-inner">
     <a class="wordmark" href="{{ "/" | relURL }}" aria-label="VPS Pilot home">
       <span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot
+      {{- with site.Params.version }}<span class="wordmark-version">{{ . }}</span>{{ end }}
     </a>
     <nav class="site-nav" aria-label="Main">
       {{- $page := . }}

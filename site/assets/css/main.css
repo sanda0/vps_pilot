@@ -198,6 +198,14 @@ hr {
   }
 }
 
+.wordmark-version {
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: hsl(var(--muted-foreground));
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

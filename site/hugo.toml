@@ -12,6 +12,8 @@ disableKinds = ["taxonomy", "term", "rss"]
   min = "0.167.0"
 
 [params]
+  # Latest release, shown next to the logo. Updated in each release PR.
+  version = "v0.1.1"
   description = "One self-hosted dashboard for the handful of Linux VPSs you run. A single Go binary with SQLite and the UI built in, plus a small Rust agent on each server."
   repo = "https://github.com/sanda0/vps_pilot"
   editBase = "https://github.com/sanda0/vps_pilot/edit/main/site/content/"
