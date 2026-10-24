@@ -8,20 +8,22 @@ import {
 } from "@/components/ui/chart"
 import { formatPercent, formatTooltipTime, timeAxisProps, tooltipRow, TimePoint } from "./chart-format"
 
-const chartConfig = {
-  value: {
-    label: "Memory",
-    color: "hsl(var(--viz-1))",
-  },
-} satisfies ChartConfig
-
 interface ChartProps {
+  // Series name in the tooltip, e.g. "Memory" or "Disk".
+  label: string
   timeRange: string
   data: (TimePoint & { value: number })[]
 }
 
-export function MemoryChart(props: ChartProps) {
+// One percentage over time (0-100%), used for memory and disk usage.
+export function PercentChart(props: ChartProps) {
   const data = props.data ?? []
+  const chartConfig = {
+    value: {
+      label: props.label,
+      color: "hsl(var(--viz-1))",
+    },
+  } satisfies ChartConfig
 
   return (
     <ChartContainer config={chartConfig} className="w-full h-64">
@@ -45,7 +47,7 @@ export function MemoryChart(props: ChartProps) {
         />
         <Area
           dataKey="value"
-          name="Memory"
+          name={props.label}
           type="monotone"
           stroke="var(--color-value)"
           strokeWidth={2}
