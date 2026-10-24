@@ -49,6 +49,19 @@ func (q *Queries) GetNetStats(ctx context.Context, arg GetNetStatsParams) ([]Get
 	return items, nil
 }
 
+const getNodeLastSeen = `-- name: GetNodeLastSeen :one
+select cast(coalesce(max(timestamp), 0) as integer) as last_seen from net_stat
+where node_id = ?
+`
+
+// Unix time of the node's latest sys_stat (one net_stat row each), 0 if none.
+func (q *Queries) GetNodeLastSeen(ctx context.Context, nodeID int64) (int64, error) {
+	row := q.queryRow(ctx, q.getNodeLastSeenStmt, getNodeLastSeen, nodeID)
+	var last_seen int64
+	err := row.Scan(&last_seen)
+	return last_seen, err
+}
+
 const insertNetStats = `-- name: InsertNetStats :exec
 INSERT INTO net_stat (timestamp, node_id, sent, recv) VALUES (?, ?, ?, ?)
 `
