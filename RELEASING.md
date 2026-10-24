@@ -66,8 +66,15 @@ backups, cron), then `1.0.0`.
 
 1. **Release PR.** Rename `## Unreleased` in `CHANGELOG.md` to
    `## vX.Y.Z - YYYY-MM-DD` and start a new empty `## Unreleased` above it.
-   Set `version` in `site/hugo.toml` to `vX.Y.Z`; the website shows it next
-   to the logo.
+   Bring the website up to date with the release in the same PR:
+   - set `version` in `site/hugo.toml` to `vX.Y.Z` (shown next to the logo);
+   - for each feature in this release, remove its `{{< callout soon >}}`
+     notes in `site/content/docs/`, its "Coming soon" status in
+     `site/content/docs/scope.md`, and any "coming soon" text or badge on the landing page
+     (`site/layouts/index.html`);
+   - update any page that describes what changed (limits, install steps);
+   - retake every website screenshot of a screen the release changed (the
+     landing page and the docs), so the site never shows an older dashboard.
 2. **Release candidate.** After the PR is merged:
 
    ```sh
