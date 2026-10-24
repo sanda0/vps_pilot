@@ -58,6 +58,17 @@ func runRetentionCleanup(db *sql.DB) {
 		}
 	}
 
+	// Clean disk_stat table
+	result, err = db.Exec("DELETE FROM disk_stat WHERE timestamp < ?", cutoffTime)
+	if err != nil {
+		log.Printf("Error cleaning disk_stat: %v\n", err)
+	} else {
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected > 0 {
+			log.Printf("Retention cleanup: Deleted %d rows from disk_stat\n", rowsAffected)
+		}
+	}
+
 	// Optional: Run VACUUM to reclaim space (can be expensive, consider running less frequently)
 	// This is commented out by default - uncomment if you want automatic space reclamation
 	// _, err = db.Exec("VACUUM")

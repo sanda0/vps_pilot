@@ -96,6 +96,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
 	}
+	if q.getDiskStatsStmt, err = db.PrepareContext(ctx, getDiskStats); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDiskStats: %w", err)
+	}
 	if q.getNetStatsStmt, err = db.PrepareContext(ctx, getNetStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNetStats: %w", err)
 	}
@@ -131,6 +134,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getSystemStatsStmt, err = db.PrepareContext(ctx, getSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetSystemStats: %w", err)
+	}
+	if q.insertDiskStatStmt, err = db.PrepareContext(ctx, insertDiskStat); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertDiskStat: %w", err)
 	}
 	if q.insertNetStatsStmt, err = db.PrepareContext(ctx, insertNetStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertNetStats: %w", err)
@@ -308,6 +314,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
 		}
 	}
+	if q.getDiskStatsStmt != nil {
+		if cerr := q.getDiskStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDiskStatsStmt: %w", cerr)
+		}
+	}
 	if q.getNetStatsStmt != nil {
 		if cerr := q.getNetStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNetStatsStmt: %w", cerr)
@@ -366,6 +377,11 @@ func (q *Queries) Close() error {
 	if q.getSystemStatsStmt != nil {
 		if cerr := q.getSystemStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getSystemStatsStmt: %w", cerr)
+		}
+	}
+	if q.insertDiskStatStmt != nil {
+		if cerr := q.insertDiskStatStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertDiskStatStmt: %w", cerr)
 		}
 	}
 	if q.insertNetStatsStmt != nil {
@@ -516,6 +532,7 @@ type Queries struct {
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
 	getAlertStmt                       *sql.Stmt
 	getAlertsStmt                      *sql.Stmt
+	getDiskStatsStmt                   *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
 	getNodeStmt                        *sql.Stmt
 	getNodeByAgentIDStmt               *sql.Stmt
@@ -528,6 +545,7 @@ type Queries struct {
 	getProjectStmt                     *sql.Stmt
 	getProjectWithNodeStmt             *sql.Stmt
 	getSystemStatsStmt                 *sql.Stmt
+	insertDiskStatStmt                 *sql.Stmt
 	insertNetStatsStmt                 *sql.Stmt
 	insertSystemStatsStmt              *sql.Stmt
 	listNodeProjectPathsStmt           *sql.Stmt
@@ -575,6 +593,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
 		getAlertStmt:                       q.getAlertStmt,
 		getAlertsStmt:                      q.getAlertsStmt,
+		getDiskStatsStmt:                   q.getDiskStatsStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
 		getNodeStmt:                        q.getNodeStmt,
 		getNodeByAgentIDStmt:               q.getNodeByAgentIDStmt,
@@ -587,6 +606,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getProjectStmt:                     q.getProjectStmt,
 		getProjectWithNodeStmt:             q.getProjectWithNodeStmt,
 		getSystemStatsStmt:                 q.getSystemStatsStmt,
+		insertDiskStatStmt:                 q.insertDiskStatStmt,
 		insertNetStatsStmt:                 q.insertNetStatsStmt,
 		insertSystemStatsStmt:              q.insertSystemStatsStmt,
 		listNodeProjectPathsStmt:           q.listNodeProjectPathsStmt,

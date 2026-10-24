@@ -43,12 +43,14 @@ var DefaultMigrationConfig = MigrationConfig{
 	TimeseriesIncludePatterns: []string{
 		"system_stat",
 		"net_stat",
+		"disk_stat",
 	},
 	OperationalExcludePatterns: []string{
 		"retention_policy",
 		"enable_tablefunc",
 		"system_stat",
 		"net_stat",
+		"disk_stat",
 	},
 }
 
