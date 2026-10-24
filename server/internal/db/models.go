@@ -35,6 +35,12 @@ type Alert struct {
 	UpdatedAt        int64           `json:"updated_at"`
 }
 
+type DiskStat struct {
+	Timestamp int64   `json:"timestamp"`
+	NodeID    int64   `json:"node_id"`
+	Value     float64 `json:"value"`
+}
+
 type NetStat struct {
 	Timestamp int64 `json:"timestamp"`
 	NodeID    int64 `json:"node_id"`

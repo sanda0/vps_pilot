@@ -245,6 +245,18 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 			continue
 		}
 
+		// Insert disk stat
+		err = repo.TimeseriesQueries.WithTx(tx).InsertDiskStat(ctx, db.InsertDiskStatParams{
+			Timestamp: now,
+			NodeID:    int64(msg.NodeId),
+			Value:     sysStat.DiskUsage,
+		})
+		if err != nil {
+			fmt.Println("Error inserting disk stat:", err)
+			tx.Rollback()
+			continue
+		}
+
 		// Insert network stats
 		err = repo.TimeseriesQueries.WithTx(tx).InsertNetStats(ctx, db.InsertNetStatsParams{
 			Timestamp: now,

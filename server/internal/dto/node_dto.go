@@ -67,6 +67,7 @@ type SystemStatResponseDto struct {
 	Cpu       []map[string]interface{} `json:"cpu"`
 	Mem       []db.GetSystemStatsRow   `json:"mem"`
 	Net       []db.GetNetStatsRow      `json:"net"`
+	Disk      []db.GetDiskStatsRow     `json:"disk"`
 }
 
 func (s *SystemStatResponseDto) ToBytes() ([]byte, error) {

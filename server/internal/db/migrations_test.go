@@ -58,6 +58,34 @@ func TestAgentEnrollmentMigrationKeepsChildRows(t *testing.T) {
 	}
 }
 
+// disk_stat lives in the timeseries DB only, next to system_stats and net_stat.
+func TestDiskStatMigrationGoesToTimeseries(t *testing.T) {
+	for _, tc := range []struct {
+		dbType DatabaseType
+		want   bool
+	}{
+		{TimeseriesDB, true},
+		{OperationalDB, false},
+	} {
+		sqlDB, err := initSQLiteDB(filepath.Join(t.TempDir(), string(tc.dbType)+".db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := RunMigrations(sqlDB, string(tc.dbType)); err != nil {
+			t.Fatal(err)
+		}
+		var n int
+		err = sqlDB.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'disk_stat'`).Scan(&n)
+		sqlDB.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := n == 1; got != tc.want {
+			t.Errorf("%s: disk_stat exists = %v, want %v", tc.dbType, got, tc.want)
+		}
+	}
+}
+
 func mustExec(t *testing.T, db *sql.DB, query string) {
 	t.Helper()
 	if _, err := db.Exec(query); err != nil {

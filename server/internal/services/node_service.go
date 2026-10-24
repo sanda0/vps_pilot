@@ -86,12 +86,23 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 			continue
 		}
 
+		diskStat, err := n.repo.TimeseriesQueries.GetDiskStats(n.ctx, db.GetDiskStatsParams{
+			NodeID:  int64(query.ID),
+			Column2: timeRangeSeconds,
+		})
+
+		if err != nil {
+			fmt.Println("Error getting disk stats", err)
+			continue
+		}
+
 		result <- dto.SystemStatResponseDto{
 			NodeID:    query.ID,
 			TimeRange: query.TimeRange,
 			Cpu:       cpuStats,
 			Mem:       memStat,
 			Net:       netStat,
+			Disk:      diskStat,
 		}
 	}
 
