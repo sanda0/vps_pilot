@@ -1,6 +1,17 @@
 package tcpserver
 
-import "testing"
+import (
+	"context"
+	"database/sql"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/sanda0/vps_pilot/internal/db"
+)
 
 func TestNetOverThreshold(t *testing.T) {
 	cases := []struct {
@@ -47,6 +58,49 @@ func TestFormatBytesPerSec(t *testing.T) {
 	for in, want := range cases {
 		if got := formatBytesPerSec(in); got != want {
 			t.Errorf("formatBytesPerSec(%v) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// A disk alert notifies only above its threshold, labelled "Disk".
+func TestCheckPercentUsageDisk(t *testing.T) {
+	h := newTestHub(t)
+	ctx := context.Background()
+	lastAlertSentTime = make(map[int32]time.Time)
+
+	var got []string
+	discord := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		got = append(got, string(body))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer discord.Close()
+
+	if _, err := h.repo.OperationalDB.Exec(`INSERT INTO nodes (id, name, ip, agent_id) VALUES (1, 'web', '10.0.0.1', 'a')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.repo.Queries.CreateAlert(ctx, db.CreateAlertParams{
+		NodeID:         1,
+		Metric:         "disk",
+		Threshold:      sql.NullFloat64{Float64: 70, Valid: true},
+		DiscordWebhook: sql.NullString{String: discord.URL, Valid: true},
+		IsActive:       sql.NullInt64{Int64: 1, Valid: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	checkPercentUsage(ctx, h.repo, 1, "disk", "Disk", 60)
+	if len(got) != 0 {
+		t.Fatalf("60%% under a 70%% threshold sent %d notifications", len(got))
+	}
+
+	checkPercentUsage(ctx, h.repo, 1, "disk", "Disk", 80)
+	if len(got) != 1 {
+		t.Fatalf("80%% over a 70%% threshold sent %d notifications, want 1", len(got))
+	}
+	for _, want := range []string{"**Disk**", "80.00%", "70.00%"} {
+		if !strings.Contains(got[0], want) {
+			t.Errorf("notification %s is missing %q", got[0], want)
 		}
 	}
 }
