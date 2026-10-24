@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = configure ]; then
+	# The unit reads this file. The hub address and join token go in it.
+	install -d -m 0700 /etc/vps-pilot-agent
+	if [ ! -e /etc/vps-pilot-agent/agent.env ]; then
+		install -m 0600 /dev/null /etc/vps-pilot-agent/agent.env
+	fi
+
+	if [ -d /run/systemd/system ]; then
+		systemctl daemon-reload
+		if grep -q '^VPS_PILOT_HUB=' /etc/vps-pilot-agent/agent.env; then
+			# Upgrade, or already set up: keep it running on the new binary.
+			systemctl enable vps-pilot-agent > /dev/null 2>&1 || true
+			systemctl restart vps-pilot-agent || true
+		else
+			cat <<'MSG'
+VPS Pilot agent installed. To enroll this server, put the hub address and
+the join token from Nodes -> Add node in /etc/vps-pilot-agent/agent.env:
+
+  VPS_PILOT_HUB=hub.example.com:55001
+  VPS_PILOT_TOKEN=vpsp1...
+
+then run: systemctl enable --now vps-pilot-agent
+Once the node shows as online, remove the VPS_PILOT_TOKEN line.
+MSG
+		fi
+	fi
+fi
