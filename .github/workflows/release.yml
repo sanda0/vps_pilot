@@ -108,7 +108,8 @@ jobs:
           BINARY_NAME="vps-pilot-agent"
           ARCHIVE_NAME="vps-pilot-agent-${{ github.ref_name }}-linux-${{ matrix.arch }}"
           cp "agent/target/${{ matrix.target }}/release/${BINARY_NAME}" .
-          tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}"
+          cp agent/packaging/vps-pilot-agent.service .
+          tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}" vps-pilot-agent.service
           echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
 
       - name: Upload artifact

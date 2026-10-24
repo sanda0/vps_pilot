@@ -1,0 +1,21 @@
+# systemd unit for the VPS Pilot agent. Shipped in the release archive and
+# installed by https://vpspilot.dev/install-agent.sh.
+[Unit]
+Description=VPS Pilot agent
+Documentation=https://vpspilot.dev/docs/agent/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# VPS_PILOT_HUB, and VPS_PILOT_TOKEN until the agent has enrolled.
+EnvironmentFile=/etc/vps-pilot-agent/agent.env
+ExecStart=/usr/local/bin/vps-pilot-agent
+Restart=on-failure
+RestartSec=10
+# 3 means the hub rejected the credentials: re-enroll instead of retrying.
+RestartPreventExitStatus=3
+# The agent shuts down cleanly on SIGINT.
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
