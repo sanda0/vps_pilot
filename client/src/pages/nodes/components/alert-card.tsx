@@ -57,6 +57,7 @@ export default function AlertCard(props: AlertCardProps) {
             <div className="text-lg font-semibold">
               {props.matric == "cpu" ? "CPU" : null}
               {props.matric == "mem" ? "Memory" : null}
+              {props.matric == "disk" ? "Disk" : null}
               {props.matric == "net" ? "Network" : null}
             </div>
             <div className="text-sm text-gray-500">{props.matric == "net" ? "Sent: " + formatBytesPerSec(props.net_sent) + " | Recv: " + formatBytesPerSec(props.net_recv) : props.value + "%"}</div>

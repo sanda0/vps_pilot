@@ -24,9 +24,9 @@ dist-ssr
 *.sw?
 
 .env
-# The dashboard uses bun and commits bun.lock (Dependabot reads it); other
-# package managers' lockfiles stay out
+# The dashboard uses bun and commits bun.lock. package-lock.json is committed
+# too, generated from the same versions, because GitHub's dependency graph
+# doesn't read bun.lock. Other lockfiles stay out.
 bun.lockb
-package-lock.json
 yarn.lock
 pnpm-lock.yaml

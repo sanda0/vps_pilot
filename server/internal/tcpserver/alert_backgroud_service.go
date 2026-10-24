@@ -26,8 +26,9 @@ func MontiorAlerts(ctx context.Context, repo *db.Repo, monitorChan chan Msg) {
 				fmt.Println("Error decoding sys_stat", err)
 				continue
 			}
-			go checkCpuUsage(ctx, repo, msg.NodeId, average(sysStat.CPUUsage))
-			go checkMemoryUsage(ctx, repo, msg.NodeId, sysStat.MemUsage)
+			go checkPercentUsage(ctx, repo, msg.NodeId, "cpu", "CPU", average(sysStat.CPUUsage))
+			go checkPercentUsage(ctx, repo, msg.NodeId, "mem", "Memory", sysStat.MemUsage)
+			go checkPercentUsage(ctx, repo, msg.NodeId, "disk", "Disk", sysStat.DiskUsage)
 			go checkNetworkUsage(ctx, repo, msg.NodeId, float64(sysStat.NetSentPS), float64(sysStat.NetRecvPS))
 		}
 	}
@@ -70,10 +71,13 @@ func sendAlertNotifications(alert db.GetActiveAlertsByNodeAndMetricRow, alertMsg
 	}
 }
 
-func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg float64) {
+// checkPercentUsage sends the alerts for a percentage metric (cpu, mem or
+// disk) whose value is above their threshold. label names the metric in the
+// notification.
+func checkPercentUsage(ctx context.Context, repo *db.Repo, nodeId int32, metric string, label string, value float64) {
 	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
 		NodeID: int64(nodeId),
-		Metric: "cpu",
+		Metric: metric,
 	})
 	if err != nil {
 		fmt.Println("Error getting active alerts", err)
@@ -85,8 +89,8 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 	}
 	fmt.Println("Active alerts found", len(alerts))
 	for _, alert := range alerts {
-		if cpuAvg > alert.Threshold.Float64 {
-			fmt.Println("Cpu usage exceeded threshold for alert", int32(alert.ID))
+		if value > alert.Threshold.Float64 {
+			fmt.Println(label, "usage exceeded threshold for alert", int32(alert.ID))
 			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
 			if ok {
 				if time.Since(lastSendTime).Minutes() < float64(alert.Duration) {
@@ -100,48 +104,9 @@ func checkCpuUsage(ctx context.Context, repo *db.Repo, nodeId int32, cpuAvg floa
 			sendAlertNotifications(alert, AlertMsg{
 				NodeName:     alert.NodeName.String,
 				NodeIp:       alert.NodeIp,
-				Metric:       "CPU",
+				Metric:       label,
 				Threshold:    fmt.Sprintf("%.2f%%", alert.Threshold.Float64),
-				CurrentValue: fmt.Sprintf("%.2f%%", cpuAvg),
-				Timestamp:    time.Now(),
-			})
-		}
-	}
-}
-
-func checkMemoryUsage(ctx context.Context, repo *db.Repo, nodeId int32, memUsage float64) {
-	alerts, err := repo.Queries.GetActiveAlertsByNodeAndMetric(ctx, db.GetActiveAlertsByNodeAndMetricParams{
-		NodeID: int64(nodeId),
-		Metric: "mem",
-	})
-	if err != nil {
-		fmt.Println("Error getting active alerts", err)
-		return
-	}
-	if len(alerts) == 0 {
-		fmt.Println("No active alerts found")
-		return
-	}
-	fmt.Println("Active alerts found", len(alerts))
-	for _, alert := range alerts {
-		if memUsage > alert.Threshold.Float64 {
-			fmt.Println("Memory usage exceeded threshold for alert", int32(alert.ID))
-			lastSendTime, ok := lastAlertSentTime[int32(alert.ID)]
-			if ok {
-				if time.Since(lastSendTime).Minutes() < float64(alert.Duration) {
-					fmt.Println("Alert already sent within last", alert.Duration, "minutes")
-					continue
-				}
-			}
-
-			lastAlertSentTime[int32(alert.ID)] = time.Now()
-			// send notifications to all configured channels
-			sendAlertNotifications(alert, AlertMsg{
-				NodeName:     alert.NodeName.String,
-				NodeIp:       alert.NodeIp,
-				Metric:       "Memory",
-				Threshold:    fmt.Sprintf("%.2f%%", alert.Threshold.Float64),
-				CurrentValue: fmt.Sprintf("%.2f%%", memUsage),
+				CurrentValue: fmt.Sprintf("%.2f%%", value),
 				Timestamp:    time.Now(),
 			})
 		}
