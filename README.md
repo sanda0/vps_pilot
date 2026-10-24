@@ -13,7 +13,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - **CPU usage**
   - **Memory usage**
   - **Network statistics**
-  - **Disk usage** (reported by the agent; not charted yet)
+  - **Disk usage** of the root filesystem
 - Metrics are visualized in the dashboard with selectable time ranges:
   - 5 minutes, 15 minutes, 1 hour, 1 day, 2 days, 7 days
 - Real-time updates via WebSocket connection

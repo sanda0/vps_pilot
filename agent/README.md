@@ -4,7 +4,16 @@ The VPS Pilot agent runs on each server. It reports health to the hub over TLS. 
 
 ## Install
 
-1. In the dashboard, open **Nodes → Add node** and copy the command.
+From v0.2.0, **Nodes → Add node** in the dashboard gives a one-line command
+that runs [install-agent.sh](../site/static/install-agent.sh) and sets the
+agent up as a systemd service. Each release also has a `.deb` for amd64 and
+arm64. The systemd unit is in [packaging/](packaging/). See the
+[agent docs](https://vpspilot.dev/docs/agent/) for all three ways to install.
+
+By hand:
+
+1. In the dashboard, open **Nodes → Add node** and copy the command under
+   **Agent already installed?**.
 2. Run it on the server:
 
 ```sh
