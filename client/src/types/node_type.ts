@@ -1,5 +1,11 @@
 
-export interface NodeData {
+// Whether the node's agent is connected, from the hub's live connections.
+export interface NodeStatus {
+  online: boolean;
+  last_seen: number; // unix seconds of the latest stats, 0 if never
+}
+
+export interface NodeData extends NodeStatus {
 
   id: number;
   name: string;
@@ -8,7 +14,7 @@ export interface NodeData {
   total_memory: number;
 }
 
-export interface NodeSysInfo {
+export interface NodeSysInfo extends NodeStatus {
   id: number;
   name: string;
   ip: string;

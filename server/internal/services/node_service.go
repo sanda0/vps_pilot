@@ -13,16 +13,20 @@ import (
 	"github.com/sanda0/vps_pilot/internal/dto"
 )
 
-// AgentKicker closes an agent's live connection (implemented by tcpserver.Registry).
-type AgentKicker interface {
+// NodeAgents is what the node service needs from the live agent connections
+// (implemented by tcpserver.Registry).
+type NodeAgents interface {
+	// Kick closes a node's live connection.
 	Kick(nodeID int64) bool
+	// Online reports whether a node's agent is connected.
+	Online(nodeID int64) bool
 }
 
 // AgentEnrollment is what the node service needs to issue join tokens.
 type AgentEnrollment struct {
 	Fingerprint string // hub agent-channel TLS cert fingerprint
 	AgentPort   string // agent channel port, for the install command
-	Agents      AgentKicker
+	Agents      NodeAgents
 }
 
 type NodeService interface {
@@ -32,6 +36,7 @@ type NodeService interface {
 	UpdateName(nodeId int32, name string) error
 	GetNode(nodeId int32) (db.GetNodeWithSysInfoRow, error)
 	GetSystemStat(queryParams chan dto.NodeSystemStatRequestDto, result chan dto.SystemStatResponseDto)
+	Status(nodeID int64) dto.NodeStatusDto
 }
 
 type nodeService struct {
@@ -107,6 +112,20 @@ func (n *nodeService) GetSystemStat(queryParams chan dto.NodeSystemStatRequestDt
 	}
 
 	fmt.Println("Query processing done")
+}
+
+// Status implements NodeService.
+func (n *nodeService) Status(nodeID int64) dto.NodeStatusDto {
+	status := dto.NodeStatusDto{}
+	if n.enroll.Agents != nil {
+		status.Online = n.enroll.Agents.Online(nodeID)
+	}
+	lastSeen, err := n.repo.TimeseriesQueries.GetNodeLastSeen(n.ctx, nodeID)
+	if err != nil {
+		fmt.Println("Error getting node last seen", err)
+	}
+	status.LastSeen = lastSeen
+	return status
 }
 
 // GetNode implements NodeService.

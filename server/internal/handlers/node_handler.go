@@ -91,11 +91,12 @@ func (n *nodeHandler) GetNode(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"data": dto.NodeDto{
-		ID:     int32(node.ID),
-		Name:   node.Name.String,
-		Ip:     node.Ip,
-		Memory: node.TotalMemory.Float64,
-		Cpus:   int32(node.Cpus.Int64),
+		ID:            int32(node.ID),
+		Name:          node.Name.String,
+		Ip:            node.Ip,
+		Memory:        node.TotalMemory.Float64,
+		Cpus:          int32(node.Cpus.Int64),
+		NodeStatusDto: n.nodeService.Status(node.ID),
 	}})
 
 }
@@ -181,6 +182,7 @@ func (n *nodeHandler) GetNodes(c *gin.Context) {
 	for _, row := range nodesRows {
 		node := dto.NodeWithSysInfoDto{}
 		node.Convert(&row)
+		node.NodeStatusDto = n.nodeService.Status(row.ID)
 		nodes = append(nodes, node)
 	}
 

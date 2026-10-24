@@ -17,6 +17,13 @@ type NodeWithSysInfoDto struct {
 	KernelVersion   string  `json:"kernel_version"`
 	Cpus            int32   `json:"cpus"`
 	TotalMemory     float64 `json:"total_memory"`
+	NodeStatusDto
+}
+
+// NodeStatusDto says whether a node's agent is connected right now.
+type NodeStatusDto struct {
+	Online   bool  `json:"online"`
+	LastSeen int64 `json:"last_seen"` // Unix time of the latest stats, 0 if none
 }
 
 func (n *NodeWithSysInfoDto) Convert(row *db.GetNodesWithSysInfoRow) {
@@ -53,6 +60,7 @@ type NodeDto struct {
 	Ip     string  `json:"ip"`
 	Memory float64 `json:"memory"`
 	Cpus   int32   `json:"cpus"`
+	NodeStatusDto
 }
 
 type SystemStatQueryDto struct {

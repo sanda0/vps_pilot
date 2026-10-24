@@ -1,9 +1,11 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/sanda0/vps_pilot/internal/db"
 	"github.com/sanda0/vps_pilot/internal/dto"
 )
 
@@ -26,5 +28,31 @@ func TestTimeRangeButtonsToSeconds(t *testing.T) {
 		if got := parseTimeRangeToSeconds(req.TimeRange); got != want {
 			t.Errorf("%s: got %d seconds, want %d", button, got, want)
 		}
+	}
+}
+
+type fakeAgents map[int64]bool
+
+func (f fakeAgents) Kick(nodeID int64) bool   { return f[nodeID] }
+func (f fakeAgents) Online(nodeID int64) bool { return f[nodeID] }
+
+func TestNodeStatus(t *testing.T) {
+	op, ts, err := db.InitializeDatabases(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { op.Close(); ts.Close() })
+	repo := db.NewRepo(op, ts)
+	if _, err := ts.Exec(`INSERT INTO net_stat (timestamp, node_id, sent, recv) VALUES (100, 1, 0, 0), (200, 1, 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewNodeService(context.Background(), repo, AgentEnrollment{Agents: fakeAgents{1: true}})
+
+	if got := svc.Status(1); !got.Online || got.LastSeen != 200 {
+		t.Errorf("connected node: got %+v, want online, last seen 200", got)
+	}
+	if got := svc.Status(2); got.Online || got.LastSeen != 0 {
+		t.Errorf("never seen node: got %+v, want offline, last seen 0", got)
 	}
 }

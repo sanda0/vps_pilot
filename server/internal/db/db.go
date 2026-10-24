@@ -111,6 +111,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getNodeDiskInfoByNodeIDStmt, err = db.PrepareContext(ctx, getNodeDiskInfoByNodeID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodeDiskInfoByNodeID: %w", err)
 	}
+	if q.getNodeLastSeenStmt, err = db.PrepareContext(ctx, getNodeLastSeen); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNodeLastSeen: %w", err)
+	}
 	if q.getNodeProjectScanStmt, err = db.PrepareContext(ctx, getNodeProjectScan); err != nil {
 		return nil, fmt.Errorf("error preparing query GetNodeProjectScan: %w", err)
 	}
@@ -339,6 +342,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getNodeDiskInfoByNodeIDStmt: %w", cerr)
 		}
 	}
+	if q.getNodeLastSeenStmt != nil {
+		if cerr := q.getNodeLastSeenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNodeLastSeenStmt: %w", cerr)
+		}
+	}
 	if q.getNodeProjectScanStmt != nil {
 		if cerr := q.getNodeProjectScanStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getNodeProjectScanStmt: %w", cerr)
@@ -537,6 +545,7 @@ type Queries struct {
 	getNodeStmt                        *sql.Stmt
 	getNodeByAgentIDStmt               *sql.Stmt
 	getNodeDiskInfoByNodeIDStmt        *sql.Stmt
+	getNodeLastSeenStmt                *sql.Stmt
 	getNodeProjectScanStmt             *sql.Stmt
 	getNodeSysInfoByNodeIDStmt         *sql.Stmt
 	getNodeWithSysInfoStmt             *sql.Stmt
@@ -598,6 +607,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getNodeStmt:                        q.getNodeStmt,
 		getNodeByAgentIDStmt:               q.getNodeByAgentIDStmt,
 		getNodeDiskInfoByNodeIDStmt:        q.getNodeDiskInfoByNodeIDStmt,
+		getNodeLastSeenStmt:                q.getNodeLastSeenStmt,
 		getNodeProjectScanStmt:             q.getNodeProjectScanStmt,
 		getNodeSysInfoByNodeIDStmt:         q.getNodeSysInfoByNodeIDStmt,
 		getNodeWithSysInfoStmt:             q.getNodeWithSysInfoStmt,
