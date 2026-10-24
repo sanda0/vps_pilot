@@ -6,6 +6,11 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Fixed
+- Network alerts compare sent traffic with the send threshold and received
+  traffic with the receive threshold. Before, they compared both with an
+  unset field and fired on any traffic. A threshold left empty isn't checked.
+
 ## v0.1.0 - 2026-10-23
 
 ### Added

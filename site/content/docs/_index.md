@@ -31,7 +31,7 @@ cloud account.
 
 - **Monitoring.** CPU (per core), memory and network traffic for each server,
   charted over 5 minutes up to 7 days.
-- **[Alerts](/docs/alerts/).** CPU and memory thresholds, sent to Discord, Slack or email.
+- **[Alerts](/docs/alerts/).** CPU, memory and network thresholds, sent to Discord, Slack or email.
 - **[Projects](/docs/projects/).** The agent finds every `config.vpspilot.json` on the server and
   the dashboard lists those projects, with per-server scan settings.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
