@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ButtonBar from "./button-bar";
 import { CpuChart } from "./cpu-chart";
 import { useEffect, useState, useRef } from "react";
-import { MemoryChart } from "./memory-chart";
+import { PercentChart } from "./percent-chart";
 import { NetworkChart } from "./netwrok-chart";
 import { useParams } from "react-router";
 
@@ -11,6 +11,7 @@ export default function MetricsTab() {
   const [currentTimeRange, setCurrentTimeRange] = useState<string>("5M")
   const { id } = useParams<{ id: string }>();
   const [memData, setMemData] = useState([]);
+  const [diskData, setDiskData] = useState([]);
   const [cpuData, setCpuData] = useState<any>();
   const [networkData, setNetworkData] = useState<any>();
   const wsRef = useRef<WebSocket | null>(null);
@@ -47,6 +48,7 @@ export default function MetricsTab() {
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
       setMemData(message.mem);
+      setDiskData(message.disk);
       setCpuData(message.cpu);
       setNetworkData(message.net);
     };
@@ -104,11 +106,19 @@ export default function MetricsTab() {
               <CardTitle>Memory usage</CardTitle>
             </CardHeader>
             <CardContent>
-            <MemoryChart timeRange={currentTimeRange} data={memData}></MemoryChart>
+            <PercentChart label="Memory" timeRange={currentTimeRange} data={memData}></PercentChart>
             </CardContent>
           </Card>
         </div>
-        <div className="grid grid-cols-1">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-1 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Disk usage (/)</CardTitle>
+            </CardHeader>
+            <CardContent>
+            <PercentChart label="Disk" timeRange={currentTimeRange} data={diskData}></PercentChart>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Network</CardTitle>
