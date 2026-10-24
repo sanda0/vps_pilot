@@ -1,7 +1,6 @@
 import * as React from "react"
 import {
   FolderGit2,
-  GalleryVerticalEnd,
   ReplaceAll,
   Server,
   Settings2,
@@ -28,13 +27,6 @@ const data = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  company:
-  {
-    name: "VPS Pilot",
-    logo: GalleryVerticalEnd,
-    plan: "Enterprise",
-  }
-  ,
   navMain: [
     {
       title: "Nodes",
@@ -80,15 +72,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           size="lg"
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
-          <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-primary text-sidebar-primary-foreground">
-            <data.company.logo className="size-4" />
+          {/* Same wordmark as the website: a ">_" prompt, then the name. */}
+          <div className="flex items-center justify-center font-mono font-bold aspect-square size-8 text-[hsl(var(--viz-1))]" aria-hidden="true">
+            &gt;<span className="wordmark-cursor">_</span>
           </div>
-          <div className="grid flex-1 text-sm leading-tight text-left">
-            <span className="font-semibold truncate">
-              {data.company.name}
-            </span>
-            <span className="text-xs truncate">{data.company.plan}</span>
-          </div>
+          <span className="flex-1 font-semibold tracking-tight truncate">VPS Pilot</span>
 
         </SidebarMenuButton>
       </SidebarHeader>
