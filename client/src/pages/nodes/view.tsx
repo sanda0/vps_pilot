@@ -11,6 +11,7 @@ import { TooltipWarper } from '@/components/tooltip-warper';
 import { NodeViewTabs } from './components/node-view-tabs';
 import { JoinTokenDialog } from '@/components/join-token-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { nodeStatusText } from '@/lib/node-status';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,6 @@ import {
 export default function NodeView() {
   const { id } = useParams<{ id: string }>();
   const [node, setNode] = useState<NodeData | null>(null);
-  const [isOnline, setIsOnline] = useState<boolean>(true);
   const [openJoinDialog, setOpenJoinDialog] = useState(false);
   const [openRevokeDialog, setOpenRevokeDialog] = useState(false);
   const { toast } = useToast();
@@ -38,16 +38,18 @@ export default function NodeView() {
     });
   };
 
+  // Reload every 15 s so the online status follows the agent.
   useEffect(() => {
-
-    api.get(`/nodes/${id}`).then((res) => {
-      setNode(res.data.data)
-    }).catch((err) => {
-      console.error(err)
-    })
-
-    setIsOnline(true);
-
+    const load = () => {
+      api.get(`/nodes/${id}`).then((res) => {
+        setNode(res.data.data)
+      }).catch((err) => {
+        console.error(err)
+      })
+    }
+    load()
+    const timer = setInterval(load, 15000)
+    return () => clearInterval(timer)
   }, [id])
 
   return <>
@@ -71,9 +73,9 @@ export default function NodeView() {
       <div className="flex items-center justify-between h-full px-4">
         <div className="flex items-center gap-2 text-2xl font-semibold"><Server className="w-10 h-10"></Server>
           <div className="flex flex-col">
-            <div className='flex flex-row'>  {node?.name} <AnimateDot color={isOnline ? "success" : "danger"} size={2}></AnimateDot> </div>
+            <div className='flex flex-row'>  {node?.name} {node && <AnimateDot color={node.online ? "success" : "danger"} ping={node.online} size={2}></AnimateDot>} </div>
 
-            <span className="font-mono text-sm italic font-normal text-gray-500">{node?.ip}</span>
+            <span className="text-sm font-normal text-gray-500"><span className="font-mono italic">{node?.ip}</span>{node && <> · {nodeStatusText(node)}</>}</span>
           </div></div>
         <div className="flex gap-2">
           <TooltipWarper tooltipContent={<p>Re-enroll agent</p>} >

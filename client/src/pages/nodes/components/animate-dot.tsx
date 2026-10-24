@@ -2,6 +2,8 @@ interface AnimateDotProps {
   color: 'success' | 'danger' | 'warning' | 'info';
   size: number;
   extraClass?: string;
+  // Pulse around the dot; off for states that aren't live, like offline.
+  ping?: boolean;
 }
 
 const colorClasses = {
@@ -11,13 +13,13 @@ const colorClasses = {
   info: 'bg-blue-500',
 };
 
-export default function AnimateDot({ color, size, extraClass = '' }: AnimateDotProps) {
+export default function AnimateDot({ color, size, extraClass = '', ping = true }: AnimateDotProps) {
   const colorClass = colorClasses[color] || 'bg-green-500';
   const sizeClass = `h-${size} w-${size}`;
 
   return (
     <span className={`relative flex ${sizeClass} ${extraClass}`}>
-      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colorClass} opacity-75`}></span>
+      {ping && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colorClass} opacity-75`}></span>}
       <span className={`relative inline-flex rounded-full ${sizeClass} ${colorClass}`}></span>
     </span>
   );

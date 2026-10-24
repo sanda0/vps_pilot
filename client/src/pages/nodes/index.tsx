@@ -37,8 +37,11 @@ export default function NodesIndex() {
     })
   }
 
+  // Reload every 15 s so each node's online status stays current.
   useEffect(() => {
     loadNodes()
+    const timer = setInterval(loadNodes, 15000)
+    return () => clearInterval(timer)
   }, [])
 
   const handleView = (id: number) => {

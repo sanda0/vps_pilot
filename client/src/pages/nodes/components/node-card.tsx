@@ -2,6 +2,8 @@ import { Cpu, Edit, HardDriveIcon, MemoryStick, Network, Server, Telescope, Term
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { NodeSysInfo } from "@/types/node_type";
+import { nodeStatusText } from "@/lib/node-status";
+import AnimateDot from "./animate-dot";
 
 
 
@@ -37,7 +39,10 @@ export function NodeCard(props: NodeCardProps) {
 
 
         </CardTitle>
-        <CardDescription>System information</CardDescription>
+        <CardDescription className="flex items-center gap-2">
+          <AnimateDot color={props.data.online ? "success" : "danger"} ping={props.data.online} size={2}></AnimateDot>
+          {nodeStatusText(props.data)}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
