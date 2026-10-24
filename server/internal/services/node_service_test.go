@@ -56,3 +56,13 @@ func TestNodeStatus(t *testing.T) {
 		t.Errorf("never seen node: got %+v, want offline, last seen 0", got)
 	}
 }
+
+func TestInstallCommand(t *testing.T) {
+	base := "curl -fsSL https://vpspilot.dev/install-agent.sh | sudo VPS_PILOT_TOKEN=vpsp1.x sh -s -- --hub hub.example.com:55001"
+	if got := installCommand("vpsp1.x", "hub.example.com:55001", "v0.2.0"); got != base+" --version v0.2.0" {
+		t.Errorf("release hub: got %q", got)
+	}
+	if got := installCommand("vpsp1.x", "hub.example.com:55001", "dev"); got != base {
+		t.Errorf("dev hub: got %q", got)
+	}
+}

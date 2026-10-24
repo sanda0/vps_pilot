@@ -51,7 +51,9 @@ type CreateJoinTokenDto struct {
 type JoinTokenDto struct {
 	Token     string `json:"token"`
 	ExpiresAt int64  `json:"expires_at"`
-	Command   string `json:"command"`
+	Command   string `json:"command"` // runs an agent that is already installed
+	// InstallCommand installs the agent as a systemd service and enrolls it.
+	InstallCommand string `json:"install_command"`
 }
 
 type NodeDto struct {

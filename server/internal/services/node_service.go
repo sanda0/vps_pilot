@@ -26,6 +26,7 @@ type NodeAgents interface {
 type AgentEnrollment struct {
 	Fingerprint string // hub agent-channel TLS cert fingerprint
 	AgentPort   string // agent channel port, for the install command
+	Version     string // hub version; the install command installs the same agent release
 	Agents      NodeAgents
 }
 
@@ -201,10 +202,22 @@ func (n *nodeService) CreateJoinToken(userID int32, nodeID *int64, hubHost strin
 
 	hub := net.JoinHostPort(hubHost, n.enroll.AgentPort)
 	return &dto.JoinTokenDto{
-		Token:     token,
-		ExpiresAt: expiresAt,
-		Command:   fmt.Sprintf("VPS_PILOT_TOKEN=%s vps-pilot-agent --hub %s", token, hub),
+		Token:          token,
+		ExpiresAt:      expiresAt,
+		Command:        fmt.Sprintf("VPS_PILOT_TOKEN=%s vps-pilot-agent --hub %s", token, hub),
+		InstallCommand: installCommand(token, hub, n.enroll.Version),
 	}, nil
+}
+
+// installCommand runs the website's install script, which sets the agent up
+// as a systemd service. A release hub pins the agent to its own version; a
+// dev build gets the latest release.
+func installCommand(token, hub, version string) string {
+	cmd := fmt.Sprintf("curl -fsSL https://vpspilot.dev/install-agent.sh | sudo VPS_PILOT_TOKEN=%s sh -s -- --hub %s", token, hub)
+	if strings.HasPrefix(version, "v") {
+		cmd += " --version " + version
+	}
+	return cmd
 }
 
 // RevokeNodeKey implements NodeService. The agent is disconnected and can

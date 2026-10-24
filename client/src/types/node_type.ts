@@ -28,5 +28,6 @@ export interface NodeSysInfo extends NodeStatus {
 export interface JoinToken {
   token: string;
   expires_at: number; // unix seconds
-  command: string;
+  command: string; // runs an agent that is already installed
+  install_command: string; // installs the agent as a service and enrolls it
 }

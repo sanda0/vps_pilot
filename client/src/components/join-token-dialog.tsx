@@ -22,13 +22,14 @@ interface JoinTokenDialogProps {
 export function JoinTokenDialog({ open, onOpenChange, nodeId }: JoinTokenDialogProps) {
   const [token, setToken] = useState<JoinToken | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  // Which command was copied last, to show its check mark.
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setToken(null);
       setError(null);
-      setCopied(false);
+      setCopied(null);
       return;
     }
     nodesApi
@@ -37,10 +38,20 @@ export function JoinTokenDialog({ open, onOpenChange, nodeId }: JoinTokenDialogP
       .catch((err) => setError(err.response?.data?.error || "Failed to create join token"));
   }, [open, nodeId]);
 
-  const copy = () => {
-    if (!token) return;
-    navigator.clipboard.writeText(token.command).then(() => setCopied(true));
+  const copy = (command: string) => {
+    navigator.clipboard.writeText(command).then(() => setCopied(command));
   };
+
+  const commandBox = (command: string) => (
+    <div className="relative">
+      <pre className="p-3 pr-12 overflow-x-auto font-mono text-xs rounded-md bg-muted whitespace-pre-wrap break-all">
+        {command}
+      </pre>
+      <Button size="icon" variant="ghost" className="absolute top-1 right-1" onClick={() => copy(command)}>
+        {copied === command ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+      </Button>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,7 +61,7 @@ export function JoinTokenDialog({ open, onOpenChange, nodeId }: JoinTokenDialogP
           <DialogDescription>
             {nodeId
               ? "Run this on the server to install a fresh agent for this node. Its current key stops working once the new agent enrolls."
-              : "Install the VPS Pilot agent on the server, then run this command. The token works once."}
+              : "Run this on the server. It installs the VPS Pilot agent as a systemd service and enrolls it. The token works once."}
           </DialogDescription>
         </DialogHeader>
 
@@ -64,14 +75,9 @@ export function JoinTokenDialog({ open, onOpenChange, nodeId }: JoinTokenDialogP
 
         {token && (
           <div className="grid gap-3">
-            <div className="relative">
-              <pre className="p-3 pr-12 overflow-x-auto font-mono text-xs rounded-md bg-muted whitespace-pre-wrap break-all">
-                {token.command}
-              </pre>
-              <Button size="icon" variant="ghost" className="absolute top-1 right-1" onClick={copy}>
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
-            </div>
+            {commandBox(token.install_command)}
+            <p className="text-xs text-muted-foreground">Agent already installed? Run it with the token instead:</p>
+            {commandBox(token.command)}
             <p className="text-xs text-muted-foreground">
               Expires {format(new Date(token.expires_at * 1000), "PPp")}. It won't be shown again.
             </p>
