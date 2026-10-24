@@ -20,7 +20,7 @@ export interface PgString {
 }
 
 export interface IsActive {
-  Bool:  boolean;
+  Int64: number;
   Valid: boolean;
 }
 

@@ -115,7 +115,7 @@ export function AlertFrom(props: AlertFromProps) {
       email: props.alert?.email.String,
       discord: props.alert?.discord_webhook.String,
       slack: props.alert?.slack_webhook.String,
-      enabled: props.alert?.is_active.Bool
+      enabled: props.alert?.is_active.Int64 === 1
 
     },
   })
