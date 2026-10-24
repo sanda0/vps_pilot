@@ -7,9 +7,9 @@ pitch: One self-hosted dashboard for the handful of Linux servers you run. A sin
 # the code before moving anything from "soon" to "available".
 available:
   - title: Live metrics
-    text: CPU per core, memory and network traffic for every server, charted from the last 5 minutes to the last 7 days. Charts refresh every 10 seconds.
+    text: CPU per core, memory, disk and network traffic for every server, charted from the last 5 minutes to the last 7 days, and whether its agent is online right now. Charts refresh every 10 seconds.
   - title: Threshold alerts
-    text: Get a Discord, Slack or email message when CPU, memory or network traffic goes over your limit, with a wait you choose between repeats.
+    text: Get a Discord, Slack or email message when CPU, memory, disk or network traffic goes over your limit, with a wait you choose between repeats.
   - title: Project discovery
     text: The agent finds every config.vpspilot.json on the server. Scan settings per server, rescan on demand, and manual paths the agent checks itself.
   - title: Safe enrollment
@@ -17,15 +17,13 @@ available:
   - title: One binary hub
     text: Go, SQLite and the dashboard in a single executable. Seven days of metrics, no external database or service.
   - title: Tiny agent
-    text: One Rust binary per server. It dials out to the hub, so the server needs no open ports.
+    text: One Rust binary per server, installed as a systemd service with one command or a .deb. It dials out to the hub, so the server needs no open ports.
 
 soon:
   - Run the commands a project declares, by name, with live output and an audit log
   - Tail the log folders a project declares
   - Backups of declared folders, the env file and the database
   - Cron jobs declared per project
-  - Disk usage charts and alerts (the agent already reports disk usage)
-  - Install script and systemd unit for the agent
   - Docker Compose setup
   - Multiple users with roles
 

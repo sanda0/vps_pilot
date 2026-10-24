@@ -45,8 +45,7 @@ fired on any traffic. Upgrade the hub before relying on them.
 {{< /callout >}}
 
 {{< callout soon >}}
-Disk alerts come with v0.2.0, which isn't released yet. A history of past
-alerts is planned.
+A history of past alerts is planned.
 {{< /callout >}}
 
 ## Discord

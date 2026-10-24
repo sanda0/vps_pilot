@@ -30,7 +30,7 @@
   <div class="container">
     {{- /* One screenshot per theme; CSS shows the one matching the page. */}}
     {{- if and (fileExists "static/screenshot-light.png") (fileExists "static/screenshot-dark.png") }}
-    {{- $alt := "The VPS Pilot dashboard showing CPU, memory and network charts for a server" }}
+    {{- $alt := "The VPS Pilot dashboard showing CPU, memory, disk and network charts for a server" }}
     <img class="screenshot screenshot-light" src="{{ "screenshot-light.png" | relURL }}" alt="{{ $alt }}" width="2160" height="1650" loading="lazy">
     <img class="screenshot screenshot-dark" src="{{ "screenshot-dark.png" | relURL }}" alt="{{ $alt }}" width="2160" height="1650" loading="lazy">
     {{- else }}
