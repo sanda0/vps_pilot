@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = purge ]; then
+	# The config and the enrolled credentials. The node stays in the hub.
+	rm -rf /etc/vps-pilot-agent /var/lib/vps-pilot-agent
+fi
+if [ -d /run/systemd/system ]; then
+	systemctl daemon-reload || true
+fi
