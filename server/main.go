@@ -110,6 +110,7 @@ func main() {
 	app.Run(ctx, repo, *port, services.AgentEnrollment{
 		Fingerprint: cert.Fingerprint,
 		AgentPort:   *agentPort,
+		Version:     Version,
 		Agents:      agents,
 	}, agents)
 

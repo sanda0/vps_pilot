@@ -77,6 +77,9 @@ main() {
 	if [ "$enrolled" = false ] && [ -z "$token" ]; then
 		die "the agent isn't enrolled yet: pass the join token from Nodes → Add node in VPS_PILOT_TOKEN"
 	fi
+	if [ "$enrolled" = true ] && [ -n "$token" ]; then
+		say "Already enrolled, so the join token isn't used. To enroll again, delete $STATE first."
+	fi
 
 	if [ -z "$version" ]; then
 		latest=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$RELEASES/latest") ||
