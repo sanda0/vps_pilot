@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ButtonBar from "./button-bar";
 import { CpuChart } from "./cpu-chart";
 import { useEffect, useState, useRef } from "react";
@@ -113,7 +113,8 @@ export default function MetricsTab() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-1 xl:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Disk usage (/)</CardTitle>
+              <CardTitle>Disk usage</CardTitle>
+              <CardDescription>Mount point: /</CardDescription>
             </CardHeader>
             <CardContent>
             <PercentChart label="Disk" timeRange={currentTimeRange} data={diskData}></PercentChart>
