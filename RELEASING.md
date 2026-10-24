@@ -72,8 +72,9 @@ backups, cron), then `1.0.0`.
      notes in `site/content/docs/`, its "Coming soon" status in
      `site/content/docs/scope.md`, and any "coming soon" text or badge on the landing page
      (`site/layouts/index.html`);
-   - update any page that describes what changed (limits, install steps,
-     screenshots).
+   - update any page that describes what changed (limits, install steps);
+   - retake every website screenshot of a screen the release changed (the
+     landing page and the docs), so the site never shows an older dashboard.
 2. **Release candidate.** After the PR is merged:
 
    ```sh
