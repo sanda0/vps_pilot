@@ -112,11 +112,16 @@ jobs:
           tar -czf "${ARCHIVE_NAME}.tar.gz" "${BINARY_NAME}" vps-pilot-agent.service
           echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
 
+      - name: Build .deb
+        run: agent/packaging/build-deb.sh "agent/target/${{ matrix.target }}/release/vps-pilot-agent" "${{ github.ref_name }}" "${{ matrix.arch }}" deb
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vps-pilot-agent-linux-${{ matrix.arch }}
-          path: ${{ env.ASSET_PATH }}
+          path: |
+            ${{ env.ASSET_PATH }}
+            deb/*.deb
 
   release:
     name: Create Release
@@ -140,7 +145,7 @@ jobs:
       - name: Checksums
         run: |
           mkdir dist
-          find artifacts -type f -name '*.tar.gz' -exec mv {} dist/ \;
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.deb' \) -exec mv {} dist/ \;
           cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
 
       - name: Create Release
