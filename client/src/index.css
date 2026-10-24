@@ -241,3 +241,19 @@
     @apply bg-background text-foreground;
   }
 }
+/* Blinking cursor in the sidebar wordmark, like the website's. */
+.wordmark-cursor {
+  animation: wordmark-blink 1.1s steps(1) infinite;
+}
+
+@keyframes wordmark-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark-cursor {
+    animation: none;
+  }
+}
