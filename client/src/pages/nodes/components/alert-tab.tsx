@@ -64,7 +64,7 @@ export default function AlertTab() {
             id={alert.id}
             matric={alert.metric}
             value={alert.threshold.Float64}
-            isEnable={alert.is_active.Bool}
+            isEnable={alert.is_active.Int64 === 1}
             net_recv={alert.net_rece_threshold.Float64}
             net_sent={alert.net_send_threshold.Float64}
             email={alert.email.String}
