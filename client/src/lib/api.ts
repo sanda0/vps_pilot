@@ -2,6 +2,7 @@ import axios from "axios";
 import { Project, ProjectListResponse } from "@/types/project";
 import { JoinToken } from "@/types/node_type";
 import { NodeOption, ProjectPath, ProjectScan } from "@/types/project_scan";
+import { CommandOutput, CommandRun } from "@/types/command_run";
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -101,6 +102,36 @@ export const projectScanApi = {
 
   deletePath: async (nodeId: number, pathId: number) => {
     await api.delete(`/nodes/${nodeId}/project-paths/${pathId}`);
+  },
+};
+
+// Project commands run by name on the project's node; see docs/PROTOCOL.md.
+export const commandRunsApi = {
+  start: async (projectId: string, command: string) => {
+    const response = await api.post<{ data: CommandRun }>(`/projects/${projectId}/runs`, { command });
+    return response.data.data;
+  },
+
+  list: async (projectId: string, limit = 20) => {
+    const response = await api.get<{ data: CommandRun[] }>(`/projects/${projectId}/runs`, {
+      params: { limit },
+    });
+    return response.data.data ?? [];
+  },
+
+  get: async (runId: string) => {
+    const response = await api.get<{ data: { run: CommandRun; output: CommandOutput[] } }>(`/runs/${runId}`);
+    return response.data.data;
+  },
+
+  cancel: async (runId: string) => {
+    await api.post(`/runs/${runId}/cancel`);
+  },
+
+  // Streams the run: the run, its output so far, live output, the final run.
+  socketUrl: (runId: string) => {
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${protocol}://${window.location.host}/api/v1/runs/${runId}/ws`;
   },
 };
 
