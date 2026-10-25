@@ -37,3 +37,25 @@ disableKinds = ["taxonomy", "term", "rss"]
     name = "Docs"
     url = "/docs/"
     weight = 10
+  [[menus.main]]
+    name = "Changelog"
+    url = "/changelog/"
+    weight = 20
+
+# The repo's CHANGELOG.md is the source of /changelog/. Declaring a mount
+# replaces Hugo's defaults, so the site's own folders are listed too.
+[[module.mounts]]
+  source = "../CHANGELOG.md"
+  target = "assets/CHANGELOG.md"
+[[module.mounts]]
+  source = "assets"
+  target = "assets"
+[[module.mounts]]
+  source = "content"
+  target = "content"
+[[module.mounts]]
+  source = "layouts"
+  target = "layouts"
+[[module.mounts]]
+  source = "static"
+  target = "static"
