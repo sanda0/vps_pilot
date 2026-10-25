@@ -147,3 +147,87 @@ async fn send_exit(out: &mpsc::Sender<Msg>, exit: CommandExit) {
         let _ = out.send(msg).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn project(dir: &std::path::Path) -> ProjectConfig {
+        let json = r#"{"name": "app", "commands": [
+            {"name": "hello", "command": "echo hi"},
+            {"name": "wait", "command": "sleep 30"}]}"#;
+        let file = dir.join(crate::project::CONFIG_FILE);
+        std::fs::write(&file, json).unwrap();
+        let mode = std::os::unix::fs::PermissionsExt::from_mode(0o644);
+        std::fs::set_permissions(&file, mode).unwrap();
+        let (config, _) = ProjectConfig::load_for_run(dir).unwrap();
+        config
+    }
+
+    fn run(id: &str, path: &str, command: &str) -> CommandRun {
+        serde_json::from_value(
+            serde_json::json!({"run_id": id, "project_path": path, "command": command}),
+        )
+        .unwrap()
+    }
+
+    /// The next `command_exit` sent, skipping output.
+    async fn next_exit(rx: &mut mpsc::Receiver<Msg>) -> serde_json::Value {
+        loop {
+            let msg = rx.recv().await.unwrap();
+            if msg.kind == MSG_COMMAND_EXIT {
+                return msg.data.unwrap();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn runs_checks_and_cancels() {
+        let dir = tempfile::tempdir().unwrap();
+        let projects = [project(dir.path())];
+        let path = projects[0].path.clone();
+        let (tx, mut rx) = mpsc::channel(64);
+        let limits = Limits {
+            timeout: Duration::from_secs(10),
+            max_output: 1 << 20,
+        };
+        let mut runs = Runs::new(limits, tx);
+
+        runs.start(run("r1", &path, "hello"), &projects).await;
+        let exit = next_exit(&mut rx).await;
+        assert_eq!(
+            (exit["status"].as_str(), exit["exit_code"].as_i64()),
+            (Some("exited"), Some(0))
+        );
+        runs.reap().await;
+        assert!(runs.running.is_empty());
+
+        // Checked before starting a task, then inside it.
+        for (id, path, command, want) in [
+            ("r2", "/nowhere", "hello", "not a project"),
+            ("r3", path.as_str(), "deploy", "unknown command"),
+        ] {
+            runs.start(run(id, path, command), &projects).await;
+            let exit = next_exit(&mut rx).await;
+            assert_eq!(exit["status"], "rejected");
+            assert!(exit["error"].as_str().unwrap().contains(want), "{exit}");
+        }
+        runs.reap().await;
+        assert!(runs.running.is_empty());
+
+        runs.start(run("r4", &path, "wait"), &projects).await;
+        runs.start(run("r5", &path, "wait"), &projects).await;
+        let busy = next_exit(&mut rx).await;
+        assert_eq!(
+            (busy["run_id"].as_str(), busy["status"].as_str()),
+            (Some("r5"), Some("rejected"))
+        );
+        runs.cancel("r4");
+        let exit = next_exit(&mut rx).await;
+        assert_eq!(
+            (exit["run_id"].as_str(), exit["status"].as_str()),
+            (Some("r4"), Some("cancelled"))
+        );
+    }
+}
