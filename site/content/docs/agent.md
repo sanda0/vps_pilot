@@ -108,6 +108,7 @@ and `--backoff`.
 | `--backoff` | none | `10` | Seconds to wait before reconnecting. |
 | `--projects-dir` | `VPS_PILOT_PROJECT_DIRS` | `/var/www`, `/home` | Where to look for `config.vpspilot.json`. Repeat the flag, or separate directories with commas in the variable. |
 | `--allow-any-project-path` | `VPS_PILOT_ALLOW_ANY_PROJECT_PATH` | off | Accept project paths added in the dashboard anywhere on disk, not only inside a `--projects-dir`. |
+| `--command-timeout` | `VPS_PILOT_COMMAND_TIMEOUT` | `600` | Seconds a [project command](/docs/projects/#run-a-command) may run before it is killed (at least 1). |
 
 Set `RUST_LOG` to change the log level, for example `RUST_LOG=debug`. The
 default is `info`.
@@ -116,7 +117,7 @@ default is `info`.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Stopped with Ctrl-C (SIGINT). |
+| `0` | Stopped with SIGINT (Ctrl-C) or SIGTERM. Commands it was running are stopped too. |
 | `1` | The join token is malformed, or the agent isn't enrolled and no token was given. |
 | `2` | Invalid command-line arguments. |
 | `3` | The hub rejected the agent's credentials: the key was revoked, or the token was already used or has expired. Restarting won't help. Re-enroll it. |

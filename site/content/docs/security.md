@@ -38,14 +38,20 @@ connection.
 
 ## What the dashboard can do on a server
 
-Today the hub sends an agent only two kinds of instructions: the project scan
-settings and "rescan now". It can't run commands, read files or open a shell.
+The hub can send an agent the project scan settings, "rescan now", and a
+request to run or cancel a project command. It can't read files or open a
+shell.
 
-When running project commands arrives, it follows one rule: **the hub sends
-command names, never command strings.** The agent looks the name up in the
-project's `config.vpspilot.json` on the server and runs only what's written
-there. Even a compromised hub can only trigger commands the server owner
-already wrote into a file on that server.
+Running commands follows one rule: **the hub sends command names, never
+command strings.** The agent reads the project's `config.vpspilot.json` again
+and runs only what's written there. Even a compromised hub can only trigger
+commands the server owner already wrote into a file on that server.
+
+The agent also decides who a command runs as: the owner of
+`config.vpspilot.json`, never automatically the agent's own user (often root).
+It refuses a config that is a symlink or writable by its group or by others,
+so nobody else can put a command in someone's file. Every run is recorded with
+the dashboard user who started it. See [Run a command](/docs/projects/#run-a-command).
 
 Manual project paths follow the same idea. The agent only accepts them inside
 its own project directories (after resolving `..` and symlinks), unless the
