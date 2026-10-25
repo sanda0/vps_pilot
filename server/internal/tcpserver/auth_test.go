@@ -17,6 +17,7 @@ type testHub struct {
 	repo     *db.Repo
 	router   *Router
 	registry *Registry
+	runs     *Runs
 	chans    statChans
 }
 
@@ -35,7 +36,8 @@ func newTestHub(t *testing.T) *testHub {
 		registry: NewRegistry(),
 		chans:    statChans{stat: make(chan Msg, 10), monitor: make(chan Msg, 10)},
 	}
-	registerHandlers(h.router, h.chans)
+	h.runs = NewRuns(context.Background(), h.repo, h.registry)
+	registerHandlers(h.router, h.chans, h.runs)
 	return h
 }
 

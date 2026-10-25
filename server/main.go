@@ -105,7 +105,8 @@ func main() {
 		log.Fatal(err)
 	}
 	agents := tcpserver.NewRegistry()
-	go tcpserver.StartTcpServer(ctx, repo, agents, cert, *agentPort)
+	runs := tcpserver.NewRuns(ctx, repo, agents)
+	go tcpserver.StartTcpServer(ctx, repo, agents, runs, cert, *agentPort)
 
 	app.Run(ctx, repo, *port, services.AgentEnrollment{
 		Fingerprint: cert.Fingerprint,
