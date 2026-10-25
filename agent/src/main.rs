@@ -27,7 +27,7 @@ const DEFAULT_AGENT_PORT: u16 = 55001;
 
 /// The release tag when built by release.yml (VPS_PILOT_VERSION=v0.1.0),
 /// otherwise the Cargo.toml version.
-const VERSION: &str = match option_env!("VPS_PILOT_VERSION") {
+pub const VERSION: &str = match option_env!("VPS_PILOT_VERSION") {
     Some(v) => v,
     None => env!("CARGO_PKG_VERSION"),
 };

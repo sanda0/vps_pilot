@@ -16,6 +16,9 @@ pub struct SystemInfo {
     pub cpus: usize,
     /// Bytes.
     pub total_memory: u64,
+    pub agent_version: &'static str,
+    /// What this agent can do beyond stats and projects (docs/PROTOCOL.md).
+    pub features: &'static [&'static str],
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -88,6 +91,8 @@ impl Collector {
             kernel_version: System::kernel_version().unwrap_or_default(),
             cpus: self.sys.cpus().len(),
             total_memory: self.sys.total_memory(),
+            agent_version: crate::VERSION,
+            features: &[],
         }
     }
 

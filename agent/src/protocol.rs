@@ -23,6 +23,10 @@ pub const MSG_SYS_STAT: &str = "sys_stat";
 pub const MSG_PROJECTS: &str = "projects";
 pub const MSG_PROJECT_SETTINGS: &str = "project_settings";
 pub const MSG_RESCAN_PROJECTS: &str = "rescan_projects";
+pub const MSG_COMMAND_RUN: &str = "command_run";
+pub const MSG_COMMAND_CANCEL: &str = "command_cancel";
+pub const MSG_COMMAND_OUTPUT: &str = "command_output";
+pub const MSG_COMMAND_EXIT: &str = "command_exit";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -118,6 +122,75 @@ pub struct ProjectsPayload<'a> {
     pub errors: &'a [ProjectError],
 }
 
+/// Sent by the hub in `command_run`. `command` is a command *name* from the
+/// project's config, never a command string.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CommandRun {
+    pub run_id: String,
+    pub project_path: PathBuf,
+    pub command: String,
+}
+
+/// Sent by the hub in `command_cancel`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct CommandCancel {
+    pub run_id: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Stream {
+    Stdout,
+    Stderr,
+}
+
+/// Sent by the agent in `command_output`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CommandOutput {
+    pub run_id: String,
+    /// Counts up from 0 across both streams.
+    pub seq: u64,
+    pub stream: Stream,
+    pub data: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExitStatus {
+    Exited,
+    Timeout,
+    Cancelled,
+    Rejected,
+    Failed,
+}
+
+/// Sent by the agent in `command_exit`, once per `command_run`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CommandExit {
+    pub run_id: String,
+    pub status: ExitStatus,
+    pub exit_code: Option<i32>,
+    pub run_as: String,
+    pub duration_ms: u64,
+    pub truncated: bool,
+    pub error: String,
+}
+
+impl CommandExit {
+    /// A run that never started.
+    pub fn not_started(run_id: &str, status: ExitStatus, error: impl Into<String>) -> Self {
+        CommandExit {
+            run_id: run_id.to_string(),
+            status,
+            exit_code: None,
+            run_as: String::new(),
+            duration_ms: 0,
+            truncated: false,
+            error: error.into(),
+        }
+    }
+}
+
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {
     let size = r.read_u32().await?;
     if size == 0 || size > MAX_FRAME_SIZE {
@@ -182,6 +255,36 @@ mod tests {
 
         let hub: Msg = serde_json::from_str(r#"{"type":"sys_stat","node_id":3}"#).unwrap();
         assert_eq!(hub.node_id, 3);
+    }
+
+    #[test]
+    fn command_payloads_match_protocol_doc() {
+        let run: CommandRun = serde_json::from_str(
+            r#"{"run_id": "r1", "project_path": "/var/www/shop", "command": "build"}"#,
+        )
+        .unwrap();
+        assert_eq!(run.project_path, PathBuf::from("/var/www/shop"));
+        assert_eq!(run.command, "build");
+
+        let out = CommandOutput {
+            run_id: "r1".into(),
+            seq: 0,
+            stream: Stream::Stderr,
+            data: "oops\n".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&out).unwrap(),
+            serde_json::json!({"run_id": "r1", "seq": 0, "stream": "stderr", "data": "oops\n"})
+        );
+
+        let exit = CommandExit::not_started("r1", ExitStatus::Rejected, "unknown command");
+        assert_eq!(
+            serde_json::to_value(&exit).unwrap(),
+            serde_json::json!({
+                "run_id": "r1", "status": "rejected", "exit_code": null, "run_as": "",
+                "duration_ms": 0, "truncated": false, "error": "unknown command"
+            })
+        );
     }
 
     #[tokio::test]
