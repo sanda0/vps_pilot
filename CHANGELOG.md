@@ -6,6 +6,33 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Upgrade notes
+- Upgrading the hub adds the `command_runs` and `command_run_output` tables
+  to the operational database on start.
+- Running commands needs agent v0.3.0 or later. Agents from v0.2.x keep
+  working for monitoring and projects, and the dashboard refuses to run
+  commands on them.
+- The agent refuses to run commands from a `config.vpspilot.json` that is a
+  symlink or writable by its group or others. Ubuntu's default umask creates
+  files writable by their group, so run `chmod 644 config.vpspilot.json`
+  on existing configs.
+
+### Added
+- Run project commands: each command declared in a project's
+  `config.vpspilot.json` gets a **Run** button on the project page. The hub
+  sends only the command's name; the agent reads the file again, runs the
+  command as the file's owner in the project directory, and streams its
+  output live to the dashboard. Runs can be cancelled.
+- Run history: every run is recorded with who started it, the command line,
+  the user it ran as, how it ended, its exit code, its duration and its
+  output (up to 4 MiB).
+- Agent `--command-timeout` (`VPS_PILOT_COMMAND_TIMEOUT`): seconds a command
+  may run before it is killed. The default is 600.
+
+### Changed
+- The agent shuts down the same way on SIGTERM as on SIGINT, so a plain
+  `kill` or `docker stop` also stops the commands it is running.
+
 ## v0.2.0 - 2026-10-24
 
 ### Upgrade notes

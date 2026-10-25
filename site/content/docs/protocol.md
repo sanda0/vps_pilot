@@ -107,6 +107,10 @@ next `connected` gets `auth_failed`.
 | `projects` | agent → hub | `ProjectSyncPayload` |
 | `project_settings` | hub → agent | `ProjectSettings`, after the handshake and whenever they change |
 | `rescan_projects` | hub → agent | none. Search for projects now. |
+| `command_run` | hub → agent | `CommandRun`, see [Run commands](#run-commands) |
+| `command_cancel` | hub → agent | `{ "run_id": "…" }` |
+| `command_output` | agent → hub | `CommandOutput` |
+| `command_exit` | agent → hub | `CommandExit` |
 
 ## Projects
 
@@ -126,10 +130,62 @@ sent in this session. The first search of a session and a search requested by
 `rescan_projects` are always sent. Each message is the complete state: the
 hub replaces the node's projects and errors with it.
 
+## Run commands
+
+The hub asks the agent to run a command by **name**, never by command string.
+The agent looks the name up in the project's `config.vpspilot.json` and runs
+what it finds there.
+
+```text
+hub → agent   command_run      { run_id, project_path, command }
+agent → hub   command_output   { run_id, seq, stream, data }   (0 or more)
+agent → hub   command_exit     { run_id, status, … }           (exactly one)
+```
+
+Only agents whose `SystemInfo.features` contains `"commands"` support this.
+Agents from v0.2 and earlier send no `features`; they would ignore
+`command_run`, so the hub never sends it to them.
+
+Before running, the agent answers with status `rejected` unless all of these
+hold:
+
+1. `project_path` is a project from its latest search.
+2. It reads `<project_path>/config.vpspilot.json` again and it parses. The
+   file isn't a symlink and isn't writable by its group or others.
+3. `command` is the `name` of one of its `commands`.
+4. It can run as the file's owner: it runs as root, or already as that user.
+5. The same command isn't already running in that project, and fewer than 4
+   commands are running.
+
+The command runs as the config file's owner (user, group and the user's
+groups) with `/bin/sh -c` in `project_path`. Stdin is `/dev/null`, and the
+environment is only `HOME`, `USER`, `LOGNAME`, `SHELL` and
+`PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`. It gets
+its own process group. A timeout (10 minutes, `--command-timeout`), a
+`command_cancel` or the end of the session kills the group: `SIGTERM`, then
+`SIGKILL` 5 seconds later. The hub marks runs that never got a `command_exit`
+as `lost` when the node disconnects.
+
+Output is sent as it arrives, in chunks of up to 32 KiB of UTF-8 (invalid
+bytes become U+FFFD). `seq` counts up from 0 across both streams. After 4 MiB
+the agent stops sending output, keeps reading it, and sets `truncated`.
+
+| `status` | Meaning | `exit_code` |
+| --- | --- | --- |
+| `exited` | Ran and exited | its exit code (`128 + n` if killed by signal `n`) |
+| `timeout` | Killed after the timeout | `null` |
+| `cancelled` | Killed after `command_cancel` | `null` |
+| `rejected` | Not started; `error` says why | `null` |
+| `failed` | Couldn't be started | `null` |
+
+A `command_cancel` for a run that has finished, or that the agent doesn't
+know, is ignored.
+
 ## Payloads
 
 `SystemInfo`. `hostname` names the node on first enrollment; `total_memory`
-is in bytes.
+is in bytes. `agent_version` and `features` were added in v0.3; when they're
+missing, the hub treats the agent as having no features.
 
 ```json
 {
@@ -139,7 +195,9 @@ is in bytes.
   "platform_version": "24.04",
   "kernel_version": "6.8.0-45-generic",
   "cpus": 4,
-  "total_memory": 8221474816
+  "total_memory": 8221474816,
+  "agent_version": "v0.3.0",
+  "features": ["commands"]
 }
 ```
 
@@ -183,5 +241,33 @@ directory.
   "errors": [
     { "path": "/opt/legacy-app", "error": "outside the agent's project directories (--projects-dir)" }
   ]
+}
+```
+
+`CommandRun`. `run_id` is a UUID chosen by the hub; `project_path` is the
+project's `path` from `ProjectSyncPayload`; `command` is a command name.
+
+```json
+{ "run_id": "0b6c3c3e-6a8f-4b7e-9d0a-2f3c1e7a9b10", "project_path": "/var/www/shop", "command": "build" }
+```
+
+`CommandOutput`. `stream` is `stdout` or `stderr`.
+
+```json
+{ "run_id": "0b6c3c3e-…", "seq": 0, "stream": "stdout", "data": "> shop@1.0.0 build\n" }
+```
+
+`CommandExit`. `run_as` is the user it ran as, empty if it never started;
+`error` is a short reason for `rejected` and `failed`.
+
+```json
+{
+  "run_id": "0b6c3c3e-…",
+  "status": "exited",
+  "exit_code": 0,
+  "run_as": "deploy",
+  "duration_ms": 41230,
+  "truncated": false,
+  "error": ""
 }
 ```
