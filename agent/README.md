@@ -35,6 +35,7 @@ To move an existing node to a new machine or reinstall the agent, open the node 
 | `--backoff` | | `10` | Seconds before reconnecting |
 | `--projects-dir` | `VPS_PILOT_PROJECT_DIRS` (comma-separated) | `/var/www`, `/home` | Where to look for `config.vpspilot.json`, up to 4 levels deep. Repeatable. Hidden directories, `node_modules`, `vendor`, `target` and symlinked directories are skipped |
 | `--allow-any-project-path` | `VPS_PILOT_ALLOW_ANY_PROJECT_PATH` | off | Accept project paths added in the dashboard anywhere on disk. Off: they must be inside a `--projects-dir` |
+| `--command-timeout` | `VPS_PILOT_COMMAND_TIMEOUT` | `600` | Seconds a project command may run before it is killed |
 
 Log level is controlled by `RUST_LOG` (e.g. `RUST_LOG=debug`).
 
