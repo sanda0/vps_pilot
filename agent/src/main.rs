@@ -96,6 +96,23 @@ fn hub_address(hub: &str) -> String {
     }
 }
 
+/// Resolves on SIGINT or SIGTERM. Returning from main then ends the session,
+/// which stops running project commands; the default SIGTERM action would
+/// kill the agent and leave them running.
+async fn shutdown_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    match signal(SignalKind::terminate()) {
+        Ok(mut term) => tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        },
+        Err(e) => {
+            warn!("can't handle SIGTERM: {e}");
+            let _ = tokio::signal::ctrl_c().await;
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     tracing_subscriber::fmt()
@@ -157,7 +174,7 @@ async fn main() -> ExitCode {
                 }
                 Ok(()) => {}
             },
-            _ = tokio::signal::ctrl_c() => {
+            _ = shutdown_signal() => {
                 info!("shutting down");
                 return ExitCode::SUCCESS;
             }
@@ -165,7 +182,7 @@ async fn main() -> ExitCode {
 
         tokio::select! {
             _ = tokio::time::sleep(backoff) => {}
-            _ = tokio::signal::ctrl_c() => return ExitCode::SUCCESS,
+            _ = shutdown_signal() => return ExitCode::SUCCESS,
         }
     }
 }
