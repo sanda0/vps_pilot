@@ -5,6 +5,7 @@ mod metrics;
 mod output;
 mod project;
 mod protocol;
+mod runs;
 mod scanner;
 mod state;
 mod tls;
