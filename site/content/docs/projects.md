@@ -95,7 +95,8 @@ chmod 644 config.vpspilot.json
 
 Ubuntu creates files writable by their group by default (umask `002`), so new
 configs usually need this. If you forget, the run shows as **Rejected** with
-the reason `config.vpspilot.json is group- or world-writable`.
+the reason `config.vpspilot.json is group- or world-writable; run chmod 644
+config.vpspilot.json`.
 
 ### How it runs
 

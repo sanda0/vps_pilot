@@ -102,7 +102,7 @@ impl ProjectConfig {
             bail!("{CONFIG_FILE} is not a regular file");
         }
         if meta.mode() & 0o022 != 0 {
-            bail!("{CONFIG_FILE} is group- or world-writable");
+            bail!("{CONFIG_FILE} is group- or world-writable; run chmod 644 {CONFIG_FILE}");
         }
         if meta.len() > MAX_CONFIG_SIZE {
             bail!("{CONFIG_FILE} is too large ({} bytes)", meta.len());
