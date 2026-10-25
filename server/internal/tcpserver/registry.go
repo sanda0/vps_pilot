@@ -5,8 +5,9 @@ import "sync"
 // Registry tracks authenticated agent connections by node ID. It is safe for
 // concurrent use; Phase 2 command dispatch looks agents up here.
 type Registry struct {
-	mu    sync.RWMutex
-	conns map[int64]*ConnContext
+	mu           sync.RWMutex
+	conns        map[int64]*ConnContext
+	onDisconnect []func(*ConnContext)
 }
 
 func NewRegistry() *Registry {
@@ -26,12 +27,23 @@ func (r *Registry) Register(c *ConnContext) {
 	}
 }
 
-// Unregister removes c, unless the node has since reconnected on a newer connection.
+// OnDisconnect registers f to run whenever an authenticated connection
+// closes, even one already replaced by a newer connection. Call it before
+// the server starts.
+func (r *Registry) OnDisconnect(f func(*ConnContext)) {
+	r.onDisconnect = append(r.onDisconnect, f)
+}
+
+// Unregister removes c, unless the node has since reconnected on a newer
+// connection, and runs the OnDisconnect functions for c.
 func (r *Registry) Unregister(c *ConnContext) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.conns[c.NodeID] == c {
 		delete(r.conns, c.NodeID)
+	}
+	r.mu.Unlock()
+	for _, f := range r.onDisconnect {
+		f(c)
 	}
 }
 
