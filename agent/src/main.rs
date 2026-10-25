@@ -77,6 +77,10 @@ struct Args {
     /// only inside --projects-dir
     #[arg(long, env = "VPS_PILOT_ALLOW_ANY_PROJECT_PATH")]
     allow_any_project_path: bool,
+
+    /// Seconds a project command may run before it is killed
+    #[arg(long, env = "VPS_PILOT_COMMAND_TIMEOUT", default_value_t = 600, value_parser = clap::value_parser!(u64).range(1..))]
+    command_timeout: u64,
 }
 
 /// Appends the default agent port when the hub address has none.
@@ -136,6 +140,7 @@ async fn main() -> ExitCode {
         interval: Duration::from_secs(args.interval),
         project_dirs: args.projects_dirs,
         allow_any_project_path: args.allow_any_project_path,
+        command_timeout: Duration::from_secs(args.command_timeout),
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();

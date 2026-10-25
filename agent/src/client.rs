@@ -12,19 +12,24 @@ use tokio::task::AbortHandle;
 use tokio::time::{MissedTickBehavior, timeout};
 use tracing::{debug, info, warn};
 
+use crate::commands::Limits;
 use crate::discovery::Found;
 use crate::metrics::Collector;
 use crate::protocol::{
-    self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_CONNECTED,
-    MSG_ENROLL, MSG_ENROLLED, MSG_PROJECT_SETTINGS, MSG_PROJECTS, MSG_RESCAN_PROJECTS,
-    MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
+    self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_COMMAND_CANCEL,
+    MSG_COMMAND_RUN, MSG_CONNECTED, MSG_ENROLL, MSG_ENROLLED, MSG_PROJECT_SETTINGS, MSG_PROJECTS,
+    MSG_RESCAN_PROJECTS, MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
 };
+use crate::protocol::{CommandCancel, CommandRun};
+use crate::runs::Runs;
 use crate::scanner;
 use crate::state::State;
 use crate::tls;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+/// Output sent per run before the rest is dropped (docs/PROTOCOL.md).
+const MAX_COMMAND_OUTPUT: usize = 4 << 20;
 
 /// Join token from the dashboard: `vpsp1.<secret>.<hub cert fingerprint>`.
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +58,7 @@ pub struct Config {
     pub interval: Duration,
     pub project_dirs: Vec<PathBuf>,
     pub allow_any_project_path: bool,
+    pub command_timeout: Duration,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -154,6 +160,15 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
     let _scanner_guard = AbortOnDrop(scanner.abort_handle());
     let mut reported: Option<Found> = None;
 
+    // Commands run in their own tasks and queue their messages here.
+    // Dropping `runs` when the session ends kills them.
+    let (out_tx, mut outbox) = mpsc::channel(64);
+    let limits = Limits {
+        timeout: cfg.command_timeout,
+        max_output: MAX_COMMAND_OUTPUT,
+    };
+    let mut runs = Runs::new(limits, out_tx);
+
     let mut ticker = tokio::time::interval(cfg.interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {
@@ -173,10 +188,24 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                     }
                 }
                 Some(Ok(msg)) if msg.kind == MSG_RESCAN_PROJECTS => rescan.notify_one(),
+                Some(Ok(msg)) if msg.kind == MSG_COMMAND_RUN => match msg.payload::<CommandRun>() {
+                    Ok(run) => {
+                        let projects = reported.as_ref().map(|f| f.projects.as_slice()).unwrap_or_default();
+                        runs.start(run, projects).await;
+                    }
+                    Err(e) => warn!("ignoring invalid command_run: {e:#}"),
+                },
+                Some(Ok(msg)) if msg.kind == MSG_COMMAND_CANCEL => {
+                    if let Ok(c) = msg.payload::<CommandCancel>() {
+                        runs.cancel(&c.run_id);
+                    }
+                }
                 Some(Ok(msg)) => debug!("ignoring {:?} from hub", msg.kind),
                 Some(Err(e)) => return Err(e.into()),
                 None => return Err(anyhow!("hub closed the connection").into()),
             },
+            Some(msg) = outbox.recv() => protocol::write_frame(&mut wr, &msg).await?,
+            () = runs.reap() => {}
             _ = ticker.tick() => {
                 let stat = collector.collect();
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
