@@ -3,9 +3,12 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/sanda0/vps_pilot/internal/dto"
 	"github.com/sanda0/vps_pilot/internal/services"
 	"github.com/sanda0/vps_pilot/internal/tcpserver"
@@ -71,6 +74,91 @@ func (h *CommandRunHandler) Cancel(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusAccepted, gin.H{"data": "cancel requested"})
+}
+
+var runUpgrader = websocket.Upgrader{CheckOrigin: sameOrigin}
+
+// sameOrigin accepts browsers on the dashboard's own host, so another site
+// can't read a run's output through the user's cookie.
+func sameOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	return err == nil && u.Host == r.Host
+}
+
+// Watch handles GET /runs/:runId/ws. It sends {"run": …}, then every output
+// chunk as {"output": …}, stored first and then live, and {"run": …} again
+// with the final state, then closes. If the socket closes while the last
+// run sent is still running, the dashboard should reconnect.
+func (h *CommandRunHandler) Watch(c *gin.Context) {
+	runID := c.Param("runId")
+	events, stop := h.service.Watch(runID)
+	defer stop()
+	run, output, err := h.service.Get(runID)
+	if err != nil {
+		runError(c, err)
+		return
+	}
+	conn, err := runUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	defer conn.WriteControl(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+	gone := make(chan struct{})
+	go func() {
+		defer close(gone)
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+
+	send := func(v any) bool {
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		return conn.WriteJSON(v) == nil
+	}
+	last := int64(-1)
+	sendOutput := func(out []dto.CommandOutputDto) bool {
+		for _, o := range out {
+			if !send(gin.H{"output": o}) {
+				return false
+			}
+			last = o.Seq
+		}
+		return true
+	}
+	if !send(gin.H{"run": run}) || !sendOutput(output) || run.Status != "running" {
+		return
+	}
+	for {
+		select {
+		case <-gone:
+			return
+		case ev, ok := <-events:
+			if ok && ev.Output != nil {
+				if ev.Output.Seq > last && !sendOutput([]dto.CommandOutputDto{{Seq: ev.Output.Seq, Stream: ev.Output.Stream, Data: ev.Output.Data}}) {
+					return
+				}
+				continue
+			}
+			// The run finished, or this watcher fell behind: send what is
+			// stored and the run as it is now.
+			rest, err := h.service.OutputAfter(runID, last)
+			if err != nil || !sendOutput(rest) {
+				return
+			}
+			if run, err := h.service.GetRun(runID); err == nil {
+				send(gin.H{"run": run})
+			}
+			return
+		}
+	}
 }
 
 func runError(c *gin.Context, err error) {

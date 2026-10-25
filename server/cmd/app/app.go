@@ -109,6 +109,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 		{
 			runs.GET("/:runId", commandRunHandler.Get)
 			runs.POST("/:runId/cancel", commandRunHandler.Cancel)
+			runs.GET("/:runId/ws", commandRunHandler.Watch)
 		}
 	}
 

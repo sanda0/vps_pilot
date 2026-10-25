@@ -29,6 +29,7 @@ type CommandRunService interface {
 	Start(projectID, command string, userID int64) (dto.CommandRunDto, error)
 	Cancel(runID string) error
 	Get(runID string) (dto.CommandRunDto, []dto.CommandOutputDto, error)
+	GetRun(runID string) (dto.CommandRunDto, error)
 	ListByProject(projectID string, limit, offset int64) ([]dto.CommandRunDto, error)
 	// Watch follows a run: call it before Get, then skip output already read.
 	Watch(runID string) (<-chan tcpserver.RunEvent, func())
@@ -106,6 +107,11 @@ func (s *commandRunService) Get(runID string) (dto.CommandRunDto, []dto.CommandO
 	}
 	out, err := s.OutputAfter(runID, -1)
 	return dto.NewCommandRunDto(run), out, err
+}
+
+func (s *commandRunService) GetRun(runID string) (dto.CommandRunDto, error) {
+	run, err := s.run(runID)
+	return dto.NewCommandRunDto(run), err
 }
 
 func (s *commandRunService) OutputAfter(runID string, after int64) ([]dto.CommandOutputDto, error) {
