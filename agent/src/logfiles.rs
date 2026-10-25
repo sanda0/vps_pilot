@@ -128,3 +128,79 @@ fn log_file(path: &Path, folder: &Folder, below: &Path) -> Option<LogFile> {
         modified: modified as i64,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+
+    /// A project with storage/logs/{app.log, old.log.gz, 2026/day.log,
+    /// 2026/deep/x.log}, a symlink out of it and a folder outside it.
+    fn project() -> (tempfile::TempDir, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let logs = dir.path().join("storage/logs");
+        fs::create_dir_all(logs.join("2026/deep")).unwrap();
+        for f in ["app.log", "old.log.gz", "2026/day.log", "2026/deep/x.log"] {
+            fs::write(logs.join(f), "line\n").unwrap();
+        }
+        fs::write(outside.path().join("secret"), "s").unwrap();
+        symlink(outside.path().join("secret"), logs.join("secret.log")).unwrap();
+        symlink(outside.path(), dir.path().join("elsewhere")).unwrap();
+        (dir, outside)
+    }
+
+    fn declared(logs: &[&str]) -> Vec<String> {
+        logs.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn folders_must_resolve_inside_the_project() {
+        let (dir, _outside) = project();
+        let logs = declared(&[
+            "storage/logs",
+            "elsewhere",
+            "missing",
+            "/var/log",
+            "storage/../storage/logs",
+        ]);
+        let got = folders(dir.path(), &logs);
+        assert_eq!(got.len(), 1, "{got:?}");
+        assert_eq!(got[0].rel, Path::new("storage/logs"));
+    }
+
+    #[test]
+    fn lists_files_one_level_deep_inside_the_folder() {
+        let (dir, _outside) = project();
+        let (files, truncated) = list(&folders(dir.path(), &declared(&["storage/logs"])));
+        let paths: Vec<_> = files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            [
+                "storage/logs/2026/day.log",
+                "storage/logs/app.log",
+                "storage/logs/old.log.gz"
+            ]
+        );
+        assert!(!truncated && files[1].size == 5 && files[1].modified > 0);
+    }
+
+    #[test]
+    fn resolves_only_listed_readable_files() {
+        let (dir, _outside) = project();
+        let f = folders(dir.path(), &declared(&["storage/logs"]));
+        assert!(resolve(dir.path(), &f, "storage/logs/app.log").is_ok());
+        assert!(resolve(dir.path(), &f, "storage/logs/2026/day.log").is_ok());
+        for (bad, why) in [
+            ("storage/logs/secret.log", "log folders"),
+            ("storage/logs/2026/deep/x.log", "log folders"),
+            ("storage/logs/../../elsewhere/secret", "log folders"),
+            ("/etc/passwd", "log folders"),
+            ("storage/logs", "log folders"),
+            ("storage/logs/old.log.gz", "compressed"),
+        ] {
+            let err = resolve(dir.path(), &f, bad).unwrap_err();
+            assert!(err.contains(why), "{bad}: {err}");
+        }
+    }
+}
