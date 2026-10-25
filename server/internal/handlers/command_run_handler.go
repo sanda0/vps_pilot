@@ -107,8 +107,10 @@ func (h *CommandRunHandler) Watch(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
-	defer conn.WriteControl(websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+	defer func() {
+		msg := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+		conn.WriteControl(websocket.CloseMessage, msg, time.Now().Add(time.Second))
+	}()
 	gone := make(chan struct{})
 	go func() {
 		defer close(gone)
