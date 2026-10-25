@@ -295,4 +295,30 @@ mod tests {
         assert_eq!(exit.exit_code, Some(137));
         assert!(exit.truncated && text.len() < 100_000);
     }
+
+    /// Needs root: `sudo cargo test -- --ignored`.
+    #[tokio::test]
+    #[ignore]
+    async fn switches_to_owner_as_root() {
+        let nobody = User::from_name("nobody").unwrap().unwrap();
+        let who = RunAs::owner(nobody.uid.as_raw()).unwrap();
+        assert!(who.switch.is_some());
+        let dir = tempfile::tempdir().unwrap();
+        let (tx, mut rx) = mpsc::channel(64);
+        let cmd = "echo $(id -u) $(id -g) $(id -G) $USER";
+        let exit = run(
+            "r1",
+            dir.path(),
+            cmd,
+            who,
+            &limits(10_000),
+            Arc::default(),
+            tx,
+        )
+        .await;
+        let msg = rx.try_recv().unwrap();
+        let want = format!("{0} {1} {1} nobody\n", nobody.uid, nobody.gid);
+        assert_eq!(msg.data.unwrap()["data"], want);
+        assert_eq!((exit.exit_code, exit.run_as.as_str()), (Some(0), "nobody"));
+    }
 }
