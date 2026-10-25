@@ -113,7 +113,7 @@ func main() {
 		AgentPort:   *agentPort,
 		Version:     Version,
 		Agents:      agents,
-	}, agents)
+	}, agents, runs)
 
 }
 

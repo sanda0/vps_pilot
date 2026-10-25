@@ -26,7 +26,7 @@ func hasEmbeddedUI() bool {
 	return err == nil
 }
 
-func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment, agents services.ProjectAgents) {
+func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment, agents services.ProjectAgents, runner services.CommandRunner) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)
@@ -34,6 +34,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	alertService := services.NewAlertService(ctx, repo)
 	projectService := services.NewProjectService(repo, ctx)
 	projectScanService := services.NewProjectScanService(ctx, repo, agents)
+	commandRunService := services.NewCommandRunService(ctx, repo, runner)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
@@ -41,6 +42,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	alertHandler := handlers.NewAlertHandler(alertService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	projectScanHandler := handlers.NewProjectScanHandler(projectScanService)
+	commandRunHandler := handlers.NewCommandRunHandler(commandRunService)
 
 	server := gin.Default()
 
@@ -100,6 +102,14 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			projects.GET("", projectHandler.ListProjects)
 			projects.GET("/:id", projectHandler.GetProject)
 			projects.DELETE("/:id", projectHandler.DeleteProject)
+			projects.POST("/:id/runs", commandRunHandler.Start)
+			projects.GET("/:id/runs", commandRunHandler.List)
+		}
+		runs := dashbaord.Group("/runs")
+		{
+			runs.GET("/:runId", commandRunHandler.Get)
+			runs.POST("/:runId/cancel", commandRunHandler.Cancel)
+			runs.GET("/:runId/ws", commandRunHandler.Watch)
 		}
 	}
 
