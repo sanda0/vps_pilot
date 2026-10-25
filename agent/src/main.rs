@@ -1,6 +1,7 @@
 mod client;
 mod commands;
 mod discovery;
+mod logchild;
 mod logfiles;
 mod logread;
 mod metrics;
@@ -117,6 +118,11 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    // The agent runs itself as a config file's owner to read logs. Its
+    // stdout carries JSON, so this comes before logging is set up.
+    if std::env::args().nth(1).as_deref() == Some(logchild::ARG) {
+        return logchild::main();
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
