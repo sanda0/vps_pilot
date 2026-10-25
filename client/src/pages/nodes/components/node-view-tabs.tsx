@@ -13,7 +13,7 @@ import AlertTab from "./alert-tab"
 export function NodeViewTabs() {
   return (
     <Tabs defaultValue="metrics" className="w-full">
-      <TabsList className="grid grid-cols-2 w-[fit-content]">
+      <TabsList className="grid grid-cols-2 w-fit">
         <TabsTrigger value="metrics">Metrics</TabsTrigger>
         <TabsTrigger value="alerts">Alerts</TabsTrigger>
       </TabsList>
