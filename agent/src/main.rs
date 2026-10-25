@@ -1,4 +1,5 @@
 mod client;
+mod commands;
 mod discovery;
 mod metrics;
 mod output;
