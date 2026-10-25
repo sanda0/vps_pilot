@@ -1,0 +1,31 @@
+{{- /* Renders the repository's CHANGELOG.md (mounted in hugo.toml) as a
+  timeline: one entry per "## vX.Y.Z - YYYY-MM-DD" section, newest first as
+  in the file. "Unreleased" is left out. Heading ids get the version as a
+  prefix, since every release has its own "Added", "Fixed" and so on. */ -}}
+{{ define "main" }}
+{{- $text := (resources.Get "CHANGELOG.md").Content }}
+<div class="container changelog">
+  <h1>{{ .Title }}</h1>
+  <p class="docs-lead">{{ .Description }}</p>
+  <ol class="timeline">
+    {{- range after 1 (split $text "\n## ") }}
+      {{- $lines := split . "\n" }}
+      {{- $parts := split (index $lines 0) " - " }}
+      {{- if and (strings.HasPrefix (index $parts 0) "v") (eq (len $parts) 2) }}
+        {{- $version := index $parts 0 }}
+        {{- $date := index $parts 1 | strings.TrimSpace }}
+        {{- $body := $.RenderString (delimit (after 1 $lines) "\n") }}
+        {{- $body = replaceRE `(id="|href="#)` (printf "${1}%s-" $version) $body | safeHTML }}
+    <li class="timeline-item" id="{{ $version }}">
+      <div class="timeline-head">
+        <h2><a href="#{{ $version }}">{{ $version }}</a></h2>
+        <time datetime="{{ $date }}">{{ time.Format "January 2, 2006" $date }}</time>
+        <a class="timeline-release" href="{{ site.Params.repo }}/releases/tag/{{ $version }}" rel="noopener">Release notes and downloads</a>
+      </div>
+      <div class="prose">{{ $body }}</div>
+    </li>
+      {{- end }}
+    {{- end }}
+  </ol>
+</div>
+{{ end }}
