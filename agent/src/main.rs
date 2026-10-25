@@ -4,6 +4,7 @@ mod discovery;
 mod logchild;
 mod logfiles;
 mod logread;
+mod logs;
 mod metrics;
 mod output;
 mod project;
