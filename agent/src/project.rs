@@ -2,7 +2,9 @@
 //! (`ProjectConfig` in server/internal/tcpserver/types.go).
 
 use std::collections::HashSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::{ErrorKind, Read};
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
@@ -72,8 +74,53 @@ impl ProjectConfig {
             bail!("{} is too large ({size} bytes)", file.display());
         }
         let bytes = fs::read(file).with_context(|| format!("read {}", file.display()))?;
+        Self::parse(&bytes, file)
+    }
+
+    /// Re-reads `<dir>/config.vpspilot.json` just before running one of its
+    /// commands, and returns it with the uid of the file's owner. Stricter
+    /// than `load`, because the owner is who the commands run as: the file
+    /// must not be a symlink or writable by group or others. It is opened
+    /// with O_NOFOLLOW and checked with fstat, so it can't be swapped between
+    /// the check and the read.
+    pub fn load_for_run(dir: &Path) -> Result<(Self, u32)> {
+        let file = dir.join(CONFIG_FILE);
+        let mut f = match File::options()
+            .read(true)
+            .custom_flags(nix::fcntl::OFlag::O_NOFOLLOW.bits())
+            .open(&file)
+        {
+            Ok(f) => f,
+            Err(e) if e.raw_os_error() == Some(nix::libc::ELOOP) => {
+                bail!("{CONFIG_FILE} is a symlink")
+            }
+            Err(e) if e.kind() == ErrorKind::NotFound => bail!("{CONFIG_FILE} not found"),
+            Err(e) => return Err(e).with_context(|| format!("read {}", file.display())),
+        };
+        let meta = f.metadata()?;
+        if !meta.is_file() {
+            bail!("{CONFIG_FILE} is not a regular file");
+        }
+        if meta.mode() & 0o022 != 0 {
+            bail!("{CONFIG_FILE} is group- or world-writable");
+        }
+        if meta.len() > MAX_CONFIG_SIZE {
+            bail!("{CONFIG_FILE} is too large ({} bytes)", meta.len());
+        }
+        let mut bytes = Vec::new();
+        f.by_ref()
+            .take(MAX_CONFIG_SIZE + 1)
+            .read_to_end(&mut bytes)?;
+        let config = Self::parse(&bytes, &file)?;
+        Ok((config, meta.uid()))
+    }
+
+    fn parse(bytes: &[u8], file: &Path) -> Result<Self> {
+        if bytes.len() as u64 > MAX_CONFIG_SIZE {
+            bail!("{} is too large ({} bytes)", file.display(), bytes.len());
+        }
         let mut config: ProjectConfig =
-            serde_json::from_slice(&bytes).with_context(|| format!("parse {}", file.display()))?;
+            serde_json::from_slice(bytes).with_context(|| format!("parse {}", file.display()))?;
         config
             .validate()
             .with_context(|| format!("invalid {}", file.display()))?;
@@ -82,6 +129,14 @@ impl ProjectConfig {
         let dir = fs::canonicalize(dir).with_context(|| format!("resolve {}", dir.display()))?;
         config.path = dir.to_string_lossy().into_owned();
         Ok(config)
+    }
+
+    /// The command string for a command name.
+    pub fn command(&self, name: &str) -> Option<&str> {
+        self.commands
+            .iter()
+            .find(|c| c.name == name)
+            .map(|c| c.command.as_str())
     }
 
     fn validate(&mut self) -> Result<()> {
@@ -171,6 +226,40 @@ mod tests {
     fn rejects_oversized_file() {
         let big = format!(r#"{{"name": "app", "tech": ["{}"]}}"#, "x".repeat(70_000));
         assert!(load_str(&big).is_err());
+    }
+
+    #[test]
+    fn load_for_run_returns_owner_and_commands() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join(CONFIG_FILE);
+        fs::write(
+            &file,
+            r#"{"name": "app", "commands": [{"name": "build", "command": "make"}]}"#,
+        )
+        .unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+        let (config, uid) = ProjectConfig::load_for_run(dir.path()).unwrap();
+        assert_eq!(config.command("build"), Some("make"));
+        assert_eq!(config.command("deploy"), None);
+        assert_eq!(uid, nix::unistd::getuid().as_raw());
+
+        for mode in [0o664, 0o646] {
+            fs::set_permissions(&file, fs::Permissions::from_mode(mode)).unwrap();
+            let err = ProjectConfig::load_for_run(dir.path()).unwrap_err();
+            assert!(err.to_string().contains("writable"), "{mode:o}: {err}");
+        }
+    }
+
+    #[test]
+    fn load_for_run_rejects_symlinked_config() {
+        let real = tempfile::tempdir().unwrap();
+        fs::write(real.path().join(CONFIG_FILE), r#"{"name": "app"}"#).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(real.path().join(CONFIG_FILE), dir.path().join(CONFIG_FILE))
+            .unwrap();
+        let err = ProjectConfig::load_for_run(dir.path()).unwrap_err();
+        assert!(err.to_string().contains("symlink"), "{err}");
     }
 
     #[test]
