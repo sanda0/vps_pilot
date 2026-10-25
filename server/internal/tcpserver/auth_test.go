@@ -239,3 +239,33 @@ func TestHandshakeTimeoutClosesConnection(t *testing.T) {
 		t.Fatal("expected idle unauthenticated connection to be closed")
 	}
 }
+
+// conn waits for the node's registered connection.
+func (h *testHub) conn(nodeID int64) *ConnContext {
+	h.t.Helper()
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if c, ok := h.registry.Get(nodeID); ok {
+			return c
+		}
+	}
+	h.t.Fatalf("node %d never registered", nodeID)
+	return nil
+}
+
+func TestConnectRecordsFeatures(t *testing.T) {
+	h := newTestHub(t)
+	creds := h.dial().enroll(h.joinSecret(nil, time.Hour))
+	if h.conn(creds.NodeID).Supports(FeatureCommands) {
+		t.Fatal("agent without features supports commands")
+	}
+
+	agent := h.dial()
+	agent.send(MsgConnected, connectToken(creds), SystemInfo{AgentVersion: "v0.3.0", Features: []string{FeatureCommands}})
+	agent.expect(MsgSysStat)
+	agent.expect(MsgProjectSettings)
+	for deadline := time.Now().Add(2 * time.Second); !h.conn(creds.NodeID).Supports(FeatureCommands); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("features not recorded on the new connection")
+		}
+	}
+}

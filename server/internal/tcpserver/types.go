@@ -62,14 +62,19 @@ func (p *ProjectSyncPayload) FromBytes(data []byte) error {
 }
 
 type SystemInfo struct {
-	Hostname        string `json:"hostname"`         // used as the default node name
-	OS              string `json:"os"`               // e.g. linux, windows
-	Platform        string `json:"platform"`         // e.g. ubuntu, centos
-	PlatformVersion string `json:"platform_version"` // e.g. 20.04, 8
-	KernelVersion   string `json:"kernel_version"`   // e.g. 5.4.0-42-generic
-	CPUs            int    `json:"cpus"`             // number of CPUs
-	TotalMemory     uint64 `json:"total_memory"`     // total memory in bytes
+	Hostname        string   `json:"hostname"`         // used as the default node name
+	OS              string   `json:"os"`               // e.g. linux, windows
+	Platform        string   `json:"platform"`         // e.g. ubuntu, centos
+	PlatformVersion string   `json:"platform_version"` // e.g. 20.04, 8
+	KernelVersion   string   `json:"kernel_version"`   // e.g. 5.4.0-42-generic
+	CPUs            int      `json:"cpus"`             // number of CPUs
+	TotalMemory     uint64   `json:"total_memory"`     // total memory in bytes
+	AgentVersion    string   `json:"agent_version"`    // empty before v0.3
+	Features        []string `json:"features"`         // e.g. ["commands"]; none before v0.3
 }
+
+// FeatureCommands means the agent handles command_run (docs/PROTOCOL.md).
+const FeatureCommands = "commands"
 
 func (s *SystemInfo) FromBytes(data []byte) error {
 	return json.Unmarshal(data, s)
@@ -116,7 +121,43 @@ const (
 
 	MsgProjectSettings = "project_settings" // hub → agent, Data = ProjectSettings
 	MsgRescanProjects  = "rescan_projects"  // hub → agent: search for projects now
+
+	MsgCommandRun    = "command_run"    // hub → agent, Data = CommandRun
+	MsgCommandCancel = "command_cancel" // hub → agent, Data = CommandCancel
+	MsgCommandOutput = "command_output" // agent → hub, Data = CommandOutput
+	MsgCommandExit   = "command_exit"   // agent → hub, Data = CommandExit
 )
+
+// CommandRun asks the agent to run a command by name. Never a command string.
+type CommandRun struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+	Command     string `json:"command"`
+}
+
+type CommandCancel struct {
+	RunID string `json:"run_id"`
+}
+
+// CommandOutput is one chunk of a run's stdout or stderr.
+type CommandOutput struct {
+	RunID  string `json:"run_id"`
+	Seq    int64  `json:"seq"`
+	Stream string `json:"stream"` // stdout or stderr
+	Data   string `json:"data"`
+}
+
+// CommandExit ends a run. Status is exited, timeout, cancelled, rejected or
+// failed; the hub adds lost for runs whose agent disconnected.
+type CommandExit struct {
+	RunID      string `json:"run_id"`
+	Status     string `json:"status"`
+	ExitCode   *int64 `json:"exit_code"`
+	RunAs      string `json:"run_as"`
+	DurationMs int64  `json:"duration_ms"`
+	Truncated  bool   `json:"truncated"`
+	Error      string `json:"error"`
+}
 
 // EnrolledPayload carries the long-lived credentials issued at enrollment.
 type EnrolledPayload struct {

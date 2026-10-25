@@ -47,6 +47,7 @@ func HandleEnroll(ctx context.Context, c *ConnContext, msg Msg) {
 	}
 
 	c.NodeID = creds.NodeID
+	c.Features = sysInfo.Features
 	fmt.Printf("HandleEnroll: node %d enrolled from %s\n", creds.NodeID, c.RemoteAddr)
 	startStats(c)
 	sendProjectSettings(ctx, c)
@@ -85,6 +86,7 @@ func HandleConnected(ctx context.Context, c *ConnContext, msg Msg) {
 	}
 
 	c.NodeID = node.ID
+	c.Features = sysInfo.Features
 	fmt.Printf("HandleConnected: node %d connected from %s\n", node.ID, c.RemoteAddr)
 	startStats(c)
 	sendProjectSettings(ctx, c)

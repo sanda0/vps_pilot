@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"slices"
 	"sync"
 	"time"
 
@@ -33,6 +34,9 @@ type ConnContext struct {
 	// "enroll"). It is zero until then. Only the connection's own goroutine
 	// writes it.
 	NodeID int64
+
+	// Features the agent listed in SystemInfo at the handshake.
+	Features []string
 
 	conn   net.Conn
 	sendMu sync.Mutex
@@ -73,6 +77,11 @@ func (c *ConnContext) IP() string {
 		return c.RemoteAddr
 	}
 	return host
+}
+
+// Supports reports whether the agent listed feature f at the handshake.
+func (c *ConnContext) Supports(f string) bool {
+	return slices.Contains(c.Features, f)
 }
 
 // Repo exposes the database repo to handlers (read-only pointer, safe to share).
