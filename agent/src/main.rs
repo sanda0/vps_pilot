@@ -1,6 +1,7 @@
 mod client;
 mod discovery;
 mod metrics;
+mod output;
 mod project;
 mod protocol;
 mod scanner;
