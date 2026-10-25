@@ -258,3 +258,168 @@ async fn send<T: serde::Serialize>(out: &mpsc::Sender<Msg>, kind: &str, data: &T
         let _ = out.send(msg).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    /// Stands in for the log child: lists one file, or for `read` sends two
+    /// chunks, refuses ("reject"), or sends one and keeps following.
+    const FAKE: &str = r#"#!/bin/sh
+case "$3" in
+  list) printf '%s\n' '{"files":[{"path":"logs/a.log","size":2,"modified":1}],"truncated":false}' ;;
+  read) case "$4" in
+    reject) echo nope >&2; exit 2 ;;
+    follow) printf '%s\n' '{"offset":0,"data":"a\n","size":2,"rotated":false}'; exec sleep 30 ;;
+    *) printf '%s\n' '{"offset":0,"data":"a\n","size":2,"rotated":false}'
+       printf '%s\n' '{"offset":2,"data":"b\n","size":4,"rotated":false}' ;;
+  esac ;;
+esac
+"#;
+
+    struct Setup {
+        _dir: tempfile::TempDir,
+        logs: Logs,
+        rx: mpsc::Receiver<Msg>,
+        projects: Vec<ProjectConfig>,
+        path: PathBuf,
+    }
+
+    fn setup(follow_limit: Duration) -> Setup {
+        let dir = tempfile::tempdir().unwrap();
+        let exe = dir.path().join("fake-agent");
+        std::fs::write(&exe, FAKE).unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let project = dir.path().join("app");
+        std::fs::create_dir(&project).unwrap();
+        let config = project.join(crate::project::CONFIG_FILE);
+        std::fs::write(&config, r#"{"name": "app", "logs": ["logs"]}"#).unwrap();
+        std::fs::set_permissions(&config, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let (found, _) = ProjectConfig::load_for_run(&project).unwrap();
+        let (tx, rx) = mpsc::channel(64);
+        let path = PathBuf::from(&found.path);
+        let logs = Logs::new(exe, follow_limit, tx);
+        Setup {
+            _dir: dir,
+            logs,
+            rx,
+            projects: vec![found],
+            path,
+        }
+    }
+
+    fn open(id: &str, path: &Path, file: &str, follow: bool, before: Option<u64>) -> LogOpen {
+        LogOpen {
+            stream_id: id.into(),
+            project_path: path.into(),
+            file: file.into(),
+            before,
+            max_bytes: 100,
+            follow,
+        }
+    }
+
+    async fn next(rx: &mut mpsc::Receiver<Msg>) -> (String, serde_json::Value) {
+        let msg = timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        (msg.kind, msg.data.unwrap())
+    }
+
+    #[tokio::test]
+    async fn lists_and_reads() {
+        let mut s = setup(Duration::from_secs(60));
+        let req = LogList {
+            request_id: "l1".into(),
+            project_path: s.path.clone(),
+        };
+        s.logs.list(req, &s.projects);
+        let (kind, files) = next(&mut s.rx).await;
+        assert_eq!(
+            (kind.as_str(), &files["files"][0]["path"]),
+            ("log_files", &"logs/a.log".into())
+        );
+
+        s.logs
+            .open(open("s1", &s.path, "logs/a.log", false, None), &s.projects)
+            .await;
+        for seq in 0..2 {
+            let (kind, data) = next(&mut s.rx).await;
+            assert_eq!(
+                (kind.as_str(), data["seq"].as_u64()),
+                ("log_data", Some(seq)),
+                "{data}"
+            );
+        }
+        let (kind, end) = next(&mut s.rx).await;
+        assert_eq!((kind.as_str(), &end["reason"]), ("log_end", &"done".into()));
+
+        let unknown = LogList {
+            request_id: "l2".into(),
+            project_path: "/nowhere".into(),
+        };
+        s.logs.list(unknown, &s.projects);
+        let (_, files) = next(&mut s.rx).await;
+        assert!(
+            files["error"].as_str().unwrap().contains("not a project"),
+            "{files}"
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_closes_and_limits() {
+        let mut s = setup(Duration::from_millis(300));
+        let end = async |logs: &mut Logs,
+                         req: LogOpen,
+                         projects: &[ProjectConfig],
+                         rx: &mut mpsc::Receiver<Msg>| {
+            logs.open(req, projects).await;
+            loop {
+                let (kind, data) = next(rx).await;
+                if kind == "log_end" {
+                    return (
+                        data["reason"].as_str().unwrap().to_string(),
+                        data["error"].as_str().unwrap().to_string(),
+                    );
+                }
+            }
+        };
+        let r = end(
+            &mut s.logs,
+            open("a", &s.path, "reject", false, None),
+            &s.projects,
+            &mut s.rx,
+        )
+        .await;
+        assert_eq!(r, ("rejected".into(), "nope".into()));
+        let r = end(
+            &mut s.logs,
+            open("b", &s.path, "x", true, Some(10)),
+            &s.projects,
+            &mut s.rx,
+        )
+        .await;
+        assert_eq!(r.0, "rejected");
+        let r = end(
+            &mut s.logs,
+            open("c", &s.path, "follow", true, None),
+            &s.projects,
+            &mut s.rx,
+        )
+        .await;
+        assert_eq!(r.0, "limit");
+
+        s.logs
+            .open(open("d", &s.path, "follow", true, None), &s.projects)
+            .await;
+        assert_eq!(next(&mut s.rx).await.0, "log_data");
+        s.logs.close("d");
+        let (kind, data) = next(&mut s.rx).await;
+        assert_eq!(
+            (kind.as_str(), &data["reason"]),
+            ("log_end", &"closed".into())
+        );
+    }
+}
