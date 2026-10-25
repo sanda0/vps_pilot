@@ -2,8 +2,9 @@
 //! …` as a config file's owner, so listing and reading logs only ever use
 //! that user's permissions (see logs.rs). It writes JSON to stdout.
 
+use std::ffi::OsString;
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -37,8 +38,35 @@ pub struct Listing {
     pub truncated: bool,
 }
 
-/// Parses `__log <project> list -- <folders…>` or
+/// The child's arguments: `__log <project> list -- <folders…>` or
 /// `__log <project> read <file> <before|-> <max_bytes> <0|1> -- <folders…>`.
+pub fn args(project: &Path, logs: &[String], job: &Job) -> Vec<OsString> {
+    let mut out: Vec<OsString> = vec![ARG.into(), project.into()];
+    match job {
+        Job::List => out.push("list".into()),
+        Job::Read {
+            file,
+            before,
+            max_bytes,
+            follow,
+        } => {
+            let before = before.map_or("-".to_string(), |b| b.to_string());
+            for a in [
+                "read",
+                file,
+                &before,
+                &max_bytes.to_string(),
+                if *follow { "1" } else { "0" },
+            ] {
+                out.push(a.into());
+            }
+        }
+    }
+    out.push("--".into());
+    out.extend(logs.iter().map(OsString::from));
+    out
+}
+
 fn parse(args: &[String]) -> Option<(PathBuf, Vec<String>, Job)> {
     let sep = args.iter().position(|a| a == "--")?;
     let (head, logs) = (&args[..sep], args[sep + 1..].to_vec());
@@ -108,6 +136,33 @@ fn run(args: &[String], out: &mut impl Write) -> Result<(), (u8, String)> {
 mod tests {
     use super::*;
     use std::fs;
+
+    fn strings(args: Vec<OsString>) -> Vec<String> {
+        args.into_iter().map(|a| a.into_string().unwrap()).collect()
+    }
+
+    #[test]
+    fn args_round_trip() {
+        let logs = vec!["storage/logs".to_string(), "with -- dashes".to_string()];
+        for job in [
+            Job::List,
+            Job::Read {
+                file: "storage/logs/a.log".into(),
+                before: Some(42),
+                max_bytes: 10,
+                follow: false,
+            },
+            Job::Read {
+                file: "b.log".into(),
+                before: None,
+                max_bytes: 65536,
+                follow: true,
+            },
+        ] {
+            let got = parse(&strings(args(Path::new("/srv/app"), &logs, &job))).unwrap();
+            assert_eq!(got, (PathBuf::from("/srv/app"), logs.clone(), job));
+        }
+    }
 
     #[test]
     fn lists_and_rejects() {
