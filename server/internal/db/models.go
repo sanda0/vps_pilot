@@ -35,6 +35,32 @@ type Alert struct {
 	UpdatedAt        int64           `json:"updated_at"`
 }
 
+type CommandRun struct {
+	ID          string        `json:"id"`
+	NodeID      int64         `json:"node_id"`
+	ProjectPath string        `json:"project_path"`
+	ProjectName string        `json:"project_name"`
+	Command     string        `json:"command"`
+	CommandLine string        `json:"command_line"`
+	UserID      sql.NullInt64 `json:"user_id"`
+	Username    string        `json:"username"`
+	Status      string        `json:"status"`
+	ExitCode    sql.NullInt64 `json:"exit_code"`
+	RunAs       string        `json:"run_as"`
+	Error       string        `json:"error"`
+	Truncated   int64         `json:"truncated"`
+	DurationMs  int64         `json:"duration_ms"`
+	StartedAt   int64         `json:"started_at"`
+	FinishedAt  sql.NullInt64 `json:"finished_at"`
+}
+
+type CommandRunOutput struct {
+	RunID  string `json:"run_id"`
+	Seq    int64  `json:"seq"`
+	Stream string `json:"stream"`
+	Data   string `json:"data"`
+}
+
 type DiskStat struct {
 	Timestamp int64   `json:"timestamp"`
 	NodeID    int64   `json:"node_id"`

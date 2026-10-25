@@ -27,6 +27,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.activateAlertStmt, err = db.PrepareContext(ctx, activateAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query ActivateAlert: %w", err)
 	}
+	if q.addCommandRunOutputStmt, err = db.PrepareContext(ctx, addCommandRunOutput); err != nil {
+		return nil, fmt.Errorf("error preparing query AddCommandRunOutput: %w", err)
+	}
 	if q.addNodeDiskInfoStmt, err = db.PrepareContext(ctx, addNodeDiskInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query AddNodeDiskInfo: %w", err)
 	}
@@ -50,6 +53,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.createAlertStmt, err = db.PrepareContext(ctx, createAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAlert: %w", err)
+	}
+	if q.createCommandRunStmt, err = db.PrepareContext(ctx, createCommandRun); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateCommandRun: %w", err)
 	}
 	if q.createEnrolledNodeStmt, err = db.PrepareContext(ctx, createEnrolledNode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateEnrolledNode: %w", err)
@@ -87,6 +93,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.findUserByIdStmt, err = db.PrepareContext(ctx, findUserById); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserById: %w", err)
 	}
+	if q.finishCommandRunStmt, err = db.PrepareContext(ctx, finishCommandRun); err != nil {
+		return nil, fmt.Errorf("error preparing query FinishCommandRun: %w", err)
+	}
 	if q.getActiveAlertsByNodeAndMetricStmt, err = db.PrepareContext(ctx, getActiveAlertsByNodeAndMetric); err != nil {
 		return nil, fmt.Errorf("error preparing query GetActiveAlertsByNodeAndMetric: %w", err)
 	}
@@ -95,6 +104,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
+	}
+	if q.getCommandRunStmt, err = db.PrepareContext(ctx, getCommandRun); err != nil {
+		return nil, fmt.Errorf("error preparing query GetCommandRun: %w", err)
 	}
 	if q.getDiskStatsStmt, err = db.PrepareContext(ctx, getDiskStats); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDiskStats: %w", err)
@@ -147,6 +159,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
 	}
+	if q.listCommandRunOutputStmt, err = db.PrepareContext(ctx, listCommandRunOutput); err != nil {
+		return nil, fmt.Errorf("error preparing query ListCommandRunOutput: %w", err)
+	}
+	if q.listCommandRunsByNodeStmt, err = db.PrepareContext(ctx, listCommandRunsByNode); err != nil {
+		return nil, fmt.Errorf("error preparing query ListCommandRunsByNode: %w", err)
+	}
+	if q.listCommandRunsByProjectStmt, err = db.PrepareContext(ctx, listCommandRunsByProject); err != nil {
+		return nil, fmt.Errorf("error preparing query ListCommandRunsByProject: %w", err)
+	}
 	if q.listNodeProjectPathsStmt, err = db.PrepareContext(ctx, listNodeProjectPaths); err != nil {
 		return nil, fmt.Errorf("error preparing query ListNodeProjectPaths: %w", err)
 	}
@@ -158,6 +179,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listProjectsWithNodesStmt, err = db.PrepareContext(ctx, listProjectsWithNodes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListProjectsWithNodes: %w", err)
+	}
+	if q.markAllRunningCommandRunsLostStmt, err = db.PrepareContext(ctx, markAllRunningCommandRunsLost); err != nil {
+		return nil, fmt.Errorf("error preparing query MarkAllRunningCommandRunsLost: %w", err)
 	}
 	if q.recordNodeProjectScanStmt, err = db.PrepareContext(ctx, recordNodeProjectScan); err != nil {
 		return nil, fmt.Errorf("error preparing query RecordNodeProjectScan: %w", err)
@@ -202,6 +226,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing activateAlertStmt: %w", cerr)
 		}
 	}
+	if q.addCommandRunOutputStmt != nil {
+		if cerr := q.addCommandRunOutputStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing addCommandRunOutputStmt: %w", cerr)
+		}
+	}
 	if q.addNodeDiskInfoStmt != nil {
 		if cerr := q.addNodeDiskInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing addNodeDiskInfoStmt: %w", cerr)
@@ -240,6 +269,11 @@ func (q *Queries) Close() error {
 	if q.createAlertStmt != nil {
 		if cerr := q.createAlertStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createAlertStmt: %w", cerr)
+		}
+	}
+	if q.createCommandRunStmt != nil {
+		if cerr := q.createCommandRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createCommandRunStmt: %w", cerr)
 		}
 	}
 	if q.createEnrolledNodeStmt != nil {
@@ -302,6 +336,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing findUserByIdStmt: %w", cerr)
 		}
 	}
+	if q.finishCommandRunStmt != nil {
+		if cerr := q.finishCommandRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing finishCommandRunStmt: %w", cerr)
+		}
+	}
 	if q.getActiveAlertsByNodeAndMetricStmt != nil {
 		if cerr := q.getActiveAlertsByNodeAndMetricStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getActiveAlertsByNodeAndMetricStmt: %w", cerr)
@@ -315,6 +354,11 @@ func (q *Queries) Close() error {
 	if q.getAlertsStmt != nil {
 		if cerr := q.getAlertsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
+		}
+	}
+	if q.getCommandRunStmt != nil {
+		if cerr := q.getCommandRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getCommandRunStmt: %w", cerr)
 		}
 	}
 	if q.getDiskStatsStmt != nil {
@@ -402,6 +446,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertSystemStatsStmt: %w", cerr)
 		}
 	}
+	if q.listCommandRunOutputStmt != nil {
+		if cerr := q.listCommandRunOutputStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listCommandRunOutputStmt: %w", cerr)
+		}
+	}
+	if q.listCommandRunsByNodeStmt != nil {
+		if cerr := q.listCommandRunsByNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listCommandRunsByNodeStmt: %w", cerr)
+		}
+	}
+	if q.listCommandRunsByProjectStmt != nil {
+		if cerr := q.listCommandRunsByProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listCommandRunsByProjectStmt: %w", cerr)
+		}
+	}
 	if q.listNodeProjectPathsStmt != nil {
 		if cerr := q.listNodeProjectPathsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listNodeProjectPathsStmt: %w", cerr)
@@ -420,6 +479,11 @@ func (q *Queries) Close() error {
 	if q.listProjectsWithNodesStmt != nil {
 		if cerr := q.listProjectsWithNodesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listProjectsWithNodesStmt: %w", cerr)
+		}
+	}
+	if q.markAllRunningCommandRunsLostStmt != nil {
+		if cerr := q.markAllRunningCommandRunsLostStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing markAllRunningCommandRunsLostStmt: %w", cerr)
 		}
 	}
 	if q.recordNodeProjectScanStmt != nil {
@@ -517,6 +581,7 @@ type Queries struct {
 	db                                 DBTX
 	tx                                 *sql.Tx
 	activateAlertStmt                  *sql.Stmt
+	addCommandRunOutputStmt            *sql.Stmt
 	addNodeDiskInfoStmt                *sql.Stmt
 	addNodeProjectPathStmt             *sql.Stmt
 	addNodeSysInfoStmt                 *sql.Stmt
@@ -525,6 +590,7 @@ type Queries struct {
 	countProjectsStmt                  *sql.Stmt
 	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
+	createCommandRunStmt               *sql.Stmt
 	createEnrolledNodeStmt             *sql.Stmt
 	createJoinTokenStmt                *sql.Stmt
 	createUserStmt                     *sql.Stmt
@@ -537,9 +603,11 @@ type Queries struct {
 	deleteProjectsByNodeStmt           *sql.Stmt
 	findUserByEmailStmt                *sql.Stmt
 	findUserByIdStmt                   *sql.Stmt
+	finishCommandRunStmt               *sql.Stmt
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
 	getAlertStmt                       *sql.Stmt
 	getAlertsStmt                      *sql.Stmt
+	getCommandRunStmt                  *sql.Stmt
 	getDiskStatsStmt                   *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
 	getNodeStmt                        *sql.Stmt
@@ -557,10 +625,14 @@ type Queries struct {
 	insertDiskStatStmt                 *sql.Stmt
 	insertNetStatsStmt                 *sql.Stmt
 	insertSystemStatsStmt              *sql.Stmt
+	listCommandRunOutputStmt           *sql.Stmt
+	listCommandRunsByNodeStmt          *sql.Stmt
+	listCommandRunsByProjectStmt       *sql.Stmt
 	listNodeProjectPathsStmt           *sql.Stmt
 	listProjectsStmt                   *sql.Stmt
 	listProjectsByNodeStmt             *sql.Stmt
 	listProjectsWithNodesStmt          *sql.Stmt
+	markAllRunningCommandRunsLostStmt  *sql.Stmt
 	recordNodeProjectScanStmt          *sql.Stmt
 	setJoinTokenUsedByStmt             *sql.Stmt
 	setNodeCredentialsStmt             *sql.Stmt
@@ -579,6 +651,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                                 tx,
 		tx:                                 tx,
 		activateAlertStmt:                  q.activateAlertStmt,
+		addCommandRunOutputStmt:            q.addCommandRunOutputStmt,
 		addNodeDiskInfoStmt:                q.addNodeDiskInfoStmt,
 		addNodeProjectPathStmt:             q.addNodeProjectPathStmt,
 		addNodeSysInfoStmt:                 q.addNodeSysInfoStmt,
@@ -587,6 +660,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		countProjectsStmt:                  q.countProjectsStmt,
 		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
+		createCommandRunStmt:               q.createCommandRunStmt,
 		createEnrolledNodeStmt:             q.createEnrolledNodeStmt,
 		createJoinTokenStmt:                q.createJoinTokenStmt,
 		createUserStmt:                     q.createUserStmt,
@@ -599,9 +673,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
 		findUserByEmailStmt:                q.findUserByEmailStmt,
 		findUserByIdStmt:                   q.findUserByIdStmt,
+		finishCommandRunStmt:               q.finishCommandRunStmt,
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
 		getAlertStmt:                       q.getAlertStmt,
 		getAlertsStmt:                      q.getAlertsStmt,
+		getCommandRunStmt:                  q.getCommandRunStmt,
 		getDiskStatsStmt:                   q.getDiskStatsStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
 		getNodeStmt:                        q.getNodeStmt,
@@ -619,10 +695,14 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertDiskStatStmt:                 q.insertDiskStatStmt,
 		insertNetStatsStmt:                 q.insertNetStatsStmt,
 		insertSystemStatsStmt:              q.insertSystemStatsStmt,
+		listCommandRunOutputStmt:           q.listCommandRunOutputStmt,
+		listCommandRunsByNodeStmt:          q.listCommandRunsByNodeStmt,
+		listCommandRunsByProjectStmt:       q.listCommandRunsByProjectStmt,
 		listNodeProjectPathsStmt:           q.listNodeProjectPathsStmt,
 		listProjectsStmt:                   q.listProjectsStmt,
 		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
 		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
+		markAllRunningCommandRunsLostStmt:  q.markAllRunningCommandRunsLostStmt,
 		recordNodeProjectScanStmt:          q.recordNodeProjectScanStmt,
 		setJoinTokenUsedByStmt:             q.setJoinTokenUsedByStmt,
 		setNodeCredentialsStmt:             q.setNodeCredentialsStmt,
