@@ -30,8 +30,8 @@ requests. Only maintainers tag releases, but every contributor helps by keeping
    branches. `main` must always be releasable: every PR builds and passes
    `make lint test`.
 2. **Hide unfinished features.** A feature split over several PRs can land in
-   pieces, but the dashboard must not offer it until it works end to end (the
-   disabled "Coming soon" run buttons on the project page are the pattern).
+   pieces, but the dashboard must not offer it until it works end to end (show
+   its buttons disabled with a "Coming soon" label until then).
 3. **Add a changelog line.** If your PR changes what users see or do, add one
    line under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md), in the right
    group: Added, Changed, Deprecated, Removed, Fixed or Security. Docs,

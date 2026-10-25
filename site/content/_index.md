@@ -12,6 +12,8 @@ available:
     text: Get a Discord, Slack or email message when CPU, memory, disk or network traffic goes over your limit, with a wait you choose between repeats.
   - title: Project discovery
     text: The agent finds every config.vpspilot.json on the server. Scan settings per server, rescan on demand, and manual paths the agent checks itself.
+  - title: Run commands
+    text: Run a command a project declares, by name, and watch its output live. It runs as the owner of the config file, and every run is recorded with who started it.
   - title: Safe enrollment
     text: One-time join tokens, TLS 1.3 with a pinned certificate, and a key per server that you can revoke. Re-enroll a server without losing its history.
   - title: One binary hub
@@ -20,7 +22,6 @@ available:
     text: One Rust binary per server, installed as a systemd service with one command or a .deb. It dials out to the hub, so the server needs no open ports.
 
 soon:
-  - Run the commands a project declares, by name, with live output and an audit log
   - Tail the log folders a project declares
   - Backups of declared folders, the env file and the database
   - Cron jobs declared per project

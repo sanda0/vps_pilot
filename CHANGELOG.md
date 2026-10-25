@@ -6,6 +6,8 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.3.0 - 2026-10-25
+
 ### Upgrade notes
 - Upgrading the hub adds the `command_runs` and `command_run_output` tables
   to the operational database on start.

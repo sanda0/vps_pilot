@@ -29,18 +29,19 @@ cloud account.
 
 ## What works today
 
-- **Monitoring.** CPU (per core), memory and network traffic for each server,
-  charted over 5 minutes up to 7 days.
-- **[Alerts](/docs/alerts/).** CPU, memory and network thresholds, sent to Discord, Slack or email.
+- **Monitoring.** CPU (per core), memory, disk and network traffic for each
+  server, charted over 5 minutes up to 7 days, and whether its agent is online.
+- **[Alerts](/docs/alerts/).** CPU, memory, disk and network thresholds, sent to Discord, Slack or email.
 - **[Projects](/docs/projects/).** The agent finds every `config.vpspilot.json` on the server and
   the dashboard lists those projects, with per-server scan settings.
+- **[Run commands](/docs/projects/#run-a-command).** Run a command a project
+  declares, by name, with live output and a history of every run.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
   without losing its history, or revoke its key.
 
 {{< callout soon >}}
-Running the commands a project declares, tailing its logs, backups and cron
-jobs are planned. The dashboard can already show what a project declares, but
-it can't act on it yet.
+Tailing a project's logs, backups and cron jobs are planned. The dashboard
+already shows what a project declares for them.
 {{< /callout >}}
 
 ## The rule that shapes everything
