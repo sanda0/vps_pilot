@@ -81,7 +81,7 @@ export function CommandRunPanel({ runId, onFinished }: CommandRunPanelProps) {
           <span className="text-xs text-muted-foreground">
             by {run.username}
             {run.run_as && <> · as {run.run_as}</>}
-            {finished && <> · {formatDuration(run.duration_ms)}</>}
+            {run.duration_ms > 0 && <> · {formatDuration(run.duration_ms)}</>}
             {" · "}
             {formatDistanceToNow(new Date(run.started_at * 1000), { addSuffix: true })}
           </span>

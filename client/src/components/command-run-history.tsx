@@ -30,7 +30,7 @@ export function CommandRunHistory({ runs, selectedId, onSelect }: CommandRunHist
             <RunStatusBadge run={run} />
             <span className="ml-auto text-xs text-muted-foreground">
               {run.username}
-              {run.status !== "running" && <> · {formatDuration(run.duration_ms)}</>}
+              {run.duration_ms > 0 && <> · {formatDuration(run.duration_ms)}</>}
               {" · "}
               {formatDistanceToNow(new Date(run.started_at * 1000), { addSuffix: true })}
             </span>
