@@ -1,6 +1,7 @@
 mod client;
 mod commands;
 mod discovery;
+mod logfiles;
 mod metrics;
 mod output;
 mod project;
