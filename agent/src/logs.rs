@@ -1,6 +1,7 @@
-//! Log requests in this session: checks each `log_list` against "Read logs"
-//! in docs/PROTOCOL.md, then runs the log child process (logchild.rs) as the
-//! config file's owner to list the files.
+//! Log requests in this session: checks each `log_list` and `log_open`
+//! against "Read logs" in docs/PROTOCOL.md, then runs the log child process
+//! (logchild.rs) as the config file's owner to list or read. Dropping `Logs`
+//! (the session ended) closes every stream.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -8,14 +9,20 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::sync::{Notify, mpsc};
 use tokio::task::{Id, JoinSet};
 use tokio::time::timeout;
+use tracing::warn;
 
-use crate::commands::{RunAs, owner_command};
-use crate::logchild::{self, Job, Listing};
+use crate::commands::{Group, RunAs, owner_command};
+use crate::logchild::{self, EXIT_REJECTED, Job, Listing};
+use crate::logread::Chunk;
 use crate::project::ProjectConfig;
-use crate::protocol::{LogFiles, LogList, MSG_LOG_FILES, Msg};
+use crate::protocol::{
+    LogData, LogEnd, LogEndReason, LogFiles, LogList, LogOpen, MSG_LOG_DATA, MSG_LOG_END,
+    MSG_LOG_FILES, Msg,
+};
 
 const MAX_STREAMS: usize = 8;
 const LIST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -70,6 +77,59 @@ impl Logs {
             .await;
         });
     }
+
+    /// Starts a stream, or sends `log_end` with reason `rejected`.
+    pub async fn open(&mut self, req: LogOpen, projects: &[ProjectConfig]) {
+        if req.stream_id.is_empty() || self.streams.contains_key(&req.stream_id) {
+            warn!(
+                stream_id = req.stream_id,
+                "ignoring log_open with an empty or reused stream_id"
+            );
+            return;
+        }
+        let refused = if self.streams.len() >= MAX_STREAMS {
+            Some(format!("{MAX_STREAMS} log streams are already open"))
+        } else if req.follow && req.before.is_some() {
+            Some("only the end of a file can be followed".to_string())
+        } else {
+            None
+        };
+        if let Some(error) = refused {
+            let end = LogEnd {
+                stream_id: req.stream_id,
+                reason: LogEndReason::Rejected,
+                error,
+            };
+            return send(&self.out, MSG_LOG_END, &end).await;
+        }
+        let close = Arc::new(Notify::new());
+        let known = is_known(projects, &req.project_path);
+        let stream = Stream {
+            exe: self.exe.clone(),
+            limit: self.follow_limit,
+            out: self.out.clone(),
+        };
+        let id = req.stream_id.clone();
+        let task = self.tasks.spawn(stream.run(req, known, close.clone()));
+        self.streams.insert(id, (task.id(), close));
+    }
+
+    pub fn close(&self, stream_id: &str) {
+        if let Some((_, close)) = self.streams.get(stream_id) {
+            close.notify_one();
+        }
+    }
+
+    /// Waits for a task to finish and forgets it. Never returns while none
+    /// run, so it can sit in a `select!`.
+    pub async fn reap(&mut self) {
+        let id = match self.tasks.join_next_with_id().await {
+            Some(Ok((id, ()))) => id,
+            Some(Err(e)) => e.id(),
+            None => return std::future::pending().await,
+        };
+        self.streams.retain(|_, (task, _)| *task != id);
+    }
 }
 
 fn is_known(projects: &[ProjectConfig], path: &Path) -> bool {
@@ -107,6 +167,90 @@ async fn list(exe: &Path, project: &Path, logs: &[String], who: &RunAs) -> Resul
         return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
     }
     serde_json::from_slice(&output.stdout).map_err(|e| format!("log reader: {e}"))
+}
+
+struct Stream {
+    exe: PathBuf,
+    limit: Duration,
+    out: mpsc::Sender<Msg>,
+}
+
+impl Stream {
+    async fn run(self, req: LogOpen, known: bool, close: Arc<Notify>) {
+        let (reason, error) = match self.read(&req, known, close).await {
+            Ok(reason) => (reason, String::new()),
+            Err((reason, error)) => (reason, error),
+        };
+        let end = LogEnd {
+            stream_id: req.stream_id,
+            reason,
+            error,
+        };
+        send(&self.out, MSG_LOG_END, &end).await;
+    }
+
+    async fn read(
+        &self,
+        req: &LogOpen,
+        known: bool,
+        close: Arc<Notify>,
+    ) -> Result<LogEndReason, (LogEndReason, String)> {
+        let rejected = |e| (LogEndReason::Rejected, e);
+        let failed = |e: std::io::Error| (LogEndReason::Error, e.to_string());
+        let (logs, who) = prepare(known, &req.project_path).await.map_err(rejected)?;
+        let job = Job::Read {
+            file: req.file.clone(),
+            before: req.before,
+            max_bytes: req.max_bytes,
+            follow: req.follow,
+        };
+        let mut cmd = owner_command(&self.exe, &req.project_path, &who);
+        cmd.args(logchild::args(&req.project_path, &logs, &job))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let mut child = cmd.spawn().map_err(failed)?;
+        let mut group = Group::new(&child);
+        let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
+        let limit = tokio::time::sleep(self.limit);
+        tokio::pin!(limit);
+        let mut seq = 0;
+        loop {
+            tokio::select! {
+                line = lines.next_line() => match line.map_err(failed)? {
+                    Some(line) => {
+                        let c: Chunk = serde_json::from_str(&line).map_err(|e| failed(e.into()))?;
+                        let data = LogData { stream_id: req.stream_id.clone(), seq, offset: c.offset, data: c.data, size: c.size, rotated: c.rotated };
+                        seq += 1;
+                        send(&self.out, MSG_LOG_DATA, &data).await;
+                    }
+                    None => break,
+                },
+                _ = close.notified() => {
+                    group.kill(&mut child).await;
+                    return Ok(LogEndReason::Closed);
+                }
+                _ = &mut limit, if req.follow => {
+                    group.kill(&mut child).await;
+                    return Ok(LogEndReason::Limit);
+                }
+            }
+        }
+        let status = child.wait().await.map_err(failed)?;
+        group.disarm();
+        if status.success() {
+            return Ok(LogEndReason::Done);
+        }
+        let mut stderr = String::new();
+        if let Some(mut err) = child.stderr.take() {
+            let _ = err.read_to_string(&mut stderr).await;
+        }
+        let reason = if status.code() == Some(EXIT_REJECTED.into()) {
+            LogEndReason::Rejected
+        } else {
+            LogEndReason::Error
+        };
+        Err((reason, stderr.trim().to_string()))
+    }
 }
 
 async fn send<T: serde::Serialize>(out: &mpsc::Sender<Msg>, kind: &str, data: &T) {
