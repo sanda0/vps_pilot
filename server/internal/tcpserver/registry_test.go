@@ -52,3 +52,17 @@ func TestRegistryConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestUnregisterRunsDisconnectHooks(t *testing.T) {
+	r := NewRegistry()
+	var closed []*ConnContext
+	r.OnDisconnect(func(c *ConnContext) { closed = append(closed, c) })
+	first, _ := newTestConn(t, 1)
+	second, _ := newTestConn(t, 1)
+	r.Register(first)
+	r.Register(second)
+	r.Unregister(first) // replaced, but its runs still ended
+	if len(closed) != 1 || closed[0] != first || !r.Online(1) {
+		t.Fatalf("closed %v, online %v", closed, r.Online(1))
+	}
+}
