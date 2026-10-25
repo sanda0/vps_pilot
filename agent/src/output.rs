@@ -67,7 +67,7 @@ impl Emitter {
 
 /// Length of an incomplete UTF-8 character at the end of `buf`, which the
 /// next read will complete.
-fn incomplete_tail(buf: &[u8]) -> usize {
+pub fn incomplete_tail(buf: &[u8]) -> usize {
     for back in 1..=buf.len().min(3) {
         let b = buf[buf.len() - back];
         if b & 0xC0 == 0x80 {
