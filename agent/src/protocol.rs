@@ -27,6 +27,12 @@ pub const MSG_COMMAND_RUN: &str = "command_run";
 pub const MSG_COMMAND_CANCEL: &str = "command_cancel";
 pub const MSG_COMMAND_OUTPUT: &str = "command_output";
 pub const MSG_COMMAND_EXIT: &str = "command_exit";
+pub const MSG_LOG_LIST: &str = "log_list";
+pub const MSG_LOG_FILES: &str = "log_files";
+pub const MSG_LOG_OPEN: &str = "log_open";
+pub const MSG_LOG_CLOSE: &str = "log_close";
+pub const MSG_LOG_DATA: &str = "log_data";
+pub const MSG_LOG_END: &str = "log_end";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -191,6 +197,13 @@ impl CommandExit {
     }
 }
 
+/// Sent by the hub in `log_list`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogList {
+    pub request_id: String,
+    pub project_path: PathBuf,
+}
+
 /// A file in a project's log folders, as listed in `log_files`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LogFile {
@@ -199,6 +212,72 @@ pub struct LogFile {
     pub size: u64,
     /// Unix seconds.
     pub modified: i64,
+}
+
+/// Sent by the agent in `log_files`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LogFiles {
+    pub request_id: String,
+    pub files: Vec<LogFile>,
+    pub error: String,
+}
+
+/// Sent by the hub in `log_open`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct LogOpen {
+    pub stream_id: String,
+    pub project_path: PathBuf,
+    /// Relative to the project directory, as listed in `log_files`.
+    pub file: String,
+    /// Byte offset the window ends at; None for the end of the file.
+    #[serde(default)]
+    pub before: Option<u64>,
+    #[serde(default = "default_max_bytes")]
+    pub max_bytes: u64,
+    #[serde(default)]
+    pub follow: bool,
+}
+
+fn default_max_bytes() -> u64 {
+    64 * 1024
+}
+
+/// Sent by the hub in `log_close`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogClose {
+    pub stream_id: String,
+}
+
+/// Sent by the agent in `log_data`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LogData {
+    pub stream_id: String,
+    pub seq: u64,
+    /// Byte offset in the file where `data` starts.
+    pub offset: u64,
+    pub data: String,
+    /// The file's size when the chunk was read.
+    pub size: u64,
+    /// The file was truncated or replaced; `data` starts it again.
+    pub rotated: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogEndReason {
+    Done,
+    Closed,
+    Rejected,
+    Error,
+    Limit,
+}
+
+/// Sent by the agent in `log_end`, once per `log_open`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LogEnd {
+    pub stream_id: String,
+    pub reason: LogEndReason,
+    pub error: String,
 }
 
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {
@@ -294,6 +373,28 @@ mod tests {
                 "run_id": "r1", "status": "rejected", "exit_code": null, "run_as": "",
                 "duration_ms": 0, "truncated": false, "error": "unknown command"
             })
+        );
+    }
+
+    #[test]
+    fn log_payloads_match_protocol_doc() {
+        let open: LogOpen = serde_json::from_str(
+            r#"{"stream_id": "s1", "project_path": "/var/www/shop", "file": "storage/logs/a.log"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            (open.before, open.max_bytes, open.follow),
+            (None, 65536, false)
+        );
+
+        let end = LogEnd {
+            stream_id: "s1".into(),
+            reason: LogEndReason::Rejected,
+            error: "no".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&end).unwrap(),
+            serde_json::json!({"stream_id": "s1", "reason": "rejected", "error": "no"})
         );
     }
 

@@ -14,13 +14,18 @@ use tracing::{debug, info, warn};
 
 use crate::commands::Limits;
 use crate::discovery::Found;
+use crate::logs::Logs;
 use crate::metrics::Collector;
+use crate::project::ProjectConfig;
 use crate::protocol::{
     self, AuthFailedPayload, EnrolledPayload, MAX_FRAME_SIZE, MSG_AUTH_FAILED, MSG_COMMAND_CANCEL,
     MSG_COMMAND_RUN, MSG_CONNECTED, MSG_ENROLL, MSG_ENROLLED, MSG_PROJECT_SETTINGS, MSG_PROJECTS,
     MSG_RESCAN_PROJECTS, MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
 };
-use crate::protocol::{CommandCancel, CommandRun};
+use crate::protocol::{
+    CommandCancel, CommandRun, LogClose, LogList, LogOpen, MSG_LOG_CLOSE, MSG_LOG_LIST,
+    MSG_LOG_OPEN,
+};
 use crate::runs::Runs;
 use crate::scanner;
 use crate::state::State;
@@ -30,6 +35,8 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// Output sent per run before the rest is dropped (docs/PROTOCOL.md).
 const MAX_COMMAND_OUTPUT: usize = 4 << 20;
+/// How long a followed log stream stays open (docs/PROTOCOL.md).
+const LOG_FOLLOW_LIMIT: Duration = Duration::from_secs(30 * 60);
 
 /// Join token from the dashboard: `vpsp1.<secret>.<hub cert fingerprint>`.
 #[derive(Debug, Clone, PartialEq)]
@@ -160,14 +167,17 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
     let _scanner_guard = AbortOnDrop(scanner.abort_handle());
     let mut reported: Option<Found> = None;
 
-    // Commands run in their own tasks and queue their messages here.
-    // Dropping `runs` when the session ends kills them.
+    // Commands and log streams run in their own tasks and queue their
+    // messages here. Dropping `runs` and `logs` when the session ends kills
+    // their processes. Logs are read by this binary run again as the config
+    // file's owner; /proc/self/exe still works after an upgrade replaced it.
     let (out_tx, mut outbox) = mpsc::channel(64);
     let limits = Limits {
         timeout: cfg.command_timeout,
         max_output: MAX_COMMAND_OUTPUT,
     };
-    let mut runs = Runs::new(limits, out_tx);
+    let mut runs = Runs::new(limits, out_tx.clone());
+    let mut logs = Logs::new("/proc/self/exe".into(), LOG_FOLLOW_LIMIT, out_tx);
 
     let mut ticker = tokio::time::interval(cfg.interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -200,12 +210,17 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                         runs.cancel(&c.run_id);
                     }
                 }
+                Some(Ok(msg)) if msg.kind.starts_with("log_") => {
+                    let projects = reported.as_ref().map(|f| f.projects.as_slice()).unwrap_or_default();
+                    handle_log(&mut logs, &msg, projects).await;
+                }
                 Some(Ok(msg)) => debug!("ignoring {:?} from hub", msg.kind),
                 Some(Err(e)) => return Err(e.into()),
                 None => return Err(anyhow!("hub closed the connection").into()),
             },
             Some(msg) = outbox.recv() => protocol::write_frame(&mut wr, &msg).await?,
             () = runs.reap() => {}
+            () = logs.reap() => {}
             _ = ticker.tick() => {
                 let stat = collector.collect();
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
@@ -222,6 +237,25 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 reported = Some(found);
             }
         }
+    }
+}
+
+async fn handle_log(logs: &mut Logs, msg: &Msg, projects: &[ProjectConfig]) {
+    let invalid = |e: anyhow::Error| warn!("ignoring invalid {}: {e:#}", msg.kind);
+    match msg.kind.as_str() {
+        MSG_LOG_LIST => match msg.payload::<LogList>() {
+            Ok(req) => logs.list(req, projects),
+            Err(e) => invalid(e),
+        },
+        MSG_LOG_OPEN => match msg.payload::<LogOpen>() {
+            Ok(req) => logs.open(req, projects).await,
+            Err(e) => invalid(e),
+        },
+        MSG_LOG_CLOSE => match msg.payload::<LogClose>() {
+            Ok(req) => logs.close(&req.stream_id),
+            Err(e) => invalid(e),
+        },
+        other => debug!("ignoring {other:?} from hub"),
     }
 }
 
