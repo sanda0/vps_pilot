@@ -191,6 +191,16 @@ impl CommandExit {
     }
 }
 
+/// A file in a project's log folders, as listed in `log_files`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LogFile {
+    /// Relative to the project directory.
+    pub path: String,
+    pub size: u64,
+    /// Unix seconds.
+    pub modified: i64,
+}
+
 pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R) -> Result<Msg> {
     let size = r.read_u32().await?;
     if size == 0 || size > MAX_FRAME_SIZE {

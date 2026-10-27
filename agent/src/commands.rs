@@ -73,15 +73,56 @@ impl RunAs {
     }
 }
 
-/// Kills the command's process group if the run ends early, including when
-/// its task is aborted because the session ended.
-struct Group {
+/// A command for `program` that runs as `run_as` in `dir`, with a minimal
+/// environment, stdin from /dev/null and its own process group. Set up its
+/// stdout and stderr, then spawn it and wrap it in a `Group`.
+pub fn owner_command(program: &Path, dir: &Path, run_as: &RunAs) -> Command {
+    let mut cmd = Command::new(program);
+    cmd.current_dir(dir)
+        .env_clear()
+        .env("HOME", &run_as.home)
+        .env("USER", &run_as.name)
+        .env("LOGNAME", &run_as.name)
+        .env("SHELL", &run_as.shell)
+        .env("PATH", PATH)
+        .stdin(Stdio::null())
+        .process_group(0);
+    if let Some((uid, gid, groups)) = run_as.switch.clone() {
+        // SAFETY: runs between fork and exec, and only makes the
+        // async-signal-safe setgroups, setgid and setuid calls.
+        unsafe {
+            cmd.pre_exec(move || {
+                nix::unistd::setgroups(&groups)?;
+                nix::unistd::setgid(gid)?;
+                nix::unistd::setuid(uid)?;
+                Ok(())
+            });
+        }
+    }
+    cmd
+}
+
+/// Kills a child's process group if it ends early, including when its task
+/// is aborted because the session ended.
+pub struct Group {
     pgid: Pid,
     armed: bool,
 }
 
 impl Group {
-    async fn kill(&mut self, child: &mut Child) {
+    pub fn new(child: &Child) -> Self {
+        Group {
+            pgid: Pid::from_raw(child.id().unwrap_or_default() as i32),
+            armed: true,
+        }
+    }
+
+    /// The child finished on its own: leave its group alone.
+    pub fn disarm(&mut self) {
+        self.armed = false;
+    }
+
+    pub async fn kill(&mut self, child: &mut Child) {
         let _ = killpg(self.pgid, Signal::SIGTERM);
         if tokio::time::timeout(KILL_GRACE, child.wait())
             .await
@@ -121,32 +162,11 @@ pub async fn run(
     cancel: Arc<Notify>,
     out: mpsc::Sender<Msg>,
 ) -> CommandExit {
-    let mut cmd = Command::new("/bin/sh");
+    let mut cmd = owner_command(Path::new("/bin/sh"), dir, &run_as);
     cmd.arg("-c")
         .arg(command)
-        .current_dir(dir)
-        .env_clear()
-        .env("HOME", &run_as.home)
-        .env("USER", &run_as.name)
-        .env("LOGNAME", &run_as.name)
-        .env("SHELL", &run_as.shell)
-        .env("PATH", PATH)
-        .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .process_group(0);
-    if let Some((uid, gid, groups)) = run_as.switch.clone() {
-        // SAFETY: runs between fork and exec, and only makes the
-        // async-signal-safe setgroups, setgid and setuid calls.
-        unsafe {
-            cmd.pre_exec(move || {
-                nix::unistd::setgroups(&groups)?;
-                nix::unistd::setgid(gid)?;
-                nix::unistd::setuid(uid)?;
-                Ok(())
-            });
-        }
-    }
+        .stderr(Stdio::piped());
 
     let started = Instant::now();
     let mut child = match cmd.spawn() {
@@ -155,10 +175,7 @@ pub async fn run(
             return CommandExit::not_started(run_id, ExitStatus::Failed, format!("start: {e}"));
         }
     };
-    let mut group = Group {
-        pgid: Pid::from_raw(child.id().unwrap_or_default() as i32),
-        armed: true,
-    };
+    let mut group = Group::new(&child);
     let (mut stdout, mut stderr) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
     let (mut out_buf, mut err_buf) = (vec![0u8; CHUNK], vec![0u8; CHUNK]);
     let (mut out_open, mut err_open) = (true, true);
@@ -195,7 +212,7 @@ pub async fn run(
     let exit_code = match status {
         ExitStatus::Exited => {
             // Children it left running keep going, as they would from a shell.
-            group.armed = false;
+            group.disarm();
             match exited {
                 Some(Ok(st)) => exit_code(st),
                 Some(Err(e)) => {
