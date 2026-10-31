@@ -1,7 +1,7 @@
 # VPS Pilot
 
 VPS Pilot is a **server monitoring and management platform** designed for private VPS servers.  
-It provides real-time monitoring, alerting, project management, and (future) cron job automation — all from a single dashboard.
+It provides real-time monitoring, alerting, and project management (run declared commands, read logs, back up) — all from a single dashboard. Agents dial out to the hub, so your servers need no open ports.
 
 ---
 
@@ -27,7 +27,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
   - **Discord** ✅
   - **Email** ✅
   - **Slack** ✅
-- Alert conditions on CPU, memory and network
+- Alert conditions on CPU, memory, disk and network
 - Alert history and tracking
 
 ---
@@ -46,7 +46,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 {
   "name": "meta ads dashboard",
   "tech": ["laravel", "react", "mysql"],
-  "logs": [],
+  "logs": ["storage/logs"],
   "commands": [
     { "name": "node build", "command": "npm run build" },
     { "name": "php build", "command": "composer install" }
@@ -65,18 +65,31 @@ It provides real-time monitoring, alerting, project management, and (future) cro
     "dir": [
       "storage/app",
       "database/companies"
-    ]
+    ],
+    "schedule": "daily",
+    "at": "03:00",
+    "local_dir": "../backups/meta-ads",
+    "retention_days": 7,
+    "s3": {
+      "access_key": "S3_ACCESS_KEY",
+      "secret_key": "S3_SECRET_KEY",
+      "bucket": "my-backups",
+      "region": "us-east-1",
+      "endpoint": "https://us-east-1.linodeobjects.com",
+      "prefix": "meta-ads/"
+    }
   }
 }
 ```
 
+The `database` and `s3` keys are the *names* of variables in `env_file`, so passwords and keys stay on the server. Every field is described in the [projects docs](https://vpspilot.dev/docs/projects/).
+
 ---
 
 ### ⏲️ Cron Jobs Management (Planned)
-- Remote cron job creation and management
-- Schedule tasks across multiple nodes
-- Monitor job execution and logs
-- **Status:** Not yet implemented
+- Cron jobs declared per project in `config.vpspilot.json`, run by the agent
+- The last run of each job and its output in the dashboard
+- **Status:** planned for v0.6.0
 
 ---
 
@@ -91,7 +104,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 | **Deployment**     | Single executable |
 
 ### Architecture
-- **Operational DB**: Users, nodes, alerts, projects
+- **Operational DB**: Users, nodes, alerts, projects, command runs, backup runs
 - **Timeseries DB**: Metrics data (CPU, Memory, Network stats)
 - **Embedded UI**: React app bundled into Go binary
 - **Agent channel**: TLS server that receives metrics from enrolled agents (default port `55001`)
@@ -197,14 +210,13 @@ Log in with the credentials you created in step 4.
 
 ### 7. Connect a Server (Agent)
 
-1. In the dashboard, open **Nodes → Add node** and copy the join token.
-2. Copy `vps-pilot-agent` to the server and run it once with the token:
+In the dashboard, open **Nodes → Add node**, copy the install command and run it on the server. It downloads the agent for the server's architecture, checks it against `SHA256SUMS`, and installs it as a systemd service. Each release also has a `.deb`, and you can run the binary by hand:
 
 ```sh
 VPS_PILOT_TOKEN=vpsp1.… ./vps-pilot-agent --hub your-hub.example.com
 ```
 
-The agent enrolls, saves its credentials to `/var/lib/vps-pilot-agent/state.json`, and doesn't need the token again. The hub's agent port (`55001`) must be reachable from the server. See [agent/README.md](agent/README.md) for options and exit codes.
+The agent enrolls, saves its credentials to `/var/lib/vps-pilot-agent/state.json`, and doesn't need the token again. It dials out to the hub's agent port (`55001`), so the server needs no open ports. See the [agent docs](https://vpspilot.dev/docs/agent/) and [agent/README.md](agent/README.md) for options and exit codes.
 
 ---
 
@@ -336,6 +348,9 @@ Docker Compose setup will be available in a future release.
 - Agents authenticate with a per-node key issued at enrollment; join tokens are single-use and expire after 1 hour
 - Keep `data/tls/` with the database: agents pin the hub certificate's fingerprint, so losing it means re-enrolling every agent
 - Optionally restrict TCP port `55001` to your servers' IPs via firewall rules
+- Agents dial out to the hub; servers need no open ports
+- The hub sends command *names*, never command strings: an agent only runs, reads or backs up what its project's `config.vpspilot.json` declares, as the owner of that file
+- Backup zips stay on the server and in the project's bucket; database passwords and S3 keys are read from the env file on the server, never sent to the hub
 
 ---
 
@@ -399,6 +414,9 @@ ls server/cmd/app/dist/
 - [x] Install script + systemd unit for the agent
 - [ ] Docker Compose deployment
 - [ ] Multi-user support with roles
+- [ ] Hub install script (Nginx or Apache, Let's Encrypt, systemd)
+- [ ] Service monitoring (systemd units, alerts on failure)
+- [ ] MCP server for Claude Code and Claude Desktop
 - [ ] API documentation (Swagger)
 - [ ] Mobile app
 
