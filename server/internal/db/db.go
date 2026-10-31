@@ -93,6 +93,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.findUserByIdStmt, err = db.PrepareContext(ctx, findUserById); err != nil {
 		return nil, fmt.Errorf("error preparing query FindUserById: %w", err)
 	}
+	if q.finishBackupRunStmt, err = db.PrepareContext(ctx, finishBackupRun); err != nil {
+		return nil, fmt.Errorf("error preparing query FinishBackupRun: %w", err)
+	}
 	if q.finishCommandRunStmt, err = db.PrepareContext(ctx, finishCommandRun); err != nil {
 		return nil, fmt.Errorf("error preparing query FinishCommandRun: %w", err)
 	}
@@ -104,6 +107,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getAlertsStmt, err = db.PrepareContext(ctx, getAlerts); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAlerts: %w", err)
+	}
+	if q.getBackupRunStmt, err = db.PrepareContext(ctx, getBackupRun); err != nil {
+		return nil, fmt.Errorf("error preparing query GetBackupRun: %w", err)
 	}
 	if q.getCommandRunStmt, err = db.PrepareContext(ctx, getCommandRun); err != nil {
 		return nil, fmt.Errorf("error preparing query GetCommandRun: %w", err)
@@ -159,6 +165,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertSystemStatsStmt, err = db.PrepareContext(ctx, insertSystemStats); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertSystemStats: %w", err)
 	}
+	if q.listBackupRunsByProjectStmt, err = db.PrepareContext(ctx, listBackupRunsByProject); err != nil {
+		return nil, fmt.Errorf("error preparing query ListBackupRunsByProject: %w", err)
+	}
 	if q.listCommandRunOutputStmt, err = db.PrepareContext(ctx, listCommandRunOutput); err != nil {
 		return nil, fmt.Errorf("error preparing query ListCommandRunOutput: %w", err)
 	}
@@ -183,6 +192,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.markAllRunningCommandRunsLostStmt, err = db.PrepareContext(ctx, markAllRunningCommandRunsLost); err != nil {
 		return nil, fmt.Errorf("error preparing query MarkAllRunningCommandRunsLost: %w", err)
 	}
+	if q.markStaleBackupRunsLostStmt, err = db.PrepareContext(ctx, markStaleBackupRunsLost); err != nil {
+		return nil, fmt.Errorf("error preparing query MarkStaleBackupRunsLost: %w", err)
+	}
 	if q.recordNodeProjectScanStmt, err = db.PrepareContext(ctx, recordNodeProjectScan); err != nil {
 		return nil, fmt.Errorf("error preparing query RecordNodeProjectScan: %w", err)
 	}
@@ -191,6 +203,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.setNodeCredentialsStmt, err = db.PrepareContext(ctx, setNodeCredentials); err != nil {
 		return nil, fmt.Errorf("error preparing query SetNodeCredentials: %w", err)
+	}
+	if q.startBackupRunStmt, err = db.PrepareContext(ctx, startBackupRun); err != nil {
+		return nil, fmt.Errorf("error preparing query StartBackupRun: %w", err)
 	}
 	if q.touchNodeStmt, err = db.PrepareContext(ctx, touchNode); err != nil {
 		return nil, fmt.Errorf("error preparing query TouchNode: %w", err)
@@ -336,6 +351,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing findUserByIdStmt: %w", cerr)
 		}
 	}
+	if q.finishBackupRunStmt != nil {
+		if cerr := q.finishBackupRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing finishBackupRunStmt: %w", cerr)
+		}
+	}
 	if q.finishCommandRunStmt != nil {
 		if cerr := q.finishCommandRunStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing finishCommandRunStmt: %w", cerr)
@@ -354,6 +374,11 @@ func (q *Queries) Close() error {
 	if q.getAlertsStmt != nil {
 		if cerr := q.getAlertsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAlertsStmt: %w", cerr)
+		}
+	}
+	if q.getBackupRunStmt != nil {
+		if cerr := q.getBackupRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getBackupRunStmt: %w", cerr)
 		}
 	}
 	if q.getCommandRunStmt != nil {
@@ -446,6 +471,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertSystemStatsStmt: %w", cerr)
 		}
 	}
+	if q.listBackupRunsByProjectStmt != nil {
+		if cerr := q.listBackupRunsByProjectStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listBackupRunsByProjectStmt: %w", cerr)
+		}
+	}
 	if q.listCommandRunOutputStmt != nil {
 		if cerr := q.listCommandRunOutputStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listCommandRunOutputStmt: %w", cerr)
@@ -486,6 +516,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing markAllRunningCommandRunsLostStmt: %w", cerr)
 		}
 	}
+	if q.markStaleBackupRunsLostStmt != nil {
+		if cerr := q.markStaleBackupRunsLostStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing markStaleBackupRunsLostStmt: %w", cerr)
+		}
+	}
 	if q.recordNodeProjectScanStmt != nil {
 		if cerr := q.recordNodeProjectScanStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing recordNodeProjectScanStmt: %w", cerr)
@@ -499,6 +534,11 @@ func (q *Queries) Close() error {
 	if q.setNodeCredentialsStmt != nil {
 		if cerr := q.setNodeCredentialsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setNodeCredentialsStmt: %w", cerr)
+		}
+	}
+	if q.startBackupRunStmt != nil {
+		if cerr := q.startBackupRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing startBackupRunStmt: %w", cerr)
 		}
 	}
 	if q.touchNodeStmt != nil {
@@ -603,10 +643,12 @@ type Queries struct {
 	deleteProjectsByNodeStmt           *sql.Stmt
 	findUserByEmailStmt                *sql.Stmt
 	findUserByIdStmt                   *sql.Stmt
+	finishBackupRunStmt                *sql.Stmt
 	finishCommandRunStmt               *sql.Stmt
 	getActiveAlertsByNodeAndMetricStmt *sql.Stmt
 	getAlertStmt                       *sql.Stmt
 	getAlertsStmt                      *sql.Stmt
+	getBackupRunStmt                   *sql.Stmt
 	getCommandRunStmt                  *sql.Stmt
 	getDiskStatsStmt                   *sql.Stmt
 	getNetStatsStmt                    *sql.Stmt
@@ -625,6 +667,7 @@ type Queries struct {
 	insertDiskStatStmt                 *sql.Stmt
 	insertNetStatsStmt                 *sql.Stmt
 	insertSystemStatsStmt              *sql.Stmt
+	listBackupRunsByProjectStmt        *sql.Stmt
 	listCommandRunOutputStmt           *sql.Stmt
 	listCommandRunsByNodeStmt          *sql.Stmt
 	listCommandRunsByProjectStmt       *sql.Stmt
@@ -633,9 +676,11 @@ type Queries struct {
 	listProjectsByNodeStmt             *sql.Stmt
 	listProjectsWithNodesStmt          *sql.Stmt
 	markAllRunningCommandRunsLostStmt  *sql.Stmt
+	markStaleBackupRunsLostStmt        *sql.Stmt
 	recordNodeProjectScanStmt          *sql.Stmt
 	setJoinTokenUsedByStmt             *sql.Stmt
 	setNodeCredentialsStmt             *sql.Stmt
+	startBackupRunStmt                 *sql.Stmt
 	touchNodeStmt                      *sql.Stmt
 	updateAlertStmt                    *sql.Stmt
 	updateNodeStmt                     *sql.Stmt
@@ -673,10 +718,12 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteProjectsByNodeStmt:           q.deleteProjectsByNodeStmt,
 		findUserByEmailStmt:                q.findUserByEmailStmt,
 		findUserByIdStmt:                   q.findUserByIdStmt,
+		finishBackupRunStmt:                q.finishBackupRunStmt,
 		finishCommandRunStmt:               q.finishCommandRunStmt,
 		getActiveAlertsByNodeAndMetricStmt: q.getActiveAlertsByNodeAndMetricStmt,
 		getAlertStmt:                       q.getAlertStmt,
 		getAlertsStmt:                      q.getAlertsStmt,
+		getBackupRunStmt:                   q.getBackupRunStmt,
 		getCommandRunStmt:                  q.getCommandRunStmt,
 		getDiskStatsStmt:                   q.getDiskStatsStmt,
 		getNetStatsStmt:                    q.getNetStatsStmt,
@@ -695,6 +742,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertDiskStatStmt:                 q.insertDiskStatStmt,
 		insertNetStatsStmt:                 q.insertNetStatsStmt,
 		insertSystemStatsStmt:              q.insertSystemStatsStmt,
+		listBackupRunsByProjectStmt:        q.listBackupRunsByProjectStmt,
 		listCommandRunOutputStmt:           q.listCommandRunOutputStmt,
 		listCommandRunsByNodeStmt:          q.listCommandRunsByNodeStmt,
 		listCommandRunsByProjectStmt:       q.listCommandRunsByProjectStmt,
@@ -703,9 +751,11 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listProjectsByNodeStmt:             q.listProjectsByNodeStmt,
 		listProjectsWithNodesStmt:          q.listProjectsWithNodesStmt,
 		markAllRunningCommandRunsLostStmt:  q.markAllRunningCommandRunsLostStmt,
+		markStaleBackupRunsLostStmt:        q.markStaleBackupRunsLostStmt,
 		recordNodeProjectScanStmt:          q.recordNodeProjectScanStmt,
 		setJoinTokenUsedByStmt:             q.setJoinTokenUsedByStmt,
 		setNodeCredentialsStmt:             q.setNodeCredentialsStmt,
+		startBackupRunStmt:                 q.startBackupRunStmt,
 		touchNodeStmt:                      q.touchNodeStmt,
 		updateAlertStmt:                    q.updateAlertStmt,
 		updateNodeStmt:                     q.updateNodeStmt,
