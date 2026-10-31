@@ -1,6 +1,4 @@
 mod backupchild;
-// parse_stamp is used to delete old zips (next commit).
-#[allow(dead_code)]
 mod backupzip;
 mod client;
 mod commands;

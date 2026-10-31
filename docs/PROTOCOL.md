@@ -287,7 +287,7 @@ The agent then checks the older fields (see above) and the paths, as the owner. 
 ### Backing up
 
 - **As the config file's owner.** The backup runs in a child process with the owner's user and groups, the same switch as for commands, so it reads only what the owner can read and writes only where the owner can write.
-- **Env file.** Read as `KEY=VALUE` lines. Blank lines, `#` comments and an `export ` prefix are ignored, and single or double quotes around a value are removed. There is no `${…}` expansion.
+- **Env file.** Read as `KEY=VALUE` lines. Blank lines, `#` comments and an `export ` prefix are ignored, and single or double quotes around a value are removed. An unquoted value ends at ` #`. There is no `${…}` expansion.
 - **Database.** The value of the `connection` variable picks the tool. The tool must be installed on the server; the agent doesn't bundle one.
 
   | `connection` | Dump | Password |
@@ -308,7 +308,7 @@ The agent then checks the older fields (see above) and the paths, as the owner. 
   Symlinks inside `dir` are not followed or stored. The zip is mode `0600` and `local_dir` is created with mode `0700` if it doesn't exist, because the zip holds the env file.
 - **Retention.** After a successful backup, the agent deletes zips in `local_dir` named `<zip_file_name>-<UTC time>.zip` whose time is older than `retention_days`. It never deletes the newest one, nor other files.
 - **Upload.** With `s3`, the zip is uploaded to `<prefix><file name>`, signed with AWS Signature Version 4, in parts of 16 MiB. The keys need permission to put, list and delete objects. After a successful upload, the agent deletes objects under `<prefix><zip_file_name>-` older than `s3.retention_days`. A failed upload doesn't remove the local zip: the backup still counts as `ok`, and `upload` says what went wrong.
-- **Timeout.** One hour. The agent's `--backup-timeout` (seconds) changes it. The timeout kills the child and its tools and removes the `.part` file.
+- **Timeout.** One hour. The agent's `--backup-timeout` (seconds) changes it. The timeout kills the child and its tools. The next backup of the project removes the `.part` file and dump folder they leave behind.
 
 A backup keeps running if the session with the hub ends. The agent keeps up to 50 `backup_result`s it couldn't send and sends them after it reconnects; they are lost if the agent restarts. The hub de-duplicates by `run_id`.
 

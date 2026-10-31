@@ -94,6 +94,7 @@ pub fn backup(job: &Job, now: u64) -> Result<Done, String> {
         (Some(names), Some(env)) => Some(Database::from_env(names, env, &project)?),
     };
 
+    remove_leftovers(&local, &base);
     let stamp = backupzip::stamp(now);
     let tmp = Tmp(local.join(format!(".{base}-{stamp}.tmp")));
     DirBuilder::new()
@@ -126,6 +127,7 @@ pub fn backup(job: &Job, now: u64) -> Result<Done, String> {
     let linked = fs::hard_link(&part, &path).map_err(|e| format!("create {}: {e}", path.display()));
     let _ = fs::remove_file(&part);
     linked?;
+    prune(&local, &base, now, b.retention_days());
     Ok(Done {
         file,
         local_path: path.to_string_lossy().into_owned(),
@@ -155,6 +157,56 @@ fn local_dir(project: &Path, local_dir: &str, dirs: &[PathBuf]) -> Result<PathBu
     Ok(real)
 }
 
+/// The zip named `<base>-<stamp>.zip`, as its time.
+fn zip_time(name: &str, base: &str) -> Option<u64> {
+    let stamp = name
+        .strip_prefix(base)?
+        .strip_prefix('-')?
+        .strip_suffix(".zip")?;
+    backupzip::parse_stamp(stamp)
+}
+
+/// Removes what a killed backup left behind: `<base>-<stamp>.zip.part`
+/// files and `.<base>-<stamp>.tmp` folders.
+fn remove_leftovers(local: &Path, base: &str) {
+    for name in names(local) {
+        if let Some(zip) = name.strip_suffix(".part")
+            && zip_time(zip, base).is_some()
+        {
+            let _ = fs::remove_file(local.join(&name));
+        } else if let Some(dir) = name.strip_prefix('.').and_then(|n| n.strip_suffix(".tmp"))
+            && zip_time(&format!("{dir}.zip"), base).is_some()
+        {
+            let _ = fs::remove_dir_all(local.join(&name));
+        }
+    }
+}
+
+/// Deletes this project's zips older than `days`, except the newest.
+fn prune(local: &Path, base: &str, now: u64, days: u32) {
+    let mut zips: Vec<(u64, String)> = names(local)
+        .into_iter()
+        .filter_map(|n| Some((zip_time(&n, base)?, n)))
+        .collect();
+    zips.sort();
+    zips.pop();
+    let cutoff = now.saturating_sub(u64::from(days) * 86_400);
+    for (time, name) in zips {
+        if time < cutoff {
+            let _ = fs::remove_file(local.join(name));
+        }
+    }
+}
+
+fn names(dir: &Path) -> Vec<String> {
+    fs::read_dir(dir)
+        .map(|d| {
+            d.filter_map(|e| e.ok()?.file_name().into_string().ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// A private folder for the dump, removed when the backup ends.
 struct Tmp(PathBuf);
 
@@ -168,6 +220,8 @@ impl Drop for Tmp {
 mod tests {
     use super::*;
     use std::os::unix::fs::MetadataExt;
+
+    const DAY: u64 = 86_400;
 
     fn project() -> (tempfile::TempDir, Job) {
         let dir = tempfile::tempdir().unwrap();
@@ -189,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn writes_the_zip() {
+    fn writes_the_zip_and_prunes_old_ones() {
         let (dir, job) = project();
         let local = dir.path().join("backups/shop");
         let start = 1_793_415_600;
@@ -199,8 +253,25 @@ mod tests {
         let meta = fs::metadata(&first.local_path).unwrap();
         assert_eq!((meta.len(), meta.mode() & 0o777), (first.size, 0o600));
         assert_eq!(fs::metadata(&local).unwrap().mode() & 0o777, 0o700);
-
         assert!(backup(&job, start).is_err(), "overwrote a zip");
+
+        // Another project's zip and a leftover from a killed backup.
+        fs::write(local.join("blog-20200101T000000Z.zip"), "").unwrap();
+        fs::write(local.join("my_shop-20261101T000000Z.zip.part"), "").unwrap();
+        fs::create_dir(local.join(".my_shop-20261101T000000Z.tmp")).unwrap();
+
+        backup(&job, start + DAY).unwrap();
+        let last = backup(&job, start + 3 * DAY).unwrap();
+        let mut left = names(&local);
+        left.sort();
+        assert_eq!(
+            left,
+            [
+                "blog-20200101T000000Z.zip",
+                "my_shop-20261101T030000Z.zip",
+                last.file.as_str()
+            ]
+        );
     }
 
     #[test]
