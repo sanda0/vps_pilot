@@ -3,6 +3,7 @@ import { Project, ProjectListResponse } from "@/types/project";
 import { JoinToken } from "@/types/node_type";
 import { NodeOption, ProjectPath, ProjectScan } from "@/types/project_scan";
 import { CommandOutput, CommandRun } from "@/types/command_run";
+import { LogFiles } from "@/types/log";
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -132,6 +133,26 @@ export const commandRunsApi = {
   socketUrl: (runId: string) => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     return `${protocol}://${window.location.host}/api/v1/runs/${runId}/ws`;
+  },
+};
+
+// The files in a project's declared log folders, read by the node's agent as
+// the config file's owner; see docs/PROTOCOL.md.
+export const logsApi = {
+  list: async (projectId: string) => {
+    const response = await api.get<{ data: LogFiles }>(`/projects/${projectId}/logs`);
+    return response.data.data;
+  },
+
+  // Streams up to maxBytes ending at before (the end of the file if
+  // omitted), then, with follow, what is written after it.
+  socketUrl: (projectId: string, file: string, opts: { before?: number; maxBytes?: number; follow?: boolean }) => {
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const params = new URLSearchParams({ file });
+    if (opts.before !== undefined) params.set("before", String(opts.before));
+    if (opts.maxBytes !== undefined) params.set("max_bytes", String(opts.maxBytes));
+    if (opts.follow) params.set("follow", "true");
+    return `${protocol}://${window.location.host}/api/v1/projects/${projectId}/logs/ws?${params}`;
   },
 };
 
