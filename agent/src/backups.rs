@@ -8,17 +8,21 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{mpsc, watch};
 use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
 use tracing::{info, warn};
 
 use crate::backupchild::Upload;
 use crate::backuprun;
+use crate::discovery;
 use crate::project::ProjectConfig;
 use crate::protocol::{
     BackupResult, BackupRun, BackupStarted, MSG_BACKUP_RESULT, MSG_BACKUP_STARTED, Msg,
 };
+use crate::schedule::LastRuns;
 
 /// Messages kept while no session takes them: about 50 backups' worth.
 const QUEUE: usize = 100;
+const CHECK_EVERY: Duration = Duration::from_secs(60);
 
 pub struct Settings {
     /// This binary, run again as the backup child.
@@ -55,12 +59,14 @@ pub fn spawn(settings: Settings) -> (Handle, mpsc::Receiver<Msg>) {
     let (out, outbox) = mpsc::channel(QUEUE);
     let (requests, inbox) = mpsc::channel(8);
     let (projects, projects_rx) = watch::channel(Vec::new());
+    let last = LastRuns::load(&settings.state_path);
     let service = Service {
         settings,
         out,
         projects: projects_rx,
+        last,
     };
-    tokio::spawn(service.run(inbox));
+    tokio::spawn(service.run(inbox, projects.clone()));
     (Handle { requests, projects }, outbox)
 }
 
@@ -68,25 +74,71 @@ struct Service {
     settings: Settings,
     out: mpsc::Sender<Msg>,
     projects: watch::Receiver<Vec<ProjectConfig>>,
+    last: LastRuns,
 }
 
 impl Service {
-    async fn run(self, mut inbox: mpsc::Receiver<BackupRun>) {
+    async fn run(
+        mut self,
+        mut inbox: mpsc::Receiver<BackupRun>,
+        projects: watch::Sender<Vec<ProjectConfig>>,
+    ) {
+        // Until a session reports projects, search the project directories
+        // here, so schedules run even if the hub can't be reached.
+        let (dirs, any) = (
+            self.settings.project_dirs.clone(),
+            self.settings.allow_any_project_path,
+        );
+        if let Ok(found) =
+            tokio::task::spawn_blocking(move || discovery::discover(&dirs, &[], any)).await
+        {
+            projects.send_if_modified(|p| {
+                p.is_empty() && !found.projects.is_empty() && {
+                    *p = found.projects;
+                    true
+                }
+            });
+        }
+
         let mut running: Option<JoinHandle<()>> = None;
-        while let Some(req) = inbox.recv().await {
-            if running.as_ref().is_some_and(|h| !h.is_finished()) {
-                let path = req.project_path.to_string_lossy().into_owned();
-                let result = rejected(
-                    req.run_id,
-                    path,
-                    "manual",
-                    "a backup is already running on this node",
-                );
-                send(&self.out, MSG_BACKUP_RESULT, &result);
-            } else {
-                running = Some(self.start(req.run_id, req.project_path, "manual"));
+        let mut tick = tokio::time::interval(CHECK_EVERY);
+        tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        loop {
+            let busy = |r: &Option<JoinHandle<()>>| r.as_ref().is_some_and(|h| !h.is_finished());
+            tokio::select! {
+                Some(req) = inbox.recv() => {
+                    if busy(&running) {
+                        let path = req.project_path.to_string_lossy().into_owned();
+                        let result = rejected(req.run_id, path, "manual", "a backup is already running on this node");
+                        send(&self.out, MSG_BACKUP_RESULT, &result);
+                    } else {
+                        running = Some(self.start(req.run_id, req.project_path, "manual"));
+                    }
+                }
+                _ = tick.tick() => {
+                    // A due backup waits while another runs.
+                    if !busy(&running) && let Some(path) = self.next_due(now()) {
+                        running = Some(self.start(new_id(), path, "schedule"));
+                    }
+                }
             }
         }
+    }
+
+    /// A project whose scheduled backup is due, marked as run.
+    fn next_due(&mut self, now: u64) -> Option<PathBuf> {
+        let projects = self.projects.borrow().clone();
+        for p in projects {
+            let Some(b) = &p.backups else { continue };
+            let Some(schedule) = b.schedule else { continue };
+            if let Some(slot) = self.last.due(&p.path, schedule, b.time_of_day(), now) {
+                // Marked before it runs, so a backup that fails or is
+                // rejected isn't retried every minute.
+                self.last.mark(&p.path, slot);
+                return Some(PathBuf::from(&p.path));
+            }
+        }
+        None
     }
 
     fn start(&self, run_id: String, path: PathBuf, trigger: &'static str) -> JoinHandle<()> {
