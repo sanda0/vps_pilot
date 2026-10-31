@@ -3,6 +3,13 @@ title: VPS Pilot
 description: One self-hosted dashboard for the handful of Linux VPSs you run. A single Go binary with SQLite and the UI built in, plus a small Rust agent on each server. Free and open source.
 pitch: One self-hosted dashboard for the handful of Linux servers you run. A single Go binary with the UI built in, plus a tiny Rust agent on each server. You stay in control of what it can do.
 
+# Under the pitch: the first things people check before installing an agent.
+promises:
+  - title: Outbound only, no inbound ports.
+    text: The agent dials out to the hub over TLS 1.3, so it works behind NAT and strict firewalls.
+  - title: Commands by name, never a shell.
+    text: The hub can only run commands written by name in config.vpspilot.json on the server itself.
+
 # Every "available" item is implemented end to end in the code today. Check
 # the code before moving anything from "soon" to "available".
 available:
