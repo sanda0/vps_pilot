@@ -44,7 +44,7 @@ Only `name` is required. `{ "name": "blog" }` is a valid config.
 | `name` | string | Required. Shown in the dashboard. |
 | `tech` | list of strings | Free-form tags, for example `"laravel"` or `"node"`. |
 | `commands` | list of `{ name, command }` | The only commands the dashboard can run, by `name` (see [Run a command](#run-a-command)). Each needs both fields, and names must be unique. |
-| `logs` | list of paths | Log folders, relative to the project directory. |
+| `logs` | list of paths | Log folders, relative to the project directory, that the dashboard can read (see [Read logs](#read-logs)). |
 | `backups.env_file` | path | The project's env file. |
 | `backups.zip_file_name` | string | Base name for backup archives. |
 | `backups.database` | object | The *names* of the variables in `env_file` that hold the database settings, not the values. |
@@ -55,9 +55,8 @@ command or a duplicate command name makes the config unusable. The agent
 reports it as a problem instead of a project.
 
 {{< callout soon >}}
-Tailing the declared log folders, and backups (the env file, the folders and
-a database dump) are planned. Today the project page shows what the file
-declares for them.
+Backups (the env file, the folders and a database dump) are planned. Today
+the project page shows what the file declares for them.
 {{< /callout >}}
 
 ## Run a command
@@ -129,6 +128,36 @@ project page lists them, newest first. Click one to see its output.
 | Lost | The agent disconnected, or the hub restarted, during the run. The agent stops its commands when its connection drops. |
 
 Running commands needs agent v0.3.0 or later. On older agents, **Run** shows
+an error asking you to upgrade.
+
+## Read logs
+
+The **Logs** card on the project page lists the files in the project's `logs`
+folders. Pick one to see its last 64 KiB and follow it as lines are written.
+**Load earlier** adds the 256 KiB before what you see. Following stops after
+30 minutes; **Follow again** picks it up from the end of the file.
+
+The agent reads the files **as the owner of `config.vpspilot.json`**, the same
+way it runs commands, and refuses a config that is a symlink or writable by
+its group or others. A file that user can't read can't be read from the
+dashboard, even when the agent runs as root.
+
+What can be read:
+
+- files directly in a declared folder, or one folder below it (for daily
+  folders like `storage/logs/2026-10-25/app.log`);
+- only after `..` and symlinks are resolved: a declared folder must stay
+  inside the project directory, and a file inside its folder. A
+  `storage/logs` that links to `/var/log/app` is skipped;
+- compressed files (`.gz`, `.bz2`, `.xz`, `.zst`, `.zip`) are listed but
+  can't be opened;
+- at most 1000 files are listed, and at most 8 files can be open at once on
+  a server.
+
+When a log is rotated (truncated or replaced), the view starts again from the
+new file. The hub passes the lines on and doesn't store them.
+
+Reading logs needs agent v0.4.0 or later. On older agents, the Logs card shows
 an error asking you to upgrade.
 
 ## How the agent finds projects
