@@ -103,8 +103,6 @@ pub struct ProjectBackupDatabase {
     pub database_name: String,
 }
 
-// The getters are used by backups (next PRs); only the tests use them for now.
-#[allow(dead_code)]
 impl ProjectBackup {
     /// When a scheduled backup runs, as (hour, minute); 03:00 by default.
     pub fn time_of_day(&self) -> (u32, u32) {

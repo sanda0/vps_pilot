@@ -1,4 +1,6 @@
 mod backupchild;
+mod backuprun;
+mod backups;
 mod backupzip;
 mod client;
 mod commands;
@@ -16,6 +18,7 @@ mod protocol;
 mod runs;
 mod s3;
 mod scanner;
+mod schedule;
 mod sigv4;
 mod state;
 mod tls;
@@ -91,6 +94,10 @@ struct Args {
     /// Seconds a project command may run before it is killed
     #[arg(long, env = "VPS_PILOT_COMMAND_TIMEOUT", default_value_t = 600, value_parser = clap::value_parser!(u64).range(1..))]
     command_timeout: u64,
+
+    /// Seconds a backup may run before it is killed
+    #[arg(long, env = "VPS_PILOT_BACKUP_TIMEOUT", default_value_t = 3600, value_parser = clap::value_parser!(u64).range(1..))]
+    backup_timeout: u64,
 }
 
 /// Appends the default agent port when the hub address has none.
@@ -179,10 +186,19 @@ async fn main() -> ExitCode {
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
+    // Backups outlive sessions: they run on schedule while the hub is
+    // unreachable, and their results wait in `backup_out`.
+    let (backups, mut backup_out) = backups::spawn(backups::Settings {
+        exe: "/proc/self/exe".into(),
+        timeout: Duration::from_secs(args.backup_timeout),
+        state_path: cfg.state_path.clone(),
+        project_dirs: cfg.project_dirs.clone(),
+        allow_any_project_path: cfg.allow_any_project_path,
+    });
 
     loop {
         tokio::select! {
-            result = client::run_session(&cfg, &mut collector) => match result {
+            result = client::run_session(&cfg, &mut collector, &backups, &mut backup_out) => match result {
                 Err(SessionError::AuthFailed(reason)) => {
                     error!("hub rejected this agent: {reason}");
                     return ExitCode::from(EXIT_AUTH_FAILED);

@@ -314,7 +314,7 @@ A backup keeps running if the session with the hub ends. The agent keeps up to 5
 
 ### Schedule
 
-The agent checks the schedule every minute. It remembers when each project was last backed up by schedule in its state file, so a restart doesn't back up twice. If the agent wasn't running at the scheduled time, it runs the missed backup once when it's back.
+The agent checks the schedule every minute. It remembers when each project was last backed up by schedule in a file next to its state file (`state.json.backups`), so a restart doesn't back up twice. A schedule seen for the first time starts from then: adding one doesn't back up at once. If the agent wasn't running at the scheduled time, it runs the missed backup once when it's back. Until its first session with the hub, the agent finds projects by searching its project directories; projects at manual paths are known once the hub sends `project_settings`.
 
 ### Statuses
 

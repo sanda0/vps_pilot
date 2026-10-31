@@ -12,6 +12,7 @@ use tokio::task::AbortHandle;
 use tokio::time::{MissedTickBehavior, timeout};
 use tracing::{debug, info, warn};
 
+use crate::backups;
 use crate::commands::Limits;
 use crate::discovery::Found;
 use crate::logs::Logs;
@@ -23,8 +24,8 @@ use crate::protocol::{
     MSG_RESCAN_PROJECTS, MSG_SYS_STAT, Msg, ProjectSettings, ProjectsPayload,
 };
 use crate::protocol::{
-    CommandCancel, CommandRun, LogClose, LogList, LogOpen, MSG_LOG_CLOSE, MSG_LOG_LIST,
-    MSG_LOG_OPEN,
+    BackupRun, CommandCancel, CommandRun, LogClose, LogList, LogOpen, MSG_BACKUP_RUN,
+    MSG_LOG_CLOSE, MSG_LOG_LIST, MSG_LOG_OPEN,
 };
 use crate::runs::Runs;
 use crate::scanner;
@@ -89,7 +90,12 @@ impl Drop for AbortOnDrop {
 
 /// Runs one session. Returns only with an error: either the connection
 /// dropped (retry) or the hub rejected us (stop).
-pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), SessionError> {
+pub async fn run_session(
+    cfg: &Config,
+    collector: &mut Collector,
+    backups: &backups::Handle,
+    backup_out: &mut mpsc::Receiver<Msg>,
+) -> Result<(), SessionError> {
     let state = State::load(&cfg.state_path)?;
     let fingerprint = match (&state, &cfg.join) {
         (Some(s), _) => s.hub_fingerprint.clone(),
@@ -210,6 +216,10 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                         runs.cancel(&c.run_id);
                     }
                 }
+                Some(Ok(msg)) if msg.kind == MSG_BACKUP_RUN => match msg.payload::<BackupRun>() {
+                    Ok(run) => backups.request(run),
+                    Err(e) => warn!("ignoring invalid backup_run: {e:#}"),
+                },
                 Some(Ok(msg)) if msg.kind.starts_with("log_") => {
                     let projects = reported.as_ref().map(|f| f.projects.as_slice()).unwrap_or_default();
                     handle_log(&mut logs, &msg, projects).await;
@@ -219,6 +229,7 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 None => return Err(anyhow!("hub closed the connection").into()),
             },
             Some(msg) = outbox.recv() => protocol::write_frame(&mut wr, &msg).await?,
+            Some(msg) = backup_out.recv() => protocol::write_frame(&mut wr, &msg).await?,
             () = runs.reap() => {}
             () = logs.reap() => {}
             _ = ticker.tick() => {
@@ -226,6 +237,7 @@ pub async fn run_session(cfg: &Config, collector: &mut Collector) -> Result<(), 
                 protocol::write_frame(&mut wr, &Msg::new(MSG_SYS_STAT).with_data(&stat)?).await?;
             }
             Some(scanner::ScanResult { found, always_report }) = projects_rx.recv() => {
+                backups.projects(&found.projects);
                 if !always_report && reported.as_ref() == Some(&found) {
                     continue;
                 }
