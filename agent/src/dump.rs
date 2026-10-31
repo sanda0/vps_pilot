@@ -134,8 +134,8 @@ impl Database {
     }
 }
 
-/// Runs a dump tool. A failure says which tool and the last line it wrote
-/// to stderr.
+/// Runs a dump tool. A failure says which tool and the last error line it
+/// wrote to stderr.
 fn run(mut cmd: Command) -> Result<(), String> {
     let tool = cmd.get_program().to_string_lossy().into_owned();
     let output = cmd
@@ -149,7 +149,12 @@ fn run(mut cmd: Command) -> Result<(), String> {
         })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        let last = stderr.trim().lines().last().unwrap_or("");
+        // The last line that isn't an indented hint, like pg_dump's
+        // "\tIs the server running on that host…".
+        let last = stderr
+            .lines()
+            .rfind(|l| !l.trim().is_empty() && !l.starts_with(char::is_whitespace))
+            .unwrap_or("");
         return Err(format!("{tool} failed ({}): {last}", output.status));
     }
     Ok(())
@@ -258,7 +263,10 @@ mod tests {
             "vps-pilot-no-such-dump not found; install it on the server"
         );
         let mut sh = Command::new("sh");
-        sh.args(["-c", "echo warming up >&2; echo access denied >&2; exit 2"]);
+        sh.args([
+            "-c",
+            "echo warming up >&2; echo access denied >&2; printf '\\thint\\n\\n' >&2; exit 2",
+        ]);
         assert_eq!(
             run(sh).unwrap_err(),
             "sh failed (exit status: 2): access denied"
