@@ -34,6 +34,7 @@ pub const MSG_LOG_CLOSE: &str = "log_close";
 pub const MSG_LOG_DATA: &str = "log_data";
 pub const MSG_LOG_END: &str = "log_end";
 pub const MSG_BACKUP_STARTED: &str = "backup_started";
+pub const MSG_BACKUP_RESULT: &str = "backup_result";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -302,6 +303,13 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, msg: &Msg) -> Result<
     w.write_all(&buf).await?;
     w.flush().await?;
     Ok(())
+}
+
+/// Back up now, from the dashboard.
+#[derive(Debug, Clone, Deserialize)]
+pub struct BackupRun {
+    pub run_id: String,
+    pub project_path: PathBuf,
 }
 
 #[derive(Debug, Serialize)]
