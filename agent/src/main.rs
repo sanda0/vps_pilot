@@ -4,6 +4,9 @@ mod discovery;
 // Used by the backup child (next commits); only the tests use it for now.
 #[allow(dead_code)]
 mod envfile;
+// Used by the backup child (next commits); only the tests use it for now.
+#[allow(dead_code)]
+mod backupzip;
 mod logchild;
 mod logfiles;
 mod logread;
