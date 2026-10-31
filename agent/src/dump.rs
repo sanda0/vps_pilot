@@ -2,7 +2,11 @@
 //! owner, with the tool installed on the server. Passwords never go on a
 //! command line. See "Backing up" in docs/PROTOCOL.md.
 
+use std::fs::{self, File};
+use std::io::{ErrorKind, Write};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use crate::backupzip;
 use crate::envfile::EnvFile;
@@ -81,6 +85,103 @@ impl Database {
             _ => "dump.sql",
         }
     }
+
+    /// Dumps into `tmp`, a private folder, and returns the dump file.
+    pub fn dump(&self, tmp: &Path) -> Result<PathBuf, String> {
+        let out = tmp.join(self.file_name());
+        let mut cmd;
+        match self {
+            Database::Mysql(s) => {
+                let defaults = tmp.join("my.cnf");
+                write_private(&defaults, &mysql_defaults(s))?;
+                cmd = Command::new("mysqldump");
+                cmd.arg(format!("--defaults-extra-file={}", defaults.display()))
+                    .args([
+                        "--single-transaction",
+                        "--quick",
+                        "--routines",
+                        "--triggers",
+                    ])
+                    .arg(format!("--result-file={}", out.display()))
+                    .arg(&s.name);
+            }
+            Database::Postgres(s) => {
+                cmd = Command::new("pg_dump");
+                cmd.args(["--no-owner", "--format=plain"])
+                    .arg(format!("--file={}", out.display()))
+                    .arg(format!("--dbname={}", s.name))
+                    .env("PGPASSWORD", &s.password);
+                for (flag, value) in [
+                    ("--host", &s.host),
+                    ("--port", &s.port),
+                    ("--username", &s.username),
+                ] {
+                    if !value.is_empty() {
+                        cmd.arg(format!("{flag}={value}"));
+                    }
+                }
+            }
+            Database::Sqlite(file) => {
+                // A relative target, so the path needs no quoting.
+                cmd = Command::new("sqlite3");
+                cmd.arg(file)
+                    .arg(format!(".backup {}", self.file_name()))
+                    .current_dir(tmp);
+            }
+        }
+        run(cmd)?;
+        Ok(out)
+    }
+}
+
+/// Runs a dump tool. A failure says which tool and the last line it wrote
+/// to stderr.
+fn run(mut cmd: Command) -> Result<(), String> {
+    let tool = cmd.get_program().to_string_lossy().into_owned();
+    let output = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| match e.kind() {
+            ErrorKind::NotFound => format!("{tool} not found; install it on the server"),
+            _ => format!("start {tool}: {e}"),
+        })?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let last = stderr.trim().lines().last().unwrap_or("");
+        return Err(format!("{tool} failed ({}): {last}", output.status));
+    }
+    Ok(())
+}
+
+/// A MySQL option file with the connection settings, so the password isn't
+/// on mysqldump's command line.
+fn mysql_defaults(s: &Server) -> String {
+    let quote = |v: &str| format!("\"{}\"", v.replace('\\', "\\\\").replace('"', "\\\""));
+    let mut out = String::from("[client]\n");
+    for (key, value) in [
+        ("host", &s.host),
+        ("port", &s.port),
+        ("user", &s.username),
+        ("password", &s.password),
+    ] {
+        if !value.is_empty() {
+            out.push_str(&format!("{key}={}\n", quote(value)));
+        }
+    }
+    out
+}
+
+fn write_private(path: &Path, text: &str) -> Result<(), String> {
+    let _ = fs::remove_file(path);
+    File::options()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+        .and_then(|mut f| f.write_all(text.as_bytes()))
+        .map_err(|e| format!("write {}: {e}", path.display()))
 }
 
 #[cfg(test)]
@@ -111,8 +212,8 @@ mod tests {
             unreachable!()
         };
         assert_eq!(
-            (server.username.as_str(), server.password.as_str()),
-            ("shop", "a\"b\\c")
+            mysql_defaults(server),
+            "[client]\nhost=\"127.0.0.1\"\nport=\"3306\"\nuser=\"shop\"\npassword=\"a\\\"b\\\\c\"\n"
         );
 
         let pg = env(
@@ -147,6 +248,20 @@ mod tests {
             Database::from_env(&names(), &sqlite, project)
                 .unwrap_err()
                 .contains("outside")
+        );
+    }
+
+    #[test]
+    fn reports_missing_and_failing_tools() {
+        assert_eq!(
+            run(Command::new("vps-pilot-no-such-dump")).unwrap_err(),
+            "vps-pilot-no-such-dump not found; install it on the server"
+        );
+        let mut sh = Command::new("sh");
+        sh.args(["-c", "echo warming up >&2; echo access denied >&2; exit 2"]);
+        assert_eq!(
+            run(sh).unwrap_err(),
+            "sh failed (exit status: 2): access denied"
         );
     }
 }
