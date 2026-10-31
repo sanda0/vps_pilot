@@ -38,8 +38,9 @@ connection.
 
 ## What the dashboard can do on a server
 
-The hub can send an agent the project scan settings, "rescan now", and a
-request to run or cancel a project command. It can't read files or open a
+The hub can send an agent the project scan settings, "rescan now", a request
+to run or cancel a project command, and a request to list or read the files in
+a project's declared log folders. It can't read any other file or open a
 shell.
 
 Running commands follows one rule: **the hub sends command names, never
@@ -52,6 +53,12 @@ The agent also decides who a command runs as: the owner of
 It refuses a config that is a symlink or writable by its group or by others,
 so nobody else can put a command in someone's file. Every run is recorded with
 the dashboard user who started it. See [Run a command](/docs/projects/#run-a-command).
+
+Reading logs follows the same rules. The agent re-reads the config, reads as
+its owner, and only opens files that resolve, after symlinks, inside a folder
+listed in `logs`, which must itself resolve inside the project directory. The
+hub sends the file's path as the agent listed it and stores none of the
+contents. See [Read logs](/docs/projects/#read-logs).
 
 Manual project paths follow the same idea. The agent only accepts them inside
 its own project directories (after resolving `..` and symlinks), unless the

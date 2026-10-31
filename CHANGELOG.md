@@ -6,6 +6,18 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Upgrade notes
+- Reading logs needs agent v0.4.0 or later. Older agents keep working for
+  everything else, and the dashboard asks you to upgrade them when you open
+  a project's logs. The hub's databases don't change.
+
+### Added
+- Read logs: the **Logs** card on the project page lists the files in the
+  log folders a project's `config.vpspilot.json` declares, and follows the
+  one you pick live, with **Load earlier** for older lines. The agent reads
+  them as the config file's owner, and only files that stay inside a
+  declared folder after symlinks are resolved. Nothing is stored on the hub.
+
 ## v0.3.0 - 2026-10-25
 
 ### Upgrade notes
