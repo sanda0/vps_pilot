@@ -54,6 +54,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createAlertStmt, err = db.PrepareContext(ctx, createAlert); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateAlert: %w", err)
 	}
+	if q.createBackupRunStmt, err = db.PrepareContext(ctx, createBackupRun); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateBackupRun: %w", err)
+	}
 	if q.createCommandRunStmt, err = db.PrepareContext(ctx, createCommandRun); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateCommandRun: %w", err)
 	}
@@ -284,6 +287,11 @@ func (q *Queries) Close() error {
 	if q.createAlertStmt != nil {
 		if cerr := q.createAlertStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createAlertStmt: %w", cerr)
+		}
+	}
+	if q.createBackupRunStmt != nil {
+		if cerr := q.createBackupRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createBackupRunStmt: %w", cerr)
 		}
 	}
 	if q.createCommandRunStmt != nil {
@@ -630,6 +638,7 @@ type Queries struct {
 	countProjectsStmt                  *sql.Stmt
 	countProjectsByNodeStmt            *sql.Stmt
 	createAlertStmt                    *sql.Stmt
+	createBackupRunStmt                *sql.Stmt
 	createCommandRunStmt               *sql.Stmt
 	createEnrolledNodeStmt             *sql.Stmt
 	createJoinTokenStmt                *sql.Stmt
@@ -705,6 +714,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		countProjectsStmt:                  q.countProjectsStmt,
 		countProjectsByNodeStmt:            q.countProjectsByNodeStmt,
 		createAlertStmt:                    q.createAlertStmt,
+		createBackupRunStmt:                q.createBackupRunStmt,
 		createCommandRunStmt:               q.createCommandRunStmt,
 		createEnrolledNodeStmt:             q.createEnrolledNodeStmt,
 		createJoinTokenStmt:                q.createJoinTokenStmt,

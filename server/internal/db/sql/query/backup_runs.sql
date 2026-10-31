@@ -1,3 +1,9 @@
+-- name: CreateBackupRun :one
+-- Back up now, from the dashboard, before backup_run is sent.
+INSERT INTO backup_runs (id, node_id, project_path, trigger_kind, user_id, username)
+VALUES (?, ?, ?, 'manual', ?, ?)
+RETURNING *;
+
 -- name: StartBackupRun :exec
 -- From backup_started. A run started from the dashboard already has a row;
 -- the agent's report adds who it runs as. Only the node that owns a run
