@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::backupzip::{self, Contents};
 use crate::dump::Database;
+use crate::envfile::EnvFile;
 use crate::project::ProjectBackup;
 
 /// First argument that makes the agent binary act as the backup child.
@@ -78,8 +79,20 @@ pub fn backup(job: &Job, now: u64) -> Result<Done, String> {
         .collect::<Result<Vec<_>, _>>()?;
     let local = local_dir(&project, &b.local_dir, &dirs)?;
 
-    let roots = dirs;
-    let database: Option<Database> = None;
+    let mut roots = dirs;
+    let env = if b.env_file.is_empty() {
+        None
+    } else {
+        let path = backupzip::inside(&project, &b.env_file)?;
+        let env = EnvFile::load(&path, &b.env_file)?;
+        roots.push(path);
+        Some(env)
+    };
+    let database = match (&b.database, &env) {
+        (None, _) => None,
+        (Some(_), None) => return Err("backups.database needs backups.env_file".into()),
+        (Some(names), Some(env)) => Some(Database::from_env(names, env, &project)?),
+    };
 
     let stamp = backupzip::stamp(now);
     let tmp = Tmp(local.join(format!(".{base}-{stamp}.tmp")));
@@ -188,5 +201,37 @@ mod tests {
         assert_eq!(fs::metadata(&local).unwrap().mode() & 0o777, 0o700);
 
         assert!(backup(&job, start).is_err(), "overwrote a zip");
+    }
+
+    #[test]
+    fn checks_paths_and_settings() {
+        for (change, want) in [
+            (
+                serde_json::json!({"local_dir": ""}),
+                "backups.local_dir is not set",
+            ),
+            (
+                serde_json::json!({"local_dir": "storage/app/backups"}),
+                "inside a backed-up folder",
+            ),
+            (
+                serde_json::json!({"dir": ["../"]}),
+                "outside the project directory",
+            ),
+            (serde_json::json!({"zip_file_name": "a b"}), "zip_file_name"),
+            (
+                serde_json::json!({"env_file": "", "database": {"connection": "DB_CONNECTION"}}),
+                "needs backups.env_file",
+            ),
+        ] {
+            let (_dir, mut job) = project();
+            let mut b = serde_json::to_value(&job.backups).unwrap();
+            for (k, v) in change.as_object().unwrap() {
+                b[k] = v.clone();
+            }
+            job.backups = serde_json::from_value(b).unwrap();
+            let err = backup(&job, 0).unwrap_err();
+            assert!(err.contains(want), "{change}: {err}");
+        }
     }
 }
