@@ -184,18 +184,25 @@ fn remove_leftovers(local: &Path, base: &str) {
 
 /// Deletes this project's zips older than `days`, except the newest.
 fn prune(local: &Path, base: &str, now: u64, days: u32) {
-    let mut zips: Vec<(u64, String)> = names(local)
+    for name in expired(names(local), base, now, days) {
+        let _ = fs::remove_file(local.join(name));
+    }
+}
+
+/// Of `names`, this project's zips older than `days`, except the newest.
+/// Other names are left alone.
+pub fn expired(names: Vec<String>, base: &str, now: u64, days: u32) -> Vec<String> {
+    let mut zips: Vec<(u64, String)> = names
         .into_iter()
         .filter_map(|n| Some((zip_time(&n, base)?, n)))
         .collect();
     zips.sort();
     zips.pop();
     let cutoff = now.saturating_sub(u64::from(days) * 86_400);
-    for (time, name) in zips {
-        if time < cutoff {
-            let _ = fs::remove_file(local.join(name));
-        }
-    }
+    zips.into_iter()
+        .filter(|(time, _)| *time < cutoff)
+        .map(|(_, name)| name)
+        .collect()
 }
 
 fn names(dir: &Path) -> Vec<String> {

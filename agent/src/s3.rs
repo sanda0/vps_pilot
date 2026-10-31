@@ -7,6 +7,7 @@ use std::io::Read;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::backupchild;
 use crate::backupzip;
 use crate::sigv4::{self, Credentials};
 
@@ -117,6 +118,39 @@ impl Bucket {
             *part = read_part(f)?;
         }
         Ok(etags)
+    }
+
+    /// Deletes this project's zips under `prefix` older than `days`, except
+    /// the newest, as for `local_dir`.
+    pub fn prune(&self, prefix: &str, base: &str, now: u64, days: u32) -> Result<(), String> {
+        let names = self
+            .list(&format!("{prefix}{base}-"))?
+            .into_iter()
+            .filter_map(|k| k.strip_prefix(prefix).map(String::from))
+            .collect();
+        for name in backupchild::expired(names, base, now, days) {
+            self.request("DELETE", &format!("{prefix}{name}"), &[], &[])?;
+        }
+        Ok(())
+    }
+
+    /// Every key that starts with `prefix`.
+    fn list(&self, prefix: &str) -> Result<Vec<String>, String> {
+        let mut keys = Vec::new();
+        let mut token: Option<String> = None;
+        loop {
+            let mut query = vec![("list-type", "2"), ("prefix", prefix)];
+            if let Some(t) = &token {
+                query.push(("continuation-token", t));
+            }
+            let reply = self.request("GET", "", &query, &[])?;
+            keys.extend(tags(&reply.body, "Key"));
+            token = tags(&reply.body, "NextContinuationToken").pop();
+            if tags(&reply.body, "IsTruncated").pop().as_deref() != Some("true") || token.is_none()
+            {
+                return Ok(keys);
+            }
+        }
     }
 
     /// Sends a signed request for `key` ("" for the bucket) and returns the
@@ -316,6 +350,31 @@ mod tests {
             b.put_file(&format!("t/{name}"), &path).unwrap();
             let reply = b.request("HEAD", &format!("t/{name}"), &[], &[]).unwrap();
             assert!(reply.body.is_empty(), "{name}");
+        }
+        // Two old zips, the newest kept; another project's zip and other
+        // files under the prefix are left alone.
+        let small = dir.path().join("small.zip");
+        for key in [
+            "shop-20200101T000000Z.zip",
+            "shop-20200102T000000Z.zip",
+            "blog-20200101T000000Z.zip",
+        ] {
+            b.put_file(&format!("t/{key}"), &small).unwrap();
+        }
+        b.prune("t/", "shop", 1_793_415_600, 30).unwrap();
+        let mut left = b.list("t/").unwrap();
+        left.sort();
+        assert_eq!(
+            left,
+            [
+                "t/blog-20200101T000000Z.zip",
+                "t/large.zip",
+                "t/shop-20200102T000000Z.zip",
+                "t/small.zip"
+            ]
+        );
+        for key in left {
+            b.request("DELETE", &key, &[], &[]).unwrap();
         }
         let wrong = Bucket::new(endpoint, "vpsp-test", "us-east-1", access, "nope", true).unwrap();
         let err = wrong
