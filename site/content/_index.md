@@ -23,6 +23,8 @@ available:
     text: Run a command a project declares, by name, and watch its output live. It runs as the owner of the config file, and every run is recorded with who started it.
   - title: Read logs
     text: Pick a file in the log folders a project declares and follow it live, or load earlier lines. The agent reads it as the owner of the config file, and the hub stores nothing.
+  - title: Backups
+    text: Zip the folders, env file and database a project declares on a schedule or with one click, keep them on the server and upload them to S3-compatible storage. Keys stay in the env file on the server.
   - title: Safe enrollment
     text: One-time join tokens, TLS 1.3 with a pinned certificate, and a key per server that you can revoke. Re-enroll a server without losing its history.
   - title: One binary hub
@@ -31,7 +33,6 @@ available:
     text: One Rust binary per server, installed as a systemd service with one command or a .deb. It dials out to the hub, so the server needs no open ports.
 
 soon:
-  - Backups of declared folders, the env file and the database
   - Cron jobs declared per project
   - Docker Compose setup
   - Multiple users with roles
