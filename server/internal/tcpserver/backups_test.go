@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/sanda0/vps_pilot/internal/db"
 )
@@ -76,5 +77,28 @@ func TestBackupReportsAreRecorded(t *testing.T) {
 	}
 	if r := run("u1"); r.Status != "failed" || r.TriggerKind != "schedule" || r.Error != `agent sent unknown status "bored"` {
 		t.Fatalf("unknown status %+v", r)
+	}
+}
+
+func TestLateBackupResultReplacesLost(t *testing.T) {
+	h := newTestHub(t)
+	agent, _ := h.agentWith(FeatureBackups)
+	q, ctx := h.repo.Queries, context.Background()
+	old := time.Now().Add(-BackupLostAfter - time.Minute).Unix()
+	agent.send(MsgBackupStarted, "", BackupStarted{RunID: "a", ProjectPath: "/srv/shop", Trigger: "schedule", StartedAt: old})
+	agent.send(MsgBackupStarted, "", BackupStarted{RunID: "b", ProjectPath: "/srv/shop", Trigger: "schedule", StartedAt: time.Now().Unix()})
+	h.synced(agent)
+
+	h.backups.markLost(ctx)
+	if r, _ := q.GetBackupRun(ctx, "a"); r.Status != "lost" || r.Error != "no result from the agent" {
+		t.Fatalf("stale run %+v", r)
+	}
+	if r, _ := q.GetBackupRun(ctx, "b"); r.Status != "running" {
+		t.Fatalf("recent run %+v", r)
+	}
+	agent.send(MsgBackupResult, "", BackupResult{RunID: "a", ProjectPath: "/srv/shop", Trigger: "schedule", Status: "ok", StartedAt: old})
+	h.synced(agent)
+	if r, _ := q.GetBackupRun(ctx, "a"); r.Status != "ok" || r.Error != "" {
+		t.Fatalf("late result %+v", r)
 	}
 }
