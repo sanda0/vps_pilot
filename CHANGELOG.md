@@ -6,6 +6,32 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Upgrade notes
+- Upgrading the hub adds the `backup_runs` table to the operational database
+  on start.
+- Backups need agent v0.5.0 or later. Older agents keep working for
+  everything else, and the dashboard refuses Back up now on them.
+- A `backups` block needs `local_dir` before backups run. Configs without it
+  stay valid; their backups fail and say so.
+- Dumping a database needs its tool on the server: `mysqldump`, `pg_dump` or
+  `sqlite3`.
+
+### Added
+- Back up: the agent zips the folders, env file and database dump a
+  project's `config.vpspilot.json` declares into `local_dir`, on the
+  `schedule` in the file or from **Back up now** on the project page, and can
+  upload each zip to S3-compatible storage (Linode, AWS, MinIO). Old zips are
+  deleted after `retention_days`. The **Backups** card shows each backup's
+  status, size, path and upload result. Backups run as the config file's
+  owner, and the S3 keys stay in the env file on the server. See the docs for
+  restoring.
+
+### Changed
+- The project page has one **Commands** card for the commands and their runs,
+  and the run history is paginated.
+- The project page's **Project info** card is a compact row across the page,
+  with a link to the node and a button to copy the path.
+
 ## v0.4.0 - 2026-10-31
 
 ### Upgrade notes

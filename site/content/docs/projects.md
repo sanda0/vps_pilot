@@ -32,7 +32,20 @@ them under **Projects**.
       "password": "DB_PASSWORD",
       "database_name": "DB_DATABASE"
     },
-    "dir": ["storage/app"]
+    "dir": ["storage/app"],
+    "schedule": "daily",
+    "at": "03:00",
+    "local_dir": "../backups/shop",
+    "retention_days": 7,
+    "s3": {
+      "access_key": "S3_ACCESS_KEY",
+      "secret_key": "S3_SECRET_KEY",
+      "bucket": "shop-backups",
+      "region": "us-east-1",
+      "endpoint": "https://us-east-1.linodeobjects.com",
+      "prefix": "shop/",
+      "retention_days": 30
+    }
   }
 }
 ```
@@ -45,19 +58,20 @@ Only `name` is required. `{ "name": "blog" }` is a valid config.
 | `tech` | list of strings | Free-form tags, for example `"laravel"` or `"node"`. |
 | `commands` | list of `{ name, command }` | The only commands the dashboard can run, by `name` (see [Run a command](#run-a-command)). Each needs both fields, and names must be unique. |
 | `logs` | list of paths | Log folders, relative to the project directory, that the dashboard can read (see [Read logs](#read-logs)). |
-| `backups.env_file` | path | The project's env file. |
-| `backups.zip_file_name` | string | Base name for backup archives. |
+| `backups.env_file` | path | The project's env file. It goes into each backup, and the `database` and `s3` variables are read from it. |
+| `backups.zip_file_name` | string | Base name of the zip: letters, digits, `.`, `-` and `_`. Defaults to the project's `name`, with other characters replaced by `_`. |
 | `backups.database` | object | The *names* of the variables in `env_file` that hold the database settings, not the values. |
 | `backups.dir` | list of paths | Folders to include in a backup. |
+| `backups.schedule` | `daily` or `weekly` | When the agent backs up on its own; `weekly` is Sundays. Without it, backups only run from **Back up now**. |
+| `backups.at` | `HH:MM` | Time of day for `schedule`, in the server's time zone. Defaults to `03:00`. |
+| `backups.local_dir` | path | Where the zips are written, relative to the project directory or absolute. Required for backups to run, and it must not be inside a `dir` folder. |
+| `backups.retention_days` | number | Zips in `local_dir` older than this are deleted. Defaults to 7. |
+| `backups.s3` | object | Also upload each zip to S3-compatible storage. See [Upload to a bucket](#upload-to-a-bucket). |
 
 A file larger than 64 KiB, invalid JSON, a missing `name`, an incomplete
-command or a duplicate command name makes the config unusable. The agent
+command or a duplicate command name makes the config unusable. So do an
+invalid `schedule`, `at` or `retention_days`, or an incomplete `s3`. The agent
 reports it as a problem instead of a project.
-
-{{< callout soon >}}
-Backups (the env file, the folders and a database dump) are planned. Today
-the project page shows what the file declares for them.
-{{< /callout >}}
 
 ## Run a command
 
@@ -159,6 +173,120 @@ new file. The hub passes the lines on and doesn't store them.
 
 Reading logs needs agent v0.4.0 or later. On older agents, the Logs card shows
 an error asking you to upgrade.
+
+## Back up
+
+The agent backs up what `backups` declares into a zip: the `dir` folders, the
+`env_file` and a dump of the database. It writes the zip to `local_dir` on the
+server and, if `s3` is set, uploads it to a bucket. The hub only records how
+each backup went; the backup itself never leaves the server and the bucket.
+
+A backup runs:
+
+- **on the schedule** in the config file (`schedule` and `at`). The agent runs
+  it itself, so it happens even when the hub is down. A backup missed while
+  the agent wasn't running runs once when it's back, and adding a schedule
+  doesn't back up at once;
+- **from Back up now** on the project page's **Backups** card.
+
+The card shows what the project backs up and where, and its recent backups:
+status, who started it (or "Scheduled"), size, the zip's path and how the
+upload went. One backup runs at a time on a server; pressing Back up now while
+another runs records it as rejected.
+
+### What a backup does
+
+The agent re-reads the config with the same checks as for
+[running a command](#who-the-command-runs-as), then runs the backup **as the
+owner of `config.vpspilot.json`**, so it only reads and writes what that user
+can.
+
+- **Paths.** Each `dir`, the `env_file` and a SQLite database file must stay
+  inside the project directory after `..` and symlinks are resolved.
+  Symlinks inside the folders are skipped.
+- **Database.** The value of the `connection` variable picks the tool, which
+  must be installed on the server: `mysql` or `mariadb` use `mysqldump`,
+  `pgsql`, `postgres` or `postgresql` use `pg_dump`, and `sqlite` uses
+  `sqlite3`, with `database_name` as the file. Passwords never go on a command
+  line.
+- **The zip** is named like `shop_backup-20261031T030000Z.zip` (UTC time) and
+  holds `manifest.json`, the files under `files/` at their paths in the
+  project, and the dump under `database/` (`dump.sql` or `database.sqlite`).
+  It's readable only by its owner (mode `0600`), because it holds the env
+  file, and `local_dir` is created with mode `0700`.
+- **Retention.** After each backup, zips of this project older than
+  `retention_days` are deleted from `local_dir`, and older than
+  `s3.retention_days` from the bucket. The newest is always kept.
+- **Timeout.** A backup is stopped after an hour (`--backup-timeout` on the
+  agent, in seconds).
+
+Backups need agent v0.5.0 or later. On older agents, Back up now shows an
+error asking you to upgrade.
+
+### Upload to a bucket
+
+`s3` uploads each zip to Linode Object Storage, AWS S3, MinIO or any other
+S3-compatible storage:
+
+| Field | Description |
+| --- | --- |
+| `access_key`, `secret_key` | The **names** of the variables in `env_file` that hold the keys, never the keys themselves. The hub and the dashboard only ever see the names. |
+| `bucket`, `region`, `endpoint` | The bucket, its region and its `https://` endpoint, e.g. `https://us-east-1.linodeobjects.com`. |
+| `prefix` | Optional. Put in front of each object's name, e.g. `shop/`. |
+| `path_style` | Optional. `true` for `endpoint/bucket/key` URLs, which MinIO needs. |
+| `retention_days` | Optional. Zips in the bucket older than this are deleted. Defaults to 30. |
+
+The keys need permission to put, list and delete objects in the bucket. If an
+upload fails, the zip is still in `local_dir` and the backup counts as done;
+the card shows why the upload failed.
+
+### Restore a backup
+
+There is no restore button: restoring overwrites files and a database, so you
+do it on the server, as the project's owner.
+
+1. Get the zip: from `local_dir`, or download it from the bucket (for example
+   with the Linode Cloud Manager, `s3cmd get` or `aws s3 cp`).
+2. Unzip it somewhere private:
+
+   ```sh
+   mkdir -m 700 /tmp/restore
+   unzip shop_backup-20261031T030000Z.zip -d /tmp/restore
+   ```
+
+3. Put the files back. `files/` mirrors the project directory, env file
+   included:
+
+   ```sh
+   rsync -a /tmp/restore/files/ /var/www/shop/
+   ```
+
+4. Load the database. The dump doesn't create the database, so create an
+   empty one first if it's gone:
+   - **MySQL / MariaDB**
+
+     ```sh
+     mysql -u shop -p -e 'CREATE DATABASE IF NOT EXISTS shop'
+     mysql -u shop -p shop < /tmp/restore/database/dump.sql
+     ```
+
+   - **PostgreSQL** (the dump has no owner statements, so the user you load it
+     with owns the tables)
+
+     ```sh
+     createdb -U shop shop
+     psql -U shop -d shop -f /tmp/restore/database/dump.sql
+     ```
+
+   - **SQLite**: stop the app, then copy the file back over the database:
+
+     ```sh
+     cp /tmp/restore/database/database.sqlite /var/www/shop/database/database.sqlite
+     ```
+
+5. Delete `/tmp/restore`, which holds the env file.
+
+Try a restore on a spare server before you need one.
 
 ## How the agent finds projects
 
