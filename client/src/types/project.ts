@@ -12,11 +12,29 @@ export interface ProjectBackupDatabase {
   database_name: string;
 }
 
+// Where backups are uploaded. The keys are the names of env-file variables,
+// never the keys themselves.
+export interface ProjectBackupS3 {
+  access_key: string;
+  secret_key: string;
+  bucket: string;
+  region: string;
+  endpoint: string;
+  prefix?: string;
+  path_style: boolean;
+  retention_days?: number; // default 30
+}
+
 export interface ProjectBackup {
   env_file?: string;
   zip_file_name?: string;
   database?: ProjectBackupDatabase;
   dir?: string[];
+  schedule?: "daily" | "weekly"; // weekly runs on Sundays
+  at?: string; // HH:MM in the server's time zone, default 03:00
+  local_dir?: string;
+  retention_days?: number; // default 7
+  s3?: ProjectBackupS3;
 }
 
 export interface Project {

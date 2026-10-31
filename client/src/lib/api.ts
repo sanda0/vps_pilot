@@ -4,6 +4,7 @@ import { JoinToken } from "@/types/node_type";
 import { NodeOption, ProjectPath, ProjectScan } from "@/types/project_scan";
 import { CommandOutput, CommandRun } from "@/types/command_run";
 import { LogFiles } from "@/types/log";
+import { BackupRun } from "@/types/backup";
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -153,6 +154,23 @@ export const logsApi = {
     if (opts.maxBytes !== undefined) params.set("max_bytes", String(opts.maxBytes));
     if (opts.follow) params.set("follow", "true");
     return `${protocol}://${window.location.host}/api/v1/projects/${projectId}/logs/ws?${params}`;
+  },
+};
+
+// A project's backups, made by the node's agent from what the project's
+// config.vpspilot.json declares; see docs/PROTOCOL.md.
+export const backupsApi = {
+  list: async (projectId: string, limit = 20) => {
+    const response = await api.get<{ data: BackupRun[] }>(`/projects/${projectId}/backups`, {
+      params: { limit },
+    });
+    return response.data.data ?? [];
+  },
+
+  // Back up now. The run stays "running" until the agent reports.
+  start: async (projectId: string) => {
+    const response = await api.post<{ data: BackupRun }>(`/projects/${projectId}/backups`);
+    return response.data.data;
   },
 };
 
