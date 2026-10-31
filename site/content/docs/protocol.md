@@ -117,6 +117,9 @@ next `connected` gets `auth_failed`.
 | `log_close` | hub → agent | `{ "stream_id": "…" }` |
 | `log_data` | agent → hub | `LogData` |
 | `log_end` | agent → hub | `LogEnd` |
+| `backup_run` | hub → agent | `BackupRun`, see [Back up](#back-up) |
+| `backup_started` | agent → hub | `BackupStarted` |
+| `backup_result` | agent → hub | `BackupResult` |
 
 ## Projects
 
@@ -252,12 +255,53 @@ At most 8 streams are open at once on a node; more are `rejected`. When the
 session ends, the agent closes its streams. The hub doesn't store log
 contents.
 
+## Back up
+
+The agent backs up what a project declares in `backups`: the `dir` folders,
+the `env_file` and a database dump, into a zip in `local_dir`, and uploads it
+if `s3` is set. The hub never receives the backup, only its result.
+
+```text
+hub → agent   backup_run       { run_id, project_path }             (Back up now)
+agent → hub   backup_started   { run_id, project_path, trigger, … }
+agent → hub   backup_result    { run_id, project_path, status, … }  (one per backup)
+```
+
+Backups start on the schedule in the config file, run by the agent even when
+the hub is unreachable (the agent picks the `run_id`), or from `backup_run`.
+Only agents whose `SystemInfo.features` contains `"backups"` support this; the
+hub never sends `backup_run` to other agents.
+
+Before backing up, the agent checks, like for commands, that `project_path` is
+a project from its latest search, re-reads the config (not a symlink, not
+writable by group or others) and that it can run as the config file's owner.
+One backup runs at a time on a node: a scheduled backup waits, and a
+`backup_run` is rejected. A rejected backup sends only `backup_result`.
+
+The backup runs as the config file's owner. `dir`, `env_file` and a SQLite
+file must resolve inside the project directory. The S3 keys and database
+password are read from the env file on the server; the config, and so the
+hub, only has their variable names. See
+[Back up](/docs/projects/#back-up) for the zip, the dump tools, retention and
+the 1-hour timeout.
+
+A backup keeps running if the session ends. The agent keeps up to 50 results
+it couldn't send and sends them after it reconnects. The hub de-duplicates by
+`run_id`, and marks a backup with no result after 24 hours as `lost`; a later
+result still replaces that.
+
+| `status` | Meaning |
+| --- | --- |
+| `ok` | The zip was written to `local_dir`; `upload` says how the upload went |
+| `failed` | No zip was kept; `error` says why |
+| `rejected` | Not started; `error` says why |
+
 ## Payloads
 
 `SystemInfo`. `hostname` names the node on first enrollment; `total_memory`
 is in bytes. `agent_version` and `features` were added in v0.3; when they're
 missing, the hub treats the agent as having no features. The features are
-`commands` (v0.3) and `logs` (v0.4).
+`commands` (v0.3), `logs` (v0.4) and `backups` (v0.5).
 
 ```json
 {
@@ -268,8 +312,8 @@ missing, the hub treats the agent as having no features. The features are
   "kernel_version": "6.8.0-45-generic",
   "cpus": 4,
   "total_memory": 8221474816,
-  "agent_version": "v0.4.0",
-  "features": ["commands", "logs"]
+  "agent_version": "v0.5.0",
+  "features": ["commands", "logs", "backups"]
 }
 ```
 
@@ -379,4 +423,37 @@ empty, when the request was refused.
 
 ```json
 { "stream_id": "9a2e…", "reason": "rejected", "error": "not a file in this project's log folders" }
+```
+
+`BackupRun`. `run_id` is a UUID chosen by the hub.
+
+```json
+{ "run_id": "c41a…", "project_path": "/var/www/shop" }
+```
+
+`BackupStarted`. `trigger` is `manual` or `schedule`; `started_at` is Unix
+seconds.
+
+```json
+{ "run_id": "c41a…", "project_path": "/var/www/shop", "trigger": "schedule", "started_at": 1793156400, "run_as": "deploy" }
+```
+
+`BackupResult`. `file`, `local_path` and `size` are set when `status` is `ok`.
+`upload.status` is `ok`, `failed` or `skipped`.
+
+```json
+{
+  "run_id": "c41a…",
+  "project_path": "/var/www/shop",
+  "trigger": "schedule",
+  "status": "ok",
+  "started_at": 1793156400,
+  "duration_ms": 84210,
+  "file": "shop_backup-20261031T030000Z.zip",
+  "local_path": "/var/www/backups/shop/shop_backup-20261031T030000Z.zip",
+  "size": 52428800,
+  "database": "mysql",
+  "upload": { "status": "ok", "key": "shop/shop_backup-20261031T030000Z.zip", "error": "" },
+  "error": ""
+}
 ```
