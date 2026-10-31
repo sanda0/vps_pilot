@@ -70,11 +70,14 @@ type SystemInfo struct {
 	CPUs            int      `json:"cpus"`             // number of CPUs
 	TotalMemory     uint64   `json:"total_memory"`     // total memory in bytes
 	AgentVersion    string   `json:"agent_version"`    // empty before v0.3
-	Features        []string `json:"features"`         // e.g. ["commands"]; none before v0.3
+	Features        []string `json:"features"`         // e.g. ["commands", "logs"]; none before v0.3
 }
 
-// FeatureCommands means the agent handles command_run (docs/PROTOCOL.md).
-const FeatureCommands = "commands"
+// Features an agent can list in SystemInfo (docs/PROTOCOL.md).
+const (
+	FeatureCommands = "commands" // handles command_run, since v0.3
+	FeatureLogs     = "logs"     // handles log_list and log_open, since v0.4
+)
 
 func (s *SystemInfo) FromBytes(data []byte) error {
 	return json.Unmarshal(data, s)
@@ -126,6 +129,13 @@ const (
 	MsgCommandCancel = "command_cancel" // hub → agent, Data = CommandCancel
 	MsgCommandOutput = "command_output" // agent → hub, Data = CommandOutput
 	MsgCommandExit   = "command_exit"   // agent → hub, Data = CommandExit
+
+	MsgLogList  = "log_list"  // hub → agent, Data = LogList
+	MsgLogFiles = "log_files" // agent → hub, Data = LogFiles
+	MsgLogOpen  = "log_open"  // hub → agent, Data = LogOpen
+	MsgLogClose = "log_close" // hub → agent, Data = LogClose
+	MsgLogData  = "log_data"  // agent → hub, Data = LogData
+	MsgLogEnd   = "log_end"   // agent → hub, Data = LogEnd
 )
 
 // CommandRun asks the agent to run a command by name. Never a command string.
@@ -157,6 +167,60 @@ type CommandExit struct {
 	DurationMs int64  `json:"duration_ms"`
 	Truncated  bool   `json:"truncated"`
 	Error      string `json:"error"`
+}
+
+// LogList asks for the files in a project's log folders.
+type LogList struct {
+	RequestID   string `json:"request_id"`
+	ProjectPath string `json:"project_path"`
+}
+
+// LogFile is a readable file; Path is relative to the project directory.
+type LogFile struct {
+	Path     string `json:"path"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"` // Unix seconds
+}
+
+// LogFiles answers a LogList. Error is set when the request was refused or
+// the list was cut short.
+type LogFiles struct {
+	RequestID string    `json:"request_id"`
+	Files     []LogFile `json:"files"`
+	Error     string    `json:"error"`
+}
+
+// LogOpen asks for up to MaxBytes ending at Before (nil: the end of the
+// file), then, with Follow, what is appended after it.
+type LogOpen struct {
+	StreamID    string `json:"stream_id"`
+	ProjectPath string `json:"project_path"`
+	File        string `json:"file"`
+	Before      *int64 `json:"before"`
+	MaxBytes    int64  `json:"max_bytes"`
+	Follow      bool   `json:"follow"`
+}
+
+type LogClose struct {
+	StreamID string `json:"stream_id"`
+}
+
+// LogData is one chunk of a stream. Offset is where Data starts in the file
+// and Size is the file's size when it was read.
+type LogData struct {
+	StreamID string `json:"stream_id"`
+	Seq      int64  `json:"seq"`
+	Offset   int64  `json:"offset"`
+	Data     string `json:"data"`
+	Size     int64  `json:"size"`
+	Rotated  bool   `json:"rotated"`
+}
+
+// LogEnd ends a stream. Reason is done, closed, rejected, error or limit.
+type LogEnd struct {
+	StreamID string `json:"stream_id"`
+	Reason   string `json:"reason"`
+	Error    string `json:"error"`
 }
 
 // EnrolledPayload carries the long-lived credentials issued at enrollment.

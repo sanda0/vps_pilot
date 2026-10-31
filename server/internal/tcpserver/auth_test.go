@@ -18,6 +18,7 @@ type testHub struct {
 	router   *Router
 	registry *Registry
 	runs     *Runs
+	logs     *Logs
 	chans    statChans
 }
 
@@ -37,7 +38,8 @@ func newTestHub(t *testing.T) *testHub {
 		chans:    statChans{stat: make(chan Msg, 10), monitor: make(chan Msg, 10)},
 	}
 	h.runs = NewRuns(context.Background(), h.repo, h.registry)
-	registerHandlers(h.router, h.chans, h.runs)
+	h.logs = NewLogs(h.registry)
+	registerHandlers(h.router, h.chans, h.runs, h.logs)
 	return h
 }
 

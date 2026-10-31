@@ -13,14 +13,20 @@ import (
 // commandsAgent enrolls a node and connects it as a v0.3 agent.
 func (h *testHub) commandsAgent() (*testAgent, int64) {
 	h.t.Helper()
+	return h.agentWith(FeatureCommands)
+}
+
+// agentWith enrolls a node and connects it listing features.
+func (h *testHub) agentWith(features ...string) (*testAgent, int64) {
+	h.t.Helper()
 	creds := h.dial().enroll(h.joinSecret(nil, time.Hour))
 	agent := h.dial()
-	agent.send(MsgConnected, connectToken(creds), SystemInfo{Features: []string{FeatureCommands}})
+	agent.send(MsgConnected, connectToken(creds), SystemInfo{Features: features})
 	agent.expect(MsgSysStat)
 	agent.expect(MsgProjectSettings)
-	for deadline := time.Now().Add(2 * time.Second); !h.conn(creds.NodeID).Supports(FeatureCommands); time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(2 * time.Second); !h.conn(creds.NodeID).Supports(features[0]); time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
-			h.t.Fatal("agent never registered with commands")
+			h.t.Fatalf("agent never registered with %v", features)
 		}
 	}
 	return agent, creds.NodeID

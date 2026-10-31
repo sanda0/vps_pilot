@@ -9,7 +9,7 @@ import (
 	"github.com/sanda0/vps_pilot/internal/db"
 )
 
-func StartTcpServer(ctx context.Context, repo *db.Repo, registry *Registry, runs *Runs, cert *agentauth.Cert, port string) {
+func StartTcpServer(ctx context.Context, repo *db.Repo, registry *Registry, runs *Runs, logs *Logs, cert *agentauth.Cert, port string) {
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert.TLS},
 		MinVersion:   tls.VersionTLS13,
@@ -32,12 +32,12 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, registry *Registry, runs
 	go MontiorAlerts(ctx, repo, chans.monitor)
 
 	router := NewRouter()
-	registerHandlers(router, chans, runs)
+	registerHandlers(router, chans, runs, logs)
 
 	router.Serve(ctx, repo, registry, listener)
 }
 
-func registerHandlers(router *Router, chans statChans, runs *Runs) {
+func registerHandlers(router *Router, chans statChans, runs *Runs, logs *Logs) {
 	// Middleware
 	router.Use(RequireHandshake(MsgConnected, MsgEnroll))
 
@@ -49,4 +49,7 @@ func registerHandlers(router *Router, chans statChans, runs *Runs) {
 	router.Handle(MsgProjects, HandleProjects)
 	router.Handle(MsgCommandOutput, runs.HandleOutput)
 	router.Handle(MsgCommandExit, runs.HandleExit)
+	router.Handle(MsgLogFiles, logs.HandleFiles)
+	router.Handle(MsgLogData, logs.HandleData)
+	router.Handle(MsgLogEnd, logs.HandleEnd)
 }
