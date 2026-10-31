@@ -5,16 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLogFile } from "@/hooks/use-log-file";
 import { apiErrorMessage, logsApi } from "@/lib/api";
+import { formatBytes } from "@/lib/utils";
 import { LogEnd, LogFile } from "@/types/log";
 
 // The agent lists compressed files but can't open them.
 const COMPRESSED = /\.(gz|bz2|xz|zst|zip)$/;
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MiB`;
-}
 
 function endMessage(end: LogEnd): string {
   switch (end.reason) {
