@@ -16,6 +16,9 @@ mod protocol;
 mod runs;
 mod s3;
 mod scanner;
+// Used by backups (next commits); only the tests use it for now.
+#[allow(dead_code)]
+mod schedule;
 mod sigv4;
 mod state;
 mod tls;
