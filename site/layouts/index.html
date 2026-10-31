@@ -7,6 +7,11 @@
         <span class="wordmark"><span class="wordmark-prompt" aria-hidden="true">&gt;</span>VPS Pilot</span>
       </h1>
       <p class="hero-pitch">{{ .Params.pitch }}</p>
+      <ul class="hero-points">
+        {{- range .Params.promises }}
+        <li><strong>{{ .title }}</strong> {{ .text }}</li>
+        {{- end }}
+      </ul>
       <div class="button-row">
         <a class="button" href="{{ "/docs/quick-start/" | relURL }}">Get started</a>
         <a class="button button-outline" href="{{ site.Params.repo }}" rel="noopener">GitHub</a>
@@ -19,7 +24,8 @@
 <span class="t-prompt">$</span> ./vps_pilot
 <span class="t-out">TCP server (TLS) listening on port 55001</span>
 
-<span class="t-comment"># on each server, with a token from Nodes → Add node</span>
+<span class="t-comment"># on each server, with a token from Nodes → Add node.</span>
+<span class="t-comment"># It dials out to the hub: no inbound ports to open.</span>
 <span class="t-prompt">$</span> VPS_PILOT_TOKEN=vpsp1.… vps-pilot-agent --hub hub.example.com
 <span class="t-out">INFO enrolled; the join token is no longer needed</span></code></pre>
     </figure>

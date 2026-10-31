@@ -702,6 +702,32 @@ h3:hover .heading-anchor,
   gap: 3rem;
 }
 
+.hero-points {
+  max-width: 40rem;
+  margin: -1rem 0 2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.hero-points li {
+  position: relative;
+  margin: 0 0 0.5rem;
+  padding-left: 1.5rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.hero-points li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.hero-points strong {
+  color: hsl(var(--foreground));
+}
+
 .hero-note {
   margin: 1rem 0 0;
   font-size: 0.875rem;
