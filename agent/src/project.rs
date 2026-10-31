@@ -49,7 +49,47 @@ pub struct ProjectBackup {
     pub database: Option<ProjectBackupDatabase>,
     #[serde(default, rename = "dir", skip_serializing_if = "Vec::is_empty")]
     pub dirs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<BackupSchedule>,
+    /// `HH:MM` in the server's local time zone; see `time_of_day`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub at: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub local_dir: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retention_days: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub s3: Option<ProjectBackupS3>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BackupSchedule {
+    Daily,
+    /// Sundays.
+    Weekly,
+}
+
+/// Where to upload backups. The keys are the *names* of env-file variables,
+/// like `ProjectBackupDatabase`, so the hub never sees them.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ProjectBackupS3 {
+    pub access_key: String,
+    pub secret_key: String,
+    pub bucket: String,
+    pub region: String,
+    pub endpoint: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub prefix: String,
+    pub path_style: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retention_days: Option<u32>,
+}
+
+const DEFAULT_RETENTION_DAYS: u32 = 7;
+const DEFAULT_S3_RETENTION_DAYS: u32 = 30;
+const MAX_RETENTION_DAYS: u32 = 3650;
 
 /// Names of the env-file variables that hold the database settings.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -61,6 +101,96 @@ pub struct ProjectBackupDatabase {
     pub username: String,
     pub password: String,
     pub database_name: String,
+}
+
+// The getters are used by backups (next PRs); only the tests use them for now.
+#[allow(dead_code)]
+impl ProjectBackup {
+    /// When a scheduled backup runs, as (hour, minute); 03:00 by default.
+    pub fn time_of_day(&self) -> (u32, u32) {
+        parse_time(&self.at).unwrap_or((3, 0))
+    }
+
+    pub fn retention_days(&self) -> u32 {
+        self.retention_days.unwrap_or(DEFAULT_RETENTION_DAYS)
+    }
+
+    /// Base name of the zip: `zip_file_name`, or the project's name with
+    /// anything but letters, digits, `.`, `-` and `_` replaced by `_`.
+    /// `zip_file_name` predates backups running, so a bad one only fails
+    /// the backup instead of making the whole config unusable.
+    pub fn zip_base(&self, project_name: &str) -> Result<String> {
+        if self.zip_file_name.is_empty() {
+            return Ok(project_name
+                .chars()
+                .map(|c| if zip_char(c) { c } else { '_' })
+                .collect());
+        }
+        if !self.zip_file_name.chars().all(zip_char) || self.zip_file_name.starts_with('.') {
+            bail!("zip_file_name may only hold letters, digits, \".\", \"-\" and \"_\"");
+        }
+        Ok(self.zip_file_name.clone())
+    }
+
+    /// Checks the fields added with backups in v0.5. Configs written before
+    /// can't hold them, so rejecting the config doesn't break anyone.
+    fn validate(&self) -> Result<()> {
+        if !self.at.is_empty() && parse_time(&self.at).is_none() {
+            bail!("backups.at must be HH:MM, e.g. \"03:00\"");
+        }
+        check_retention("backups.retention_days", self.retention_days)?;
+        if let Some(s3) = &self.s3 {
+            for (field, value) in [
+                ("access_key", &s3.access_key),
+                ("secret_key", &s3.secret_key),
+                ("bucket", &s3.bucket),
+                ("region", &s3.region),
+                ("endpoint", &s3.endpoint),
+            ] {
+                if value.trim().is_empty() {
+                    bail!("backups.s3.{field} is required");
+                }
+            }
+            if !s3.endpoint.starts_with("https://") {
+                bail!("backups.s3.endpoint must start with https://");
+            }
+            if self.env_file.is_empty() {
+                bail!("backups.s3 needs backups.env_file, which holds the keys");
+            }
+            check_retention("backups.s3.retention_days", s3.retention_days)?;
+        }
+        Ok(())
+    }
+}
+
+#[allow(dead_code)]
+impl ProjectBackupS3 {
+    pub fn retention_days(&self) -> u32 {
+        self.retention_days.unwrap_or(DEFAULT_S3_RETENTION_DAYS)
+    }
+}
+
+#[allow(dead_code)]
+fn zip_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')
+}
+
+fn parse_time(s: &str) -> Option<(u32, u32)> {
+    let (h, m) = s.split_once(':')?;
+    if h.len() != 2 || m.len() != 2 {
+        return None;
+    }
+    let (h, m) = (h.parse().ok()?, m.parse().ok()?);
+    (h < 24 && m < 60).then_some((h, m))
+}
+
+fn check_retention(field: &str, days: Option<u32>) -> Result<()> {
+    match days {
+        Some(d) if !(1..=MAX_RETENTION_DAYS).contains(&d) => {
+            bail!("{field} must be between 1 and {MAX_RETENTION_DAYS}")
+        }
+        _ => Ok(()),
+    }
 }
 
 impl ProjectConfig {
@@ -153,6 +283,9 @@ impl ProjectConfig {
                 bail!("command name {:?} is used twice", cmd.name);
             }
         }
+        if let Some(backups) = &self.backups {
+            backups.validate()?;
+        }
         Ok(())
     }
 }
@@ -220,6 +353,63 @@ mod tests {
         ] {
             assert!(load_str(bad).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn loads_backup_schedule_and_s3() {
+        let config = load_str(
+            r#"{"name": "shop", "backups": {
+                "env_file": ".env", "dir": ["storage/app"], "local_dir": "../backups/shop",
+                "schedule": "weekly", "at": "23:45", "retention_days": 14,
+                "s3": {"access_key": "S3_KEY", "secret_key": "S3_SECRET", "bucket": "b",
+                       "region": "us-east-1", "endpoint": "https://us-east-1.linodeobjects.com"}}}"#,
+        )
+        .unwrap();
+        let backups = config.backups.unwrap();
+        assert_eq!(backups.schedule, Some(BackupSchedule::Weekly));
+        assert_eq!(backups.time_of_day(), (23, 45));
+        assert_eq!(backups.retention_days(), 14);
+        let s3 = backups.s3.as_ref().unwrap();
+        assert_eq!(
+            (s3.secret_key.as_str(), s3.retention_days()),
+            ("S3_SECRET", 30)
+        );
+        assert!(!s3.path_style && s3.prefix.is_empty());
+        assert_eq!(backups.zip_base("my shop").unwrap(), "my_shop");
+    }
+
+    #[test]
+    fn rejects_invalid_backup_fields() {
+        let s3 = r#""access_key": "K", "secret_key": "S", "bucket": "b", "region": "r""#;
+        for bad in [
+            r#"{"schedule": "hourly"}"#.to_string(),
+            r#"{"schedule": "daily", "at": "3:00"}"#.into(),
+            r#"{"at": "24:00"}"#.into(),
+            r#"{"retention_days": 0}"#.into(),
+            r#"{"retention_days": 4000}"#.into(),
+            format!(r#"{{"env_file": ".env", "s3": {{{s3}}}}}"#),
+            format!(r#"{{"env_file": ".env", "s3": {{{s3}, "endpoint": "http://minio:9000"}}}}"#),
+            format!(r#"{{"s3": {{{s3}, "endpoint": "https://s3.example.com"}}}}"#),
+            format!(
+                r#"{{"env_file": ".env", "s3": {{{s3}, "endpoint": "https://e", "retention_days": 0}}}}"#
+            ),
+        ] {
+            let json = format!(r#"{{"name": "app", "backups": {bad}}}"#);
+            assert!(load_str(&json).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn older_backup_fields_fail_only_the_backup() {
+        // Accepted before backups ran: no local_dir, a zip name with a space.
+        let config = load_str(
+            r#"{"name": "app", "backups": {"zip_file_name": "app backup", "dir": ["data"]}}"#,
+        )
+        .unwrap();
+        let backups = config.backups.unwrap();
+        assert!(backups.zip_base("app").is_err());
+        assert_eq!(backups.time_of_day(), (3, 0));
+        assert_eq!(backups.retention_days(), 7);
     }
 
     #[test]
