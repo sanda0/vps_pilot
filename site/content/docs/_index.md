@@ -38,12 +38,13 @@ cloud account.
   declares, by name, with live output and a history of every run.
 - **[Read logs](/docs/projects/#read-logs).** Follow a file in the log folders
   a project declares, live, and load earlier lines.
+- **[Backups](/docs/projects/#back-up).** Zip what a project declares, on a
+  schedule or with Back up now, and upload it to S3-compatible storage.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
   without losing its history, or revoke its key.
 
 {{< callout soon >}}
-Backups and cron jobs are planned. The dashboard already shows what a
-project declares for them.
+Cron jobs are planned.
 {{< /callout >}}
 
 ## The rule that shapes everything

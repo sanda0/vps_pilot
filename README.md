@@ -39,8 +39,7 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 - **Projects → Add project** points a node's agent at a directory the search doesn't reach. The agent only accepts it inside its project directories unless started with `--allow-any-project-path`
 - **Run** a command declared in the file from the project page, with live output and a history of every run. The agent runs it as the owner of `config.vpspilot.json`
 - **Read** the files in the log folders the file declares from the project page, and follow one live. The agent reads them as the owner of `config.vpspilot.json`
-- Planned, for what the file declares only:
-  - Backing up project directories and databases
+- **Back up** the folders, env file and database dump the file declares into a zip on the server, on a schedule set in the file or with **Back up now**, and optionally upload it to S3-compatible storage. The agent backs up as the owner of `config.vpspilot.json`
 
 **Sample `config.vpspilot.json`:**
 ```json
@@ -395,7 +394,7 @@ ls server/cmd/app/dist/
 - [x] Project discovery via `config.vpspilot.json` (per-node scan settings, manual paths)
 - [x] Run named project commands (declared in the config file only) with audit log
 - [x] Log tailing for declared log folders
-- [ ] Project backups (database + directories)
+- [x] Project backups (database + directories)
 - [ ] Cron jobs declared per project
 - [x] Install script + systemd unit for the agent
 - [ ] Docker Compose deployment
