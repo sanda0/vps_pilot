@@ -264,7 +264,7 @@ An agent supports this only if its `SystemInfo.features` contains `"backups"`. T
 | `dir` | none | Folders to include, relative to the project directory. |
 | `schedule` | none | `daily` or `weekly` (Sundays). Without it, backups only run from **Back up now**. |
 | `at` | `03:00` | Time of day for `schedule`, `HH:MM` in the server's local time zone. |
-| `local_dir` | required | Where the zips are written: relative to the project directory, or absolute. It must not be inside a folder in `dir`. |
+| `local_dir` | none; a backup fails without it | Where the zips are written: relative to the project directory, or absolute. It must not be inside a folder in `dir`. |
 | `retention_days` | `7` | Zips in `local_dir` older than this are deleted. `1 ..= 3650`. |
 | `s3.access_key`, `s3.secret_key` | required with `s3` | The **names** of the variables in `env_file` that hold the keys, never the keys themselves. Needs `env_file`. |
 | `s3.bucket`, `s3.region`, `s3.endpoint` | required with `s3` | The bucket, its region and the `https://` endpoint. |
@@ -272,7 +272,7 @@ An agent supports this only if its `SystemInfo.features` contains `"backups"`. T
 | `s3.path_style` | `false` | Use `endpoint/bucket/key` URLs instead of `bucket.endpoint/key` (MinIO needs this). |
 | `s3.retention_days` | `30` | Objects under `prefix` older than this are deleted. `1 ..= 3650`. |
 
-A `backups` object with a `schedule` other than `daily` or `weekly`, an invalid `at`, `zip_file_name` or `retention_days`, no `local_dir`, or an incomplete `s3` makes the config unusable, like an incomplete command: the agent reports it as a problem instead of a project. Because `database` and `s3` hold only variable names, the hub and the dashboard never see a password or a key.
+The fields added in v0.5 are checked when the config is read: a `schedule` other than `daily` or `weekly`, an invalid `at` or `retention_days`, or an incomplete `s3` makes the config unusable, like an incomplete command, and the agent reports it as a problem instead of a project. The older fields were accepted before backups ran, so they are checked only when a backup runs: no `local_dir`, an invalid `zip_file_name` or a `database` without `env_file` fails that backup. Because `database` and `s3` hold only variable names, the hub and the dashboard never see a password or a key.
 
 ### Before backing up
 
@@ -282,7 +282,7 @@ The agent sends `backup_result` with status `rejected` (and backs up nothing) un
 2. The agent can run as the file's owner: it runs as root, or it already runs as that user.
 3. No other backup is running on the node. A scheduled backup waits for the running one instead; a `backup_run` is rejected.
 
-The agent then checks the paths, as the owner. Each entry of `dir`, `env_file` and a SQLite database file must resolve (`..` and symlinks) inside the project directory. A failed check ends the backup with status `failed` and says which path.
+The agent then checks the older fields (see above) and the paths, as the owner. Each entry of `dir`, `env_file` and a SQLite database file must resolve (`..` and symlinks) inside the project directory. A failed check ends the backup with status `failed` and says why.
 
 ### Backing up
 
