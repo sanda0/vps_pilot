@@ -2,11 +2,16 @@
 //! old ones. Works with any S3-compatible storage (Linode Object Storage,
 //! AWS, MinIO). See "Backing up" in docs/PROTOCOL.md.
 
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::backupzip;
 use crate::sigv4::{self, Credentials};
 
+/// Files larger than this are uploaded in parts of this size.
+const PART_SIZE: usize = 16 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 pub struct Bucket {
@@ -58,6 +63,60 @@ impl Bucket {
             access_key: access_key.into(),
             secret_key: secret_key.into(),
         })
+    }
+
+    /// Uploads `file` to `key`, in parts if it is large.
+    pub fn put_file(&self, key: &str, file: &Path) -> Result<(), String> {
+        let mut f = File::open(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        let mut first = read_part(&mut f)?;
+        if first.len() < PART_SIZE {
+            return self.request("PUT", key, &[], &first).map(|_| ());
+        }
+        let started = self.request("POST", key, &[("uploads", "")], &[])?;
+        let id = tags(&started.body, "UploadId")
+            .pop()
+            .ok_or("no UploadId in the reply to starting the upload")?;
+        let parts = self.put_parts(key, &id, &mut f, &mut first);
+        let done = parts.and_then(|etags| {
+            let mut xml = String::from("<CompleteMultipartUpload>");
+            for (i, etag) in etags.iter().enumerate() {
+                let n = i + 1;
+                xml += &format!("<Part><PartNumber>{n}</PartNumber><ETag>{etag}</ETag></Part>");
+            }
+            xml += "</CompleteMultipartUpload>";
+            let reply = self.request("POST", key, &[("uploadId", &id)], xml.as_bytes())?;
+            // S3 can answer 200 and still fail the upload.
+            match error_message(&reply.body) {
+                Some(e) => Err(format!("completing the upload failed: {e}")),
+                None => Ok(()),
+            }
+        });
+        if done.is_err() {
+            // Abort, so the parts don't stay in the bucket.
+            let _ = self.request("DELETE", key, &[("uploadId", &id)], &[]);
+        }
+        done
+    }
+
+    fn put_parts(
+        &self,
+        key: &str,
+        id: &str,
+        f: &mut File,
+        part: &mut Vec<u8>,
+    ) -> Result<Vec<String>, String> {
+        let mut etags = Vec::new();
+        while !part.is_empty() {
+            let n = (etags.len() + 1).to_string();
+            let reply = self.request("PUT", key, &[("partNumber", &n), ("uploadId", id)], part)?;
+            etags.push(
+                reply
+                    .etag
+                    .ok_or("no ETag in the reply to uploading a part")?,
+            );
+            *part = read_part(f)?;
+        }
+        Ok(etags)
     }
 
     /// Sends a signed request for `key` ("" for the bucket) and returns the
@@ -151,6 +210,15 @@ impl Bucket {
     }
 }
 
+fn read_part(f: &mut File) -> Result<Vec<u8>, String> {
+    let mut buf = Vec::with_capacity(PART_SIZE);
+    f.by_ref()
+        .take(PART_SIZE as u64)
+        .read_to_end(&mut buf)
+        .map_err(|e| e.to_string())?;
+    Ok(buf)
+}
+
 /// The text of every `<name>…</name>` in `xml`, unescaped.
 fn tags(xml: &str, name: &str) -> Vec<String> {
     let (open, close) = (format!("<{name}>"), format!("</{name}>"));
@@ -227,5 +295,35 @@ mod tests {
         assert_eq!(error_message("<InitiateMultipartUploadResult/>"), None);
         let list = "<ListBucketResult><Contents><Key>a.zip</Key></Contents><Contents><Key>b&amp;c.zip</Key></Contents></ListBucketResult>";
         assert_eq!(tags(list, "Key"), ["a.zip", "b&c.zip"]);
+    }
+
+    /// Needs an S3 server with bucket-creating keys, e.g. SeaweedFS:
+    /// `VPSP_S3_TEST=http://127.0.0.1:19000,ACCESS,SECRET cargo test -- --ignored s3`.
+    #[test]
+    #[ignore]
+    fn uploads_to_a_real_server() {
+        let env = std::env::var("VPSP_S3_TEST").expect("VPSP_S3_TEST=endpoint,access,secret");
+        let [endpoint, access, secret] = env.split(',').collect::<Vec<_>>()[..] else {
+            panic!("VPSP_S3_TEST=endpoint,access,secret")
+        };
+        let b = Bucket::new(endpoint, "vpsp-test", "us-east-1", access, secret, true).unwrap();
+        let _ = b.request("PUT", "", &[], &[]); // create the bucket
+        let dir = tempfile::tempdir().unwrap();
+        for (name, size) in [("small.zip", 1000), ("large.zip", 2 * PART_SIZE + 5)] {
+            let path = dir.path().join(name);
+            let data: Vec<u8> = (0..size).map(|i| (i % 251) as u8).collect();
+            std::fs::write(&path, &data).unwrap();
+            b.put_file(&format!("t/{name}"), &path).unwrap();
+            let reply = b.request("HEAD", &format!("t/{name}"), &[], &[]).unwrap();
+            assert!(reply.body.is_empty(), "{name}");
+        }
+        let wrong = Bucket::new(endpoint, "vpsp-test", "us-east-1", access, "nope", true).unwrap();
+        let err = wrong
+            .put_file("t/x.zip", &dir.path().join("small.zip"))
+            .unwrap_err();
+        assert!(
+            err.contains("SignatureDoesNotMatch") || err.contains("Access"),
+            "{err}"
+        );
     }
 }
