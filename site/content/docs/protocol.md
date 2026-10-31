@@ -111,6 +111,12 @@ next `connected` gets `auth_failed`.
 | `command_cancel` | hub → agent | `{ "run_id": "…" }` |
 | `command_output` | agent → hub | `CommandOutput` |
 | `command_exit` | agent → hub | `CommandExit` |
+| `log_list` | hub → agent | `LogList`, see [Read logs](#read-logs) |
+| `log_files` | agent → hub | `LogFiles` |
+| `log_open` | hub → agent | `LogOpen` |
+| `log_close` | hub → agent | `{ "stream_id": "…" }` |
+| `log_data` | agent → hub | `LogData` |
+| `log_end` | agent → hub | `LogEnd` |
 
 ## Projects
 
@@ -181,11 +187,77 @@ the agent stops sending output, keeps reading it, and sets `truncated`.
 A `command_cancel` for a run that has finished, or that the agent doesn't
 know, is ignored.
 
+## Read logs
+
+The hub can list and read the files in the log folders a project declares
+(`logs` in `config.vpspilot.json`), and nothing else.
+
+```text
+hub → agent   log_list    { request_id, project_path }
+agent → hub   log_files   { request_id, files, error }
+
+hub → agent   log_open    { stream_id, project_path, file, before, max_bytes, follow }
+agent → hub   log_data    { stream_id, seq, offset, data, … }   (0 or more)
+agent → hub   log_end     { stream_id, reason, error }          (exactly one)
+hub → agent   log_close   { stream_id }                         (optional)
+```
+
+Only agents whose `SystemInfo.features` contains `"logs"` support this. The
+hub never sends `log_list` or `log_open` to other agents.
+
+Which files can be read:
+
+1. `project_path` is a project from the agent's latest search. The agent
+   reads its `config.vpspilot.json` again for every request, with the same
+   checks as for running commands: not a symlink, not writable by its group
+   or others.
+2. Each entry of `logs` is resolved (`..` and symlinks) and must stay inside
+   the project directory. Folders that don't, or don't exist, are skipped.
+3. A file is readable if it's a regular file directly in a declared folder or
+   in a folder directly below it, and still resolves inside that folder.
+4. `file` in `log_open` is the path relative to the project directory,
+   exactly as `log_files` listed it. Anything else ends with `rejected`.
+5. Compressed files (`.gz`, `.bz2`, `.xz`, `.zst`, `.zip`) are listed but
+   can't be opened.
+
+Listing and reading run in a child process with the config file owner's user
+and groups, so a file that user can't read can't be read at all. `log_files`
+lists at most 1000 files, sorted by path; if there are more, `error` says so.
+
+`log_open` asks for one window of the file and, optionally, what is written
+after it:
+
+- `before` is a byte offset; the agent reads up to `max_bytes` ending there.
+  `null` means the end of the file. `max_bytes` defaults to 64 KiB and is
+  clamped to 1–1048576.
+- The window starts at the beginning of a line, unless it starts at offset 0.
+- `follow: true` is only allowed when `before` is `null`. The agent then
+  sends what is appended, checking at least once a second. If the file is
+  truncated or replaced, it reopens it from the start and sets `rotated` on
+  the next `log_data`.
+
+`data` is UTF-8 text in chunks of up to 32 KiB (invalid bytes become U+FFFD),
+and `offset` is where it starts in the file. `seq` counts up from 0 per
+stream.
+
+| `reason` | Meaning |
+| --- | --- |
+| `done` | The window was sent and `follow` was false |
+| `closed` | The hub sent `log_close` |
+| `rejected` | Not allowed; `error` says why |
+| `error` | Reading failed, e.g. the file was deleted |
+| `limit` | A followed stream reached 30 minutes |
+
+At most 8 streams are open at once on a node; more are `rejected`. When the
+session ends, the agent closes its streams. The hub doesn't store log
+contents.
+
 ## Payloads
 
 `SystemInfo`. `hostname` names the node on first enrollment; `total_memory`
 is in bytes. `agent_version` and `features` were added in v0.3; when they're
-missing, the hub treats the agent as having no features.
+missing, the hub treats the agent as having no features. The features are
+`commands` (v0.3) and `logs` (v0.4).
 
 ```json
 {
@@ -196,8 +268,8 @@ missing, the hub treats the agent as having no features.
   "kernel_version": "6.8.0-45-generic",
   "cpus": 4,
   "total_memory": 8221474816,
-  "agent_version": "v0.3.0",
-  "features": ["commands"]
+  "agent_version": "v0.4.0",
+  "features": ["commands", "logs"]
 }
 ```
 
@@ -270,4 +342,41 @@ project's `path` from `ProjectSyncPayload`; `command` is a command name.
   "truncated": false,
   "error": ""
 }
+```
+
+`LogList` and `LogFiles`. File paths are relative to the project directory,
+`size` is in bytes and `modified` is Unix seconds. `error` is set, and `files`
+empty, when the request was refused.
+
+```json
+{ "request_id": "4f1d…", "project_path": "/var/www/shop" }
+```
+
+```json
+{
+  "request_id": "4f1d…",
+  "files": [
+    { "path": "storage/logs/laravel.log", "size": 1048576, "modified": 1792915200 },
+    { "path": "storage/logs/laravel-2026-10-24.log.gz", "size": 20480, "modified": 1792828800 }
+  ],
+  "error": ""
+}
+```
+
+`LogOpen`. `stream_id` is a UUID chosen by the hub.
+
+```json
+{ "stream_id": "9a2e…", "project_path": "/var/www/shop", "file": "storage/logs/laravel.log", "before": null, "max_bytes": 65536, "follow": true }
+```
+
+`LogData`. `size` is the file's size when the chunk was read.
+
+```json
+{ "stream_id": "9a2e…", "seq": 0, "offset": 983040, "data": "[2026-10-25 08:00:01] production.INFO: …\n", "size": 1048576, "rotated": false }
+```
+
+`LogEnd`
+
+```json
+{ "stream_id": "9a2e…", "reason": "rejected", "error": "not a file in this project's log folders" }
 ```
