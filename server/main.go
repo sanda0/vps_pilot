@@ -114,7 +114,7 @@ func main() {
 		AgentPort:   *agentPort,
 		Version:     Version,
 		Agents:      agents,
-	}, agents, runs)
+	}, agents, runs, logs)
 
 }
 
