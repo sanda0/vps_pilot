@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router";
 import { projectsApi } from "@/lib/api";
 import { Project } from "@/types/project";
 import { ProjectCommands } from "@/components/project-commands";
+import { ProjectInfo } from "@/components/project-info";
 import { ProjectLogs } from "@/components/project-logs";
 import { ProjectBackups } from "@/components/project-backups";
 import { Button } from "@/components/ui/button";
@@ -14,21 +15,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   Trash2,
-  Server,
-  FolderOpen,
   Terminal,
   ScrollText,
   Archive,
-  Clock,
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectDeleteDialog } from "@/components/project-delete-dialog";
-import { formatDistanceToNow, format } from "date-fns";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -160,66 +156,9 @@ export default function ProjectDetailsPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Project Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Info</CardTitle>
-            <CardDescription>
-              Discovered from config.vpspilot.json
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Node */}
-            <div className="flex items-start gap-3">
-              <Server className="h-5 w-5 mt-0.5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Node</p>
-                <p className="text-sm text-muted-foreground">
-                  {project.node_name || `Node ${project.node_id}`}
-                  {project.node_ip && (
-                    <span className="ml-2">({project.node_ip})</span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Path on disk */}
-            <div className="flex items-start gap-3">
-              <FolderOpen className="h-5 w-5 mt-0.5 text-muted-foreground" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Path on disk</p>
-                <p className="text-sm text-muted-foreground font-mono bg-muted px-2 py-1 rounded break-all mt-1">
-                  {project.path}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Timestamps */}
-            <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 mt-0.5 text-muted-foreground" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium">First discovered</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(project.discovered_at), "PPP")}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 pl-8">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Last synced</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(new Date(project.updated_at), {
-                    addSuffix: true,
-                  })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="md:col-span-2">
+          <ProjectInfo project={project} />
+        </div>
 
         {/* Commands and their runs */}
         <Card className="md:col-span-2">
