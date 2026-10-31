@@ -39,9 +39,9 @@ connection.
 ## What the dashboard can do on a server
 
 The hub can send an agent the project scan settings, "rescan now", a request
-to run or cancel a project command, and a request to list or read the files in
-a project's declared log folders. It can't read any other file or open a
-shell.
+to run or cancel a project command, a request to list or read the files in
+a project's declared log folders, and a request to back up a project now. It
+can't read any other file or open a shell.
 
 Running commands follows one rule: **the hub sends command names, never
 command strings.** The agent reads the project's `config.vpspilot.json` again
@@ -59,6 +59,13 @@ its owner, and only opens files that resolve, after symlinks, inside a folder
 listed in `logs`, which must itself resolve inside the project directory. The
 hub sends the file's path as the agent listed it and stores none of the
 contents. See [Read logs](/docs/projects/#read-logs).
+
+Backups follow them too. The agent backs up only what `backups` declares, as
+the config file's owner, and only paths that resolve inside the project
+directory. The zip stays on the server and in the project's bucket; the hub
+only records the outcome. The S3 keys and database password are read from the
+env file on the server: the config holds only their variable names, so the
+hub never sees them. See [Back up](/docs/projects/#back-up).
 
 Manual project paths follow the same idea. The agent only accepts them inside
 its own project directories (after resolving `..` and symlinks), unless the
