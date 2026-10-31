@@ -14,7 +14,9 @@ mod output;
 mod project;
 mod protocol;
 mod runs;
+mod s3;
 mod scanner;
+mod sigv4;
 mod state;
 mod tls;
 

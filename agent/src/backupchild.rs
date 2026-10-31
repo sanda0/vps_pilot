@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use crate::backupzip::{self, Contents};
 use crate::dump::Database;
 use crate::envfile::EnvFile;
-use crate::project::ProjectBackup;
+use crate::project::{ProjectBackup, ProjectBackupS3};
+use crate::s3::Bucket;
 
 /// First argument that makes the agent binary act as the backup child.
 pub const ARG: &str = "__backup";
@@ -39,6 +40,16 @@ pub struct Done {
     pub size: u64,
     /// The dump type, or empty without `database`.
     pub database: String,
+    pub upload: Upload,
+}
+
+/// What happened to the copy in the S3 bucket.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Upload {
+    /// `ok`, `failed` or `skipped` (no `s3`).
+    pub status: String,
+    pub key: String,
+    pub error: String,
 }
 
 /// Entry point when the first argument is ARG.
@@ -128,12 +139,56 @@ pub fn backup(job: &Job, now: u64) -> Result<Done, String> {
     let _ = fs::remove_file(&part);
     linked?;
     prune(&local, &base, now, b.retention_days());
+    let upload = match (&b.s3, &env) {
+        (Some(s3), Some(env)) => upload(s3, env, &path, &base, &file, now),
+        _ => Upload {
+            status: "skipped".into(),
+            ..Upload::default()
+        },
+    };
     Ok(Done {
         file,
         local_path: path.to_string_lossy().into_owned(),
         size,
         database: database.as_ref().map_or("", Database::kind).into(),
+        upload,
     })
+}
+
+/// Uploads the zip, then deletes old ones in the bucket. A failure here
+/// doesn't fail the backup: the zip is still in `local_dir`.
+fn upload(
+    s3: &ProjectBackupS3,
+    env: &EnvFile,
+    zip: &Path,
+    base: &str,
+    file: &str,
+    now: u64,
+) -> Upload {
+    let key = format!("{}{file}", s3.prefix);
+    let result = (|| {
+        let bucket = Bucket::new(
+            &s3.endpoint,
+            &s3.bucket,
+            &s3.region,
+            env.get(&s3.access_key)?,
+            env.get(&s3.secret_key)?,
+            s3.path_style,
+        )?;
+        bucket.put_file(&key, zip)?;
+        // An old zip that couldn't be deleted is tried again next time.
+        let _ = bucket.prune(&s3.prefix, base, now, s3.retention_days());
+        Ok::<_, String>(())
+    })();
+    let (status, error) = match result {
+        Ok(()) => ("ok", String::new()),
+        Err(e) => ("failed", e),
+    };
+    Upload {
+        status: status.into(),
+        key,
+        error,
+    }
 }
 
 /// Resolves `local_dir`, creating it with mode 0700, and checks it isn't
@@ -184,18 +239,25 @@ fn remove_leftovers(local: &Path, base: &str) {
 
 /// Deletes this project's zips older than `days`, except the newest.
 fn prune(local: &Path, base: &str, now: u64, days: u32) {
-    let mut zips: Vec<(u64, String)> = names(local)
+    for name in expired(names(local), base, now, days) {
+        let _ = fs::remove_file(local.join(name));
+    }
+}
+
+/// Of `names`, this project's zips older than `days`, except the newest.
+/// Other names are left alone.
+pub fn expired(names: Vec<String>, base: &str, now: u64, days: u32) -> Vec<String> {
+    let mut zips: Vec<(u64, String)> = names
         .into_iter()
         .filter_map(|n| Some((zip_time(&n, base)?, n)))
         .collect();
     zips.sort();
     zips.pop();
     let cutoff = now.saturating_sub(u64::from(days) * 86_400);
-    for (time, name) in zips {
-        if time < cutoff {
-            let _ = fs::remove_file(local.join(name));
-        }
-    }
+    zips.into_iter()
+        .filter(|(time, _)| *time < cutoff)
+        .map(|(_, name)| name)
+        .collect()
 }
 
 fn names(dir: &Path) -> Vec<String> {
@@ -250,6 +312,7 @@ mod tests {
         let first = backup(&job, start).unwrap();
         assert_eq!(first.file, "my_shop-20261031T030000Z.zip");
         assert_eq!(first.database, "");
+        assert_eq!(first.upload.status, "skipped");
         let meta = fs::metadata(&first.local_path).unwrap();
         assert_eq!((meta.len(), meta.mode() & 0o777), (first.size, 0o600));
         assert_eq!(fs::metadata(&local).unwrap().mode() & 0o777, 0o700);
@@ -272,6 +335,34 @@ mod tests {
                 last.file.as_str()
             ]
         );
+    }
+
+    #[test]
+    fn failed_upload_keeps_the_zip() {
+        let (dir, mut job) = project();
+        fs::write(dir.path().join("shop/.env"), "S3_KEY=k\nS3_SECRET=s\n").unwrap();
+        job.backups.s3 = Some(ProjectBackupS3 {
+            access_key: "S3_KEY".into(),
+            secret_key: "S3_SECRET".into(),
+            bucket: "b".into(),
+            endpoint: "http://127.0.0.1:1".into(),
+            prefix: "shop/".into(),
+            path_style: true,
+            ..ProjectBackupS3::default()
+        });
+        let done = backup(&job, 1_793_415_600).unwrap();
+        assert!(fs::metadata(&done.local_path).is_ok());
+        assert_eq!(done.upload.status, "failed");
+        assert_eq!(done.upload.key, "shop/my_shop-20261031T030000Z.zip");
+        assert!(
+            done.upload.error.starts_with("PUT s3://b/shop/"),
+            "{}",
+            done.upload.error
+        );
+
+        job.backups.s3.as_mut().unwrap().secret_key = "MISSING".into();
+        let done = backup(&job, 1_793_415_601).unwrap();
+        assert_eq!(done.upload.error, "MISSING is not set in .env");
     }
 
     #[test]

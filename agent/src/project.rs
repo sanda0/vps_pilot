@@ -163,7 +163,6 @@ impl ProjectBackup {
     }
 }
 
-#[allow(dead_code)]
 impl ProjectBackupS3 {
     pub fn retention_days(&self) -> u32 {
         self.retention_days.unwrap_or(DEFAULT_S3_RETENTION_DAYS)
