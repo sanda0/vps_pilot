@@ -5,6 +5,7 @@ import { Project } from "@/types/project";
 import { CommandRun } from "@/types/command_run";
 import { CommandRunPanel } from "@/components/command-run-panel";
 import { CommandRunHistory } from "@/components/command-run-history";
+import { ProjectLogs } from "@/components/project-logs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -318,29 +319,32 @@ export default function ProjectDetailsPage() {
         </Card>
 
         {/* Logs */}
-        <Card>
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ScrollText className="h-5 w-5" />
-              Log Paths
+              Logs
             </CardTitle>
             <CardDescription>
-              Log directories configured for this project
+              {project.logs && project.logs.length > 0 ? (
+                <>
+                  Files in{" "}
+                  {project.logs.map((logPath, i) => (
+                    <span key={logPath}>
+                      {i > 0 && ", "}
+                      <code className="font-mono">{logPath}</code>
+                    </span>
+                  ))}
+                  , read as the owner of config.vpspilot.json
+                </>
+              ) : (
+                "Log folders configured for this project"
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {project.logs && project.logs.length > 0 ? (
-              <ul className="space-y-2">
-                {project.logs.map((logPath, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2 text-sm font-mono bg-muted px-3 py-2 rounded"
-                  >
-                    <ScrollText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="break-all">{logPath}</span>
-                  </li>
-                ))}
-              </ul>
+              <ProjectLogs projectId={project.id} />
             ) : (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 No log paths configured
