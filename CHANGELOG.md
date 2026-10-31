@@ -6,6 +6,8 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.4.0 - 2026-10-31
+
 ### Upgrade notes
 - Reading logs needs agent v0.4.0 or later. Older agents keep working for
   everything else, and the dashboard asks you to upgrade them when you open

@@ -90,7 +90,7 @@
       <h2 class="section-title">You stay in control</h2>
       <p>Each project on a server carries a <code>config.vpspilot.json</code>, written by whoever owns the server. It's the complete list of what the dashboard may ever do with that project.</p>
       <p>The hub sends names, never command strings. To run <code>build</code>, it sends the agent the word <code>"build"</code>. The agent looks that name up in the file on the server and runs the command written there. Even someone who took over your hub couldn't run anything that isn't already in a file you wrote.</p>
-      <p class="note">The command runs as the owner of <code>config.vpspilot.json</code>, and every run is recorded with who started it.</p>
+      <p class="note">The command runs as the owner of <code>config.vpspilot.json</code>, and every run is recorded with who started it. Logs are read the same way, and only from the folders the file lists.</p>
       <p><a href="{{ "/docs/projects/" | relURL }}">How projects work</a></p>
     </div>
     <div class="split-code">
