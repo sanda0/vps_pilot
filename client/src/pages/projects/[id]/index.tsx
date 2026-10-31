@@ -6,6 +6,7 @@ import { CommandRun } from "@/types/command_run";
 import { CommandRunPanel } from "@/components/command-run-panel";
 import { CommandRunHistory } from "@/components/command-run-history";
 import { ProjectLogs } from "@/components/project-logs";
+import { ProjectBackups } from "@/components/project-backups";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +34,6 @@ import {
   FolderOpen,
   Terminal,
   ScrollText,
-  Database,
   Archive,
   Clock,
   Loader2,
@@ -354,74 +354,19 @@ export default function ProjectDetailsPage() {
         </Card>
 
         {/* Backups */}
-        <Card>
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Archive className="h-5 w-5" />
-              Backup Config
+              Backups
             </CardTitle>
             <CardDescription>
-              Backup settings from config.vpspilot.json
+              Zips of what config.vpspilot.json declares, made by the node's agent
             </CardDescription>
           </CardHeader>
           <CardContent>
             {project.backups ? (
-              <div className="space-y-4">
-                {project.backups.env_file && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      Env file
-                    </p>
-                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                      {project.backups.env_file}
-                    </p>
-                  </div>
-                )}
-
-                {project.backups.zip_file_name && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      Output archive
-                    </p>
-                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                      {project.backups.zip_file_name}.zip
-                    </p>
-                  </div>
-                )}
-
-                {project.backups.database && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
-                      <Database className="h-3.5 w-3.5" />
-                      Database
-                    </p>
-                    <div className="text-sm bg-muted rounded p-2 space-y-1 font-mono">
-                      <p>connection: {project.backups.database.connection}</p>
-                      <p>host: {project.backups.database.host}</p>
-                      <p>port: {project.backups.database.port}</p>
-                      <p>db: {project.backups.database.database_name}</p>
-                    </div>
-                  </div>
-                )}
-
-                {project.backups.dir && project.backups.dir.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      Directories
-                    </p>
-                    <ul className="space-y-1">
-                      {project.backups.dir.map((d, i) => (
-                        <li
-                          key={i}
-                          className="text-sm font-mono bg-muted px-2 py-1 rounded break-all"
-                        >
-                          {d}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <ProjectBackups project={project} backups={project.backups} />
             ) : (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 No backup config defined
