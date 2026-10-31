@@ -24,6 +24,25 @@ type ProjectBackup struct {
 	ZipFileName string                 `json:"zip_file_name,omitempty"`
 	Database    *ProjectBackupDatabase `json:"database,omitempty"`
 	Dirs        []string               `json:"dir,omitempty"`
+	// Added in v0.5. The S3 keys are names of env-file variables, never
+	// the keys themselves.
+	Schedule      string           `json:"schedule,omitempty"` // daily or weekly
+	At            string           `json:"at,omitempty"`       // HH:MM, server local time
+	LocalDir      string           `json:"local_dir,omitempty"`
+	RetentionDays *int             `json:"retention_days,omitempty"`
+	S3            *ProjectBackupS3 `json:"s3,omitempty"`
+}
+
+// ProjectBackupS3 is where backups are uploaded.
+type ProjectBackupS3 struct {
+	AccessKey     string `json:"access_key"`
+	SecretKey     string `json:"secret_key"`
+	Bucket        string `json:"bucket"`
+	Region        string `json:"region"`
+	Endpoint      string `json:"endpoint"`
+	Prefix        string `json:"prefix,omitempty"`
+	PathStyle     bool   `json:"path_style"`
+	RetentionDays *int   `json:"retention_days,omitempty"`
 }
 
 // ProjectConfig is the in-memory representation of a single config.vpspilot.json
@@ -77,6 +96,7 @@ type SystemInfo struct {
 const (
 	FeatureCommands = "commands" // handles command_run, since v0.3
 	FeatureLogs     = "logs"     // handles log_list and log_open, since v0.4
+	FeatureBackups  = "backups"  // runs backups and handles backup_run, since v0.5
 )
 
 func (s *SystemInfo) FromBytes(data []byte) error {
