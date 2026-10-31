@@ -38,8 +38,8 @@ It provides real-time monitoring, alerting, project management, and (future) cro
 - Per node, in **Projects → Scan settings**: automatic scan on/off, scan interval, **Rescan now**, and the problems from the last scan (broken configs, rejected paths)
 - **Projects → Add project** points a node's agent at a directory the search doesn't reach. The agent only accepts it inside its project directories unless started with `--allow-any-project-path`
 - **Run** a command declared in the file from the project page, with live output and a history of every run. The agent runs it as the owner of `config.vpspilot.json`
+- **Read** the files in the log folders the file declares from the project page, and follow one live. The agent reads them as the owner of `config.vpspilot.json`
 - Planned, for what the file declares only:
-  - Managing project logs
   - Backing up project directories and databases
 
 **Sample `config.vpspilot.json`:**
@@ -394,7 +394,7 @@ ls server/cmd/app/dist/
 - [x] Rust agent in this repo (`agent/`)
 - [x] Project discovery via `config.vpspilot.json` (per-node scan settings, manual paths)
 - [x] Run named project commands (declared in the config file only) with audit log
-- [ ] Log tailing for declared log folders
+- [x] Log tailing for declared log folders
 - [ ] Project backups (database + directories)
 - [ ] Cron jobs declared per project
 - [x] Install script + systemd unit for the agent

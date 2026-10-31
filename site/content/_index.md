@@ -14,6 +14,8 @@ available:
     text: The agent finds every config.vpspilot.json on the server. Scan settings per server, rescan on demand, and manual paths the agent checks itself.
   - title: Run commands
     text: Run a command a project declares, by name, and watch its output live. It runs as the owner of the config file, and every run is recorded with who started it.
+  - title: Read logs
+    text: Pick a file in the log folders a project declares and follow it live, or load earlier lines. The agent reads it as the owner of the config file, and the hub stores nothing.
   - title: Safe enrollment
     text: One-time join tokens, TLS 1.3 with a pinned certificate, and a key per server that you can revoke. Re-enroll a server without losing its history.
   - title: One binary hub
@@ -22,7 +24,6 @@ available:
     text: One Rust binary per server, installed as a systemd service with one command or a .deb. It dials out to the hub, so the server needs no open ports.
 
 soon:
-  - Tail the log folders a project declares
   - Backups of declared folders, the env file and the database
   - Cron jobs declared per project
   - Docker Compose setup

@@ -36,12 +36,14 @@ cloud account.
   the dashboard lists those projects, with per-server scan settings.
 - **[Run commands](/docs/projects/#run-a-command).** Run a command a project
   declares, by name, with live output and a history of every run.
+- **[Read logs](/docs/projects/#read-logs).** Follow a file in the log folders
+  a project declares, live, and load earlier lines.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
   without losing its history, or revoke its key.
 
 {{< callout soon >}}
-Tailing a project's logs, backups and cron jobs are planned. The dashboard
-already shows what a project declares for them.
+Backups and cron jobs are planned. The dashboard already shows what a
+project declares for them.
 {{< /callout >}}
 
 ## The rule that shapes everything
