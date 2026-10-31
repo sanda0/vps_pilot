@@ -33,6 +33,7 @@ pub const MSG_LOG_OPEN: &str = "log_open";
 pub const MSG_LOG_CLOSE: &str = "log_close";
 pub const MSG_LOG_DATA: &str = "log_data";
 pub const MSG_LOG_END: &str = "log_end";
+pub const MSG_BACKUP_RUN: &str = "backup_run";
 pub const MSG_BACKUP_STARTED: &str = "backup_started";
 pub const MSG_BACKUP_RESULT: &str = "backup_result";
 
