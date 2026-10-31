@@ -113,9 +113,9 @@ export const commandRunsApi = {
     return response.data.data;
   },
 
-  list: async (projectId: string, limit = 20) => {
+  list: async (projectId: string, limit = 20, offset = 0) => {
     const response = await api.get<{ data: CommandRun[] }>(`/projects/${projectId}/runs`, {
-      params: { limit },
+      params: { limit, offset },
     });
     return response.data.data ?? [];
   },
