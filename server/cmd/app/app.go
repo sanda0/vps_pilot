@@ -26,7 +26,7 @@ func hasEmbeddedUI() bool {
 	return err == nil
 }
 
-func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment, agents services.ProjectAgents, runner services.CommandRunner, logs services.LogReader) {
+func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentEnrollment, agents services.ProjectAgents, runner services.CommandRunner, logs services.LogReader, backups services.Backupper) {
 
 	//init services
 	userService := services.NewUserService(ctx, repo)
@@ -36,6 +36,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	projectScanService := services.NewProjectScanService(ctx, repo, agents)
 	commandRunService := services.NewCommandRunService(ctx, repo, runner)
 	logService := services.NewLogService(ctx, repo, logs)
+	backupService := services.NewBackupService(ctx, repo, backups)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
@@ -45,6 +46,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	projectScanHandler := handlers.NewProjectScanHandler(projectScanService)
 	commandRunHandler := handlers.NewCommandRunHandler(commandRunService)
 	logHandler := handlers.NewLogHandler(logService)
+	backupHandler := handlers.NewBackupHandler(backupService)
 
 	server := gin.Default()
 
@@ -108,6 +110,8 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			projects.GET("/:id/runs", commandRunHandler.List)
 			projects.GET("/:id/logs", logHandler.List)
 			projects.GET("/:id/logs/ws", logHandler.Watch)
+			projects.POST("/:id/backups", backupHandler.Start)
+			projects.GET("/:id/backups", backupHandler.List)
 		}
 		runs := dashbaord.Group("/runs")
 		{

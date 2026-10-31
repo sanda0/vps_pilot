@@ -7,7 +7,56 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
+
+const createBackupRun = `-- name: CreateBackupRun :one
+INSERT INTO backup_runs (id, node_id, project_path, trigger_kind, user_id, username)
+VALUES (?, ?, ?, 'manual', ?, ?)
+RETURNING id, node_id, project_path, trigger_kind, user_id, username, status, run_as, file, local_path, size, database_type, upload_status, upload_key, upload_error, error, duration_ms, started_at, finished_at
+`
+
+type CreateBackupRunParams struct {
+	ID          string        `json:"id"`
+	NodeID      int64         `json:"node_id"`
+	ProjectPath string        `json:"project_path"`
+	UserID      sql.NullInt64 `json:"user_id"`
+	Username    string        `json:"username"`
+}
+
+// Back up now, from the dashboard, before backup_run is sent.
+func (q *Queries) CreateBackupRun(ctx context.Context, arg CreateBackupRunParams) (BackupRun, error) {
+	row := q.queryRow(ctx, q.createBackupRunStmt, createBackupRun,
+		arg.ID,
+		arg.NodeID,
+		arg.ProjectPath,
+		arg.UserID,
+		arg.Username,
+	)
+	var i BackupRun
+	err := row.Scan(
+		&i.ID,
+		&i.NodeID,
+		&i.ProjectPath,
+		&i.TriggerKind,
+		&i.UserID,
+		&i.Username,
+		&i.Status,
+		&i.RunAs,
+		&i.File,
+		&i.LocalPath,
+		&i.Size,
+		&i.DatabaseType,
+		&i.UploadStatus,
+		&i.UploadKey,
+		&i.UploadError,
+		&i.Error,
+		&i.DurationMs,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
 
 const finishBackupRun = `-- name: FinishBackupRun :execrows
 INSERT INTO backup_runs (

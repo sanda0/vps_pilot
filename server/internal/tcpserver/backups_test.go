@@ -102,3 +102,47 @@ func TestLateBackupResultReplacesLost(t *testing.T) {
 		t.Fatalf("late result %+v", r)
 	}
 }
+
+func TestBackUpNow(t *testing.T) {
+	h := newTestHub(t)
+	ctx := context.Background()
+	start := func(nodeID int64) (db.BackupRun, error) {
+		return h.backups.Start(ctx, StartBackup{NodeID: nodeID, ProjectPath: "/srv/shop", Username: "admin"})
+	}
+	if _, err := start(99); err != ErrNodeOffline {
+		t.Fatalf("offline: %v", err)
+	}
+	_, oldNode := h.agentWith(FeatureCommands, FeatureLogs) // v0.4
+	if _, err := start(oldNode); err != ErrNoBackups {
+		t.Fatalf("v0.4 agent: %v", err)
+	}
+
+	agent, nodeID := h.agentWith(FeatureBackups)
+	// Start's send blocks until the agent reads it (the test connection is
+	// synchronous), so it runs in its own goroutine.
+	type result struct {
+		run db.BackupRun
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		run, err := start(nodeID)
+		done <- result{run, err}
+	}()
+	var sent BackupRun
+	json.Unmarshal(agent.expect(MsgBackupRun).Data, &sent)
+	res := <-done
+	run, err := res.run, res.err
+	if err != nil || run.Status != "running" || run.TriggerKind != "manual" || run.Username != "admin" || run.UserID.Valid {
+		t.Fatalf("started %+v, %v", run, err)
+	}
+	if sent != (BackupRun{RunID: run.ID, ProjectPath: "/srv/shop"}) {
+		t.Fatalf("sent %+v", sent)
+	}
+	// The agent was busy.
+	agent.send(MsgBackupResult, "", BackupResult{RunID: run.ID, ProjectPath: "/srv/shop", Trigger: "manual", Status: "rejected", Error: "a backup is already running on this node"})
+	h.synced(agent)
+	if r, _ := h.repo.Queries.GetBackupRun(ctx, run.ID); r.Status != "rejected" || r.Username != "admin" {
+		t.Fatalf("after result %+v", r)
+	}
+}

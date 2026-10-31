@@ -107,7 +107,7 @@ func main() {
 	agents := tcpserver.NewRegistry()
 	runs := tcpserver.NewRuns(ctx, repo, agents)
 	logs := tcpserver.NewLogs(agents)
-	backups := tcpserver.NewBackups(ctx, repo)
+	backups := tcpserver.NewBackups(ctx, repo, agents)
 	go tcpserver.StartTcpServer(ctx, repo, agents, runs, logs, backups, cert, *agentPort)
 
 	app.Run(ctx, repo, *port, services.AgentEnrollment{
@@ -115,7 +115,7 @@ func main() {
 		AgentPort:   *agentPort,
 		Version:     Version,
 		Agents:      agents,
-	}, agents, runs, logs)
+	}, agents, runs, logs, backups)
 
 }
 
