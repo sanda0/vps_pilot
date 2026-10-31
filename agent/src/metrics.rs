@@ -92,7 +92,7 @@ impl Collector {
             cpus: self.sys.cpus().len(),
             total_memory: self.sys.total_memory(),
             agent_version: crate::VERSION,
-            features: &["commands"],
+            features: &["commands", "logs"],
         }
     }
 
