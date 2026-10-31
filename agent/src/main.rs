@@ -1,6 +1,9 @@
 mod client;
 mod commands;
 mod discovery;
+// Used by the backup child (next commits); only the tests use it for now.
+#[allow(dead_code)]
+mod envfile;
 mod logchild;
 mod logfiles;
 mod logread;
