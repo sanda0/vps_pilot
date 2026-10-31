@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router";
-import { apiErrorMessage, commandRunsApi, projectsApi } from "@/lib/api";
+import { projectsApi } from "@/lib/api";
 import { Project } from "@/types/project";
-import { CommandRun } from "@/types/command_run";
-import { CommandRunPanel } from "@/components/command-run-panel";
-import { CommandRunHistory } from "@/components/command-run-history";
+import { ProjectCommands } from "@/components/project-commands";
 import { ProjectLogs } from "@/components/project-logs";
 import { ProjectBackups } from "@/components/project-backups";
 import {
@@ -37,8 +35,6 @@ import {
   Archive,
   Clock,
   Loader2,
-  Play,
-  History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectDeleteDialog } from "@/components/project-delete-dialog";
@@ -58,51 +54,12 @@ export default function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [runs, setRuns] = useState<CommandRun[]>([]);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [confirmCommand, setConfirmCommand] = useState<string | null>(null);
-  const [starting, setStarting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (id) fetchProject();
   }, [id]);
-
-  const fetchRuns = useCallback(async () => {
-    if (!id) return;
-    try {
-      const list = await commandRunsApi.list(id);
-      setRuns(list);
-      // Show the latest run on first load, e.g. one still running.
-      setSelectedRunId((current) => current ?? list[0]?.id ?? null);
-    } catch {
-      // The history is secondary; the page still works without it.
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
-
-  const startRun = async () => {
-    if (!id || !confirmCommand) return;
-    setStarting(true);
-    try {
-      const run = await commandRunsApi.start(id, confirmCommand);
-      setSelectedRunId(run.id);
-      fetchRuns();
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Couldn't run the command",
-        description: apiErrorMessage(err, "The hub refused to start it"),
-      });
-    } finally {
-      setStarting(false);
-      setConfirmCommand(null);
-    }
-  };
 
   const fetchProject = async () => {
     if (!id) return;
@@ -274,47 +231,19 @@ export default function ProjectDetailsPage() {
           </CardContent>
         </Card>
 
-        {/* Commands */}
-        <Card>
+        {/* Commands and their runs */}
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Terminal className="h-5 w-5" />
               Commands
             </CardTitle>
             <CardDescription>
-              Runnable commands defined in config.vpspilot.json
+              Commands defined in config.vpspilot.json, and the runs started from the dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {project.commands && project.commands.length > 0 ? (
-              <ul className="space-y-2">
-                {project.commands.map((cmd, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between gap-3 p-3 rounded-md border bg-muted/40"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{cmd.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">
-                        {cmd.command}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setConfirmCommand(cmd.name)}
-                    >
-                      <Play className="mr-1 h-3 w-3" />
-                      Run
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No commands defined
-              </p>
-            )}
+            <ProjectCommands project={project} />
           </CardContent>
         </Card>
 
@@ -375,58 +304,6 @@ export default function ProjectDetailsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Runs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Runs
-          </CardTitle>
-          <CardDescription>
-            Commands run from the dashboard, with their output
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {selectedRunId ? (
-            <CommandRunPanel runId={selectedRunId} onFinished={fetchRuns} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Run a command to see its output here.
-            </p>
-          )}
-          <CommandRunHistory
-            runs={runs}
-            selectedId={selectedRunId}
-            onSelect={setSelectedRunId}
-          />
-        </CardContent>
-      </Card>
-
-      <AlertDialog
-        open={confirmCommand !== null}
-        onOpenChange={(open) => !open && setConfirmCommand(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Run {confirmCommand}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Runs{" "}
-              <code className="font-mono">
-                {project.commands.find((c) => c.name === confirmCommand)?.command}
-              </code>{" "}
-              in {project.path} on {project.node_name || `node ${project.node_id}`}, as the
-              owner of its config.vpspilot.json.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={starting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={startRun} disabled={starting}>
-              {starting ? "Starting..." : "Run"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <ProjectDeleteDialog
         open={deleteDialogOpen}
