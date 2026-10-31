@@ -92,6 +92,9 @@ A node can have only one live connection. A second successful `connected` closes
 | `log_close` | hub → agent | `{ "stream_id": "…" }` |
 | `log_data` | agent → hub | `LogData` |
 | `log_end` | agent → hub | `LogEnd` |
+| `backup_run` | hub → agent | `BackupRun`, see [Back up](#back-up) |
+| `backup_started` | agent → hub | `BackupStarted` |
+| `backup_result` | agent → hub | `BackupResult` |
 
 Unknown types are ignored by both sides.
 
@@ -211,6 +214,116 @@ A stream ends with exactly one `log_end`:
 
 At most 8 streams are open at once on a node; more get `rejected`. When the session ends, the agent closes all its streams. The hub doesn't store log contents.
 
+## Back up
+
+The agent backs up what a project declares in `backups` in `config.vpspilot.json`: the folders in `dir`, the `env_file` and a dump of the database. It writes a zip into `local_dir` on the server and, if `s3` is set, uploads it to an S3-compatible bucket (Linode Object Storage, AWS S3, MinIO…). The hub never receives the backup itself, only its result.
+
+```
+hub → agent   backup_run       data = { run_id, project_path }                    (Back up now)
+agent → hub   backup_started   data = { run_id, project_path, trigger, … }
+agent → hub   backup_result    data = { run_id, project_path, status, … }         (exactly one per backup_started)
+```
+
+Backups start two ways: on the schedule the config file declares, run by the agent itself even when the hub is unreachable, or from `backup_run` (**Back up now** in the dashboard). For a scheduled backup, the agent chooses the `run_id`.
+
+An agent supports this only if its `SystemInfo.features` contains `"backups"`. The hub must not send `backup_run` to other agents.
+
+### What the config declares
+
+```json
+"backups": {
+  "env_file": ".env",
+  "zip_file_name": "shop_backup",
+  "database": {
+    "connection": "DB_CONNECTION", "host": "DB_HOST", "port": "DB_PORT",
+    "username": "DB_USERNAME", "password": "DB_PASSWORD", "database_name": "DB_DATABASE"
+  },
+  "dir": ["storage/app"],
+  "schedule": "daily",
+  "at": "03:00",
+  "local_dir": "../backups/shop",
+  "retention_days": 7,
+  "s3": {
+    "access_key": "S3_ACCESS_KEY",
+    "secret_key": "S3_SECRET_KEY",
+    "bucket": "shop-backups",
+    "region": "us-east-1",
+    "endpoint": "https://us-east-1.linodeobjects.com",
+    "prefix": "shop/",
+    "path_style": false,
+    "retention_days": 30
+  }
+}
+```
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `env_file` | none | The project's env file, relative to the project directory. It goes into the zip, and the `database` and `s3` variables are read from it. |
+| `zip_file_name` | the project's `name`, with other characters replaced by `_` | Base name of the zip. Letters, digits, `.`, `-` and `_` only. |
+| `database` | none | The **names** of the variables in `env_file` that hold the database settings. Needs `env_file`. |
+| `dir` | none | Folders to include, relative to the project directory. |
+| `schedule` | none | `daily` or `weekly` (Sundays). Without it, backups only run from **Back up now**. |
+| `at` | `03:00` | Time of day for `schedule`, `HH:MM` in the server's local time zone. |
+| `local_dir` | required | Where the zips are written: relative to the project directory, or absolute. It must not be inside a folder in `dir`. |
+| `retention_days` | `7` | Zips in `local_dir` older than this are deleted. `1 ..= 3650`. |
+| `s3.access_key`, `s3.secret_key` | required with `s3` | The **names** of the variables in `env_file` that hold the keys, never the keys themselves. Needs `env_file`. |
+| `s3.bucket`, `s3.region`, `s3.endpoint` | required with `s3` | The bucket, its region and the `https://` endpoint. |
+| `s3.prefix` | `""` | Put in front of each object key. |
+| `s3.path_style` | `false` | Use `endpoint/bucket/key` URLs instead of `bucket.endpoint/key` (MinIO needs this). |
+| `s3.retention_days` | `30` | Objects under `prefix` older than this are deleted. `1 ..= 3650`. |
+
+A `backups` object with a `schedule` other than `daily` or `weekly`, an invalid `at`, `zip_file_name` or `retention_days`, no `local_dir`, or an incomplete `s3` makes the config unusable, like an incomplete command: the agent reports it as a problem instead of a project. Because `database` and `s3` hold only variable names, the hub and the dashboard never see a password or a key.
+
+### Before backing up
+
+The agent sends `backup_result` with status `rejected` (and backs up nothing) unless all of these hold:
+
+1. `project_path` is a project from the agent's latest search, and its re-read `config.vpspilot.json` passes the same checks as for [running commands](#before-running) and declares `backups`.
+2. The agent can run as the file's owner: it runs as root, or it already runs as that user.
+3. No other backup is running on the node. A scheduled backup waits for the running one instead; a `backup_run` is rejected.
+
+The agent then checks the paths, as the owner. Each entry of `dir`, `env_file` and a SQLite database file must resolve (`..` and symlinks) inside the project directory. A failed check ends the backup with status `failed` and says which path.
+
+### Backing up
+
+- **As the config file's owner.** The backup runs in a child process with the owner's user and groups, the same switch as for commands, so it reads only what the owner can read and writes only where the owner can write.
+- **Env file.** Read as `KEY=VALUE` lines. Blank lines, `#` comments and an `export ` prefix are ignored, and single or double quotes around a value are removed. There is no `${…}` expansion.
+- **Database.** The value of the `connection` variable picks the tool. The tool must be installed on the server; the agent doesn't bundle one.
+
+  | `connection` | Dump | Password |
+  | --- | --- | --- |
+  | `mysql`, `mariadb` | `mysqldump --single-transaction --quick --routines --triggers` | in a temporary `--defaults-extra-file`, mode `0600` |
+  | `pgsql`, `postgres`, `postgresql` | `pg_dump --no-owner` (plain SQL) | `PGPASSWORD` |
+  | `sqlite` | `sqlite3 <file> ".backup …"` | none; `database_name` is the file, relative to the project directory or absolute |
+
+  Passwords never appear on a command line. Any other `connection` fails the backup.
+- **Zip.** `<zip_file_name>-<UTC time>.zip`, e.g. `shop_backup-20261031T030000Z.zip`, written as `.part` and renamed when complete. It holds:
+
+  ```
+  manifest.json            project, created_at, agent_version, database type
+  files/<path>             each file of `dir` and `env_file`, at its path in the project
+  database/dump.sql        or database/database.sqlite
+  ```
+
+  Symlinks inside `dir` are not followed or stored. The zip is mode `0600` and `local_dir` is created with mode `0700` if it doesn't exist, because the zip holds the env file.
+- **Retention.** After a successful backup, the agent deletes zips in `local_dir` named `<zip_file_name>-<UTC time>.zip` whose time is older than `retention_days`. It never deletes the newest one, nor other files.
+- **Upload.** With `s3`, the zip is uploaded to `<prefix><file name>`, signed with AWS Signature Version 4, in parts of 16 MiB. The keys need permission to put, list and delete objects. After a successful upload, the agent deletes objects under `<prefix><zip_file_name>-` older than `s3.retention_days`. A failed upload doesn't remove the local zip: the backup still counts as `ok`, and `upload` says what went wrong.
+- **Timeout.** One hour. The agent's `--backup-timeout` (seconds) changes it. The timeout kills the child and its tools and removes the `.part` file.
+
+A backup keeps running if the session with the hub ends. The agent keeps up to 50 `backup_result`s it couldn't send and sends them after it reconnects; they are lost if the agent restarts. The hub de-duplicates by `run_id`.
+
+### Schedule
+
+The agent checks the schedule every minute. It remembers when each project was last backed up by schedule in its state file, so a restart doesn't back up twice. If the agent wasn't running at the scheduled time, it runs the missed backup once when it's back.
+
+### Statuses
+
+| `status` | Meaning |
+| --- | --- |
+| `ok` | The zip was written to `local_dir`. See `upload` for the bucket |
+| `failed` | No zip was kept: a path check, the env file, the dump, writing the zip or the timeout failed. `error` says which |
+| `rejected` | Not started, see [Before backing up](#before-backing-up). No `backup_started` is sent first |
+
 ## Payloads
 
 `SystemInfo`
@@ -225,11 +338,11 @@ At most 8 streams are open at once on a node; more get `rejected`. When the sess
   "cpus": 4,
   "total_memory": 8221474816,
   "agent_version": "v0.4.0",
-  "features": ["commands", "logs"]
+  "features": ["commands", "logs", "backups"]
 }
 ```
 
-`hostname` names the node on first enrollment. `total_memory` is in bytes. `agent_version` and `features` were added in v0.3. When they are missing, the hub treats the agent as v0.2 with no features. `features` lists what the agent can do beyond streaming stats and projects. The values are `commands` ([Run commands](#run-commands), v0.3) and `logs` ([Read logs](#read-logs), v0.4).
+`hostname` names the node on first enrollment. `total_memory` is in bytes. `agent_version` and `features` were added in v0.3. When they are missing, the hub treats the agent as v0.2 with no features. `features` lists what the agent can do beyond streaming stats and projects. The values are `commands` ([Run commands](#run-commands), v0.3), `logs` ([Read logs](#read-logs), v0.4) and `backups` ([Back up](#back-up), v0.5).
 
 `CommandRun`
 
@@ -354,3 +467,40 @@ At most 8 streams are open at once on a node; more get `rejected`. When the sess
 ```json
 { "stream_id": "9a2e…", "reason": "rejected", "error": "not a file in this project's log folders" }
 ```
+
+`BackupRun`
+
+```json
+{ "run_id": "c41a…", "project_path": "/var/www/shop" }
+```
+
+`run_id` is a UUID chosen by the hub.
+
+`BackupStarted`
+
+```json
+{ "run_id": "c41a…", "project_path": "/var/www/shop", "trigger": "schedule", "started_at": 1793156400, "run_as": "deploy" }
+```
+
+`trigger` is `manual` (from `backup_run`) or `schedule`. `started_at` is Unix seconds.
+
+`BackupResult`
+
+```json
+{
+  "run_id": "c41a…",
+  "project_path": "/var/www/shop",
+  "trigger": "schedule",
+  "status": "ok",
+  "started_at": 1793156400,
+  "duration_ms": 84210,
+  "file": "shop_backup-20261031T030000Z.zip",
+  "local_path": "/var/www/backups/shop/shop_backup-20261031T030000Z.zip",
+  "size": 52428800,
+  "database": "mysql",
+  "upload": { "status": "ok", "key": "shop/shop_backup-20261031T030000Z.zip", "error": "" },
+  "error": ""
+}
+```
+
+`file`, `local_path` and `size` (bytes) are set when `status` is `ok`. `database` is the dump type, or empty without `database`. `upload.status` is `ok`, `failed` or `skipped` (no `s3`, or the backup didn't succeed). `error` is a short reason for `failed` and `rejected` (e.g. `mysqldump not found`, `DB_PASSWORD is not set in .env`), and empty otherwise.
