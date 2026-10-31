@@ -5,16 +5,6 @@ import { Project } from "@/types/project";
 import { ProjectCommands } from "@/components/project-commands";
 import { ProjectLogs } from "@/components/project-logs";
 import { ProjectBackups } from "@/components/project-backups";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
