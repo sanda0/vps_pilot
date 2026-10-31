@@ -310,7 +310,7 @@ The agent then checks the older fields (see above) and the paths, as the owner. 
 - **Upload.** With `s3`, the zip is uploaded to `<prefix><file name>`, signed with AWS Signature Version 4, in parts of 16 MiB. The keys need permission to put, list and delete objects. After a successful upload, the agent deletes objects under `<prefix><zip_file_name>-` older than `s3.retention_days`. A failed upload doesn't remove the local zip: the backup still counts as `ok`, and `upload` says what went wrong.
 - **Timeout.** One hour. The agent's `--backup-timeout` (seconds) changes it. The timeout kills the child and its tools. The next backup of the project removes the `.part` file and dump folder they leave behind.
 
-A backup keeps running if the session with the hub ends. The agent keeps up to 50 `backup_result`s it couldn't send and sends them after it reconnects; they are lost if the agent restarts. The hub de-duplicates by `run_id`.
+A backup keeps running if the session with the hub ends. The agent keeps up to 50 `backup_result`s it couldn't send and sends them after it reconnects; they are lost if the agent restarts. The hub de-duplicates by `run_id`. It marks a backup with no `backup_result` after 24 hours as `lost`; a later result still replaces that.
 
 ### Schedule
 

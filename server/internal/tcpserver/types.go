@@ -24,6 +24,25 @@ type ProjectBackup struct {
 	ZipFileName string                 `json:"zip_file_name,omitempty"`
 	Database    *ProjectBackupDatabase `json:"database,omitempty"`
 	Dirs        []string               `json:"dir,omitempty"`
+	// Added in v0.5. The S3 keys are names of env-file variables, never
+	// the keys themselves.
+	Schedule      string           `json:"schedule,omitempty"` // daily or weekly
+	At            string           `json:"at,omitempty"`       // HH:MM, server local time
+	LocalDir      string           `json:"local_dir,omitempty"`
+	RetentionDays *int             `json:"retention_days,omitempty"`
+	S3            *ProjectBackupS3 `json:"s3,omitempty"`
+}
+
+// ProjectBackupS3 is where backups are uploaded.
+type ProjectBackupS3 struct {
+	AccessKey     string `json:"access_key"`
+	SecretKey     string `json:"secret_key"`
+	Bucket        string `json:"bucket"`
+	Region        string `json:"region"`
+	Endpoint      string `json:"endpoint"`
+	Prefix        string `json:"prefix,omitempty"`
+	PathStyle     bool   `json:"path_style"`
+	RetentionDays *int   `json:"retention_days,omitempty"`
 }
 
 // ProjectConfig is the in-memory representation of a single config.vpspilot.json
@@ -77,6 +96,7 @@ type SystemInfo struct {
 const (
 	FeatureCommands = "commands" // handles command_run, since v0.3
 	FeatureLogs     = "logs"     // handles log_list and log_open, since v0.4
+	FeatureBackups  = "backups"  // runs backups and handles backup_run, since v0.5
 )
 
 func (s *SystemInfo) FromBytes(data []byte) error {
@@ -136,6 +156,10 @@ const (
 	MsgLogClose = "log_close" // hub → agent, Data = LogClose
 	MsgLogData  = "log_data"  // agent → hub, Data = LogData
 	MsgLogEnd   = "log_end"   // agent → hub, Data = LogEnd
+
+	MsgBackupRun     = "backup_run"     // hub → agent, Data = BackupRun
+	MsgBackupStarted = "backup_started" // agent → hub, Data = BackupStarted
+	MsgBackupResult  = "backup_result"  // agent → hub, Data = BackupResult
 )
 
 // CommandRun asks the agent to run a command by name. Never a command string.
@@ -233,4 +257,42 @@ type EnrolledPayload struct {
 // AuthFailedPayload tells the agent why it was rejected.
 type AuthFailedPayload struct {
 	Reason string `json:"reason"`
+}
+
+// BackupRun asks the agent to back up a project now.
+type BackupRun struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+}
+
+// BackupStarted is sent when a backup starts, scheduled or not.
+type BackupStarted struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+	Trigger     string `json:"trigger"` // manual or schedule
+	StartedAt   int64  `json:"started_at"`
+	RunAs       string `json:"run_as"`
+}
+
+// BackupUpload is what happened to the copy in the project's S3 bucket.
+type BackupUpload struct {
+	Status string `json:"status"` // ok, failed or skipped
+	Key    string `json:"key"`
+	Error  string `json:"error"`
+}
+
+// BackupResult is sent once per backup, also for one that was rejected.
+type BackupResult struct {
+	RunID       string       `json:"run_id"`
+	ProjectPath string       `json:"project_path"`
+	Trigger     string       `json:"trigger"`
+	Status      string       `json:"status"` // ok, failed or rejected
+	StartedAt   int64        `json:"started_at"`
+	DurationMS  int64        `json:"duration_ms"`
+	File        string       `json:"file"`
+	LocalPath   string       `json:"local_path"`
+	Size        int64        `json:"size"`
+	Database    string       `json:"database"`
+	Upload      BackupUpload `json:"upload"`
+	Error       string       `json:"error"`
 }

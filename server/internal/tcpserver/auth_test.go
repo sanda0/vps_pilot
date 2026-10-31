@@ -19,6 +19,7 @@ type testHub struct {
 	registry *Registry
 	runs     *Runs
 	logs     *Logs
+	backups  *Backups
 	chans    statChans
 }
 
@@ -39,7 +40,8 @@ func newTestHub(t *testing.T) *testHub {
 	}
 	h.runs = NewRuns(context.Background(), h.repo, h.registry)
 	h.logs = NewLogs(h.registry)
-	registerHandlers(h.router, h.chans, h.runs, h.logs)
+	h.backups = NewBackups(context.Background(), h.repo)
+	registerHandlers(h.router, h.chans, h.runs, h.logs, h.backups)
 	return h
 }
 

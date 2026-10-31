@@ -35,6 +35,28 @@ type Alert struct {
 	UpdatedAt        int64           `json:"updated_at"`
 }
 
+type BackupRun struct {
+	ID           string        `json:"id"`
+	NodeID       int64         `json:"node_id"`
+	ProjectPath  string        `json:"project_path"`
+	TriggerKind  string        `json:"trigger_kind"`
+	UserID       sql.NullInt64 `json:"user_id"`
+	Username     string        `json:"username"`
+	Status       string        `json:"status"`
+	RunAs        string        `json:"run_as"`
+	File         string        `json:"file"`
+	LocalPath    string        `json:"local_path"`
+	Size         int64         `json:"size"`
+	DatabaseType string        `json:"database_type"`
+	UploadStatus string        `json:"upload_status"`
+	UploadKey    string        `json:"upload_key"`
+	UploadError  string        `json:"upload_error"`
+	Error        string        `json:"error"`
+	DurationMs   int64         `json:"duration_ms"`
+	StartedAt    int64         `json:"started_at"`
+	FinishedAt   sql.NullInt64 `json:"finished_at"`
+}
+
 type CommandRun struct {
 	ID          string        `json:"id"`
 	NodeID      int64         `json:"node_id"`
