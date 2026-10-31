@@ -33,6 +33,7 @@ pub const MSG_LOG_OPEN: &str = "log_open";
 pub const MSG_LOG_CLOSE: &str = "log_close";
 pub const MSG_LOG_DATA: &str = "log_data";
 pub const MSG_LOG_END: &str = "log_end";
+pub const MSG_BACKUP_STARTED: &str = "backup_started";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -301,6 +302,33 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, msg: &Msg) -> Result<
     w.write_all(&buf).await?;
     w.flush().await?;
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+pub struct BackupStarted {
+    pub run_id: String,
+    pub project_path: String,
+    /// `manual` or `schedule`.
+    pub trigger: &'static str,
+    pub started_at: u64,
+    pub run_as: String,
+}
+
+#[derive(Debug, Default, Serialize)]
+pub struct BackupResult {
+    pub run_id: String,
+    pub project_path: String,
+    pub trigger: &'static str,
+    /// `ok`, `failed` or `rejected`.
+    pub status: &'static str,
+    pub started_at: u64,
+    pub duration_ms: u64,
+    pub file: String,
+    pub local_path: String,
+    pub size: u64,
+    pub database: String,
+    pub upload: crate::backupchild::Upload,
+    pub error: String,
 }
 
 #[cfg(test)]
