@@ -15,6 +15,9 @@ mod project;
 mod protocol;
 mod runs;
 mod scanner;
+// Used by the S3 upload (next commits); only the tests use it for now.
+#[allow(dead_code)]
+mod sigv4;
 mod state;
 mod tls;
 
