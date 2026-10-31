@@ -7,6 +7,9 @@ mod envfile;
 // Used by the backup child (next commits); only the tests use it for now.
 #[allow(dead_code)]
 mod backupzip;
+// Used by the backup child (next commit); only the tests use it for now.
+#[allow(dead_code)]
+mod dump;
 mod logchild;
 mod logfiles;
 mod logread;
