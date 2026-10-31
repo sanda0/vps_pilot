@@ -50,4 +50,6 @@ func registerHandlers(router *Router, chans statChans, runs *Runs, logs *Logs) {
 	router.Handle(MsgCommandOutput, runs.HandleOutput)
 	router.Handle(MsgCommandExit, runs.HandleExit)
 	router.Handle(MsgLogFiles, logs.HandleFiles)
+	router.Handle(MsgLogData, logs.HandleData)
+	router.Handle(MsgLogEnd, logs.HandleEnd)
 }
