@@ -1,3 +1,4 @@
+mod backupchild;
 mod client;
 mod commands;
 mod discovery;
@@ -132,6 +133,9 @@ async fn main() -> ExitCode {
     // stdout carries JSON, so this comes before logging is set up.
     if std::env::args().nth(1).as_deref() == Some(logchild::ARG) {
         return logchild::main();
+    }
+    if std::env::args().nth(1).as_deref() == Some(backupchild::ARG) {
+        return backupchild::main();
     }
     tracing_subscriber::fmt()
         .with_env_filter(
