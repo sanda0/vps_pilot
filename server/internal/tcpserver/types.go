@@ -156,6 +156,10 @@ const (
 	MsgLogClose = "log_close" // hub → agent, Data = LogClose
 	MsgLogData  = "log_data"  // agent → hub, Data = LogData
 	MsgLogEnd   = "log_end"   // agent → hub, Data = LogEnd
+
+	MsgBackupRun     = "backup_run"     // hub → agent, Data = BackupRun
+	MsgBackupStarted = "backup_started" // agent → hub, Data = BackupStarted
+	MsgBackupResult  = "backup_result"  // agent → hub, Data = BackupResult
 )
 
 // CommandRun asks the agent to run a command by name. Never a command string.
@@ -253,4 +257,42 @@ type EnrolledPayload struct {
 // AuthFailedPayload tells the agent why it was rejected.
 type AuthFailedPayload struct {
 	Reason string `json:"reason"`
+}
+
+// BackupRun asks the agent to back up a project now.
+type BackupRun struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+}
+
+// BackupStarted is sent when a backup starts, scheduled or not.
+type BackupStarted struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+	Trigger     string `json:"trigger"` // manual or schedule
+	StartedAt   int64  `json:"started_at"`
+	RunAs       string `json:"run_as"`
+}
+
+// BackupUpload is what happened to the copy in the project's S3 bucket.
+type BackupUpload struct {
+	Status string `json:"status"` // ok, failed or skipped
+	Key    string `json:"key"`
+	Error  string `json:"error"`
+}
+
+// BackupResult is sent once per backup, also for one that was rejected.
+type BackupResult struct {
+	RunID       string       `json:"run_id"`
+	ProjectPath string       `json:"project_path"`
+	Trigger     string       `json:"trigger"`
+	Status      string       `json:"status"` // ok, failed or rejected
+	StartedAt   int64        `json:"started_at"`
+	DurationMS  int64        `json:"duration_ms"`
+	File        string       `json:"file"`
+	LocalPath   string       `json:"local_path"`
+	Size        int64        `json:"size"`
+	Database    string       `json:"database"`
+	Upload      BackupUpload `json:"upload"`
+	Error       string       `json:"error"`
 }

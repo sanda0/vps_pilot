@@ -34,3 +34,47 @@ func TestProjectsKeepTheBackupSchedule(t *testing.T) {
 		t.Fatalf("backups %+v, s3 %+v", got, got.S3)
 	}
 }
+
+func TestBackupReportsAreRecorded(t *testing.T) {
+	h := newTestHub(t)
+	agent, nodeID := h.agentWith(FeatureBackups)
+	other, _ := h.agentWith(FeatureBackups)
+	q, ctx := h.repo.Queries, context.Background()
+	run := func(id string) db.BackupRun {
+		r, _ := q.GetBackupRun(ctx, id)
+		return r
+	}
+
+	agent.send(MsgBackupStarted, "", BackupStarted{RunID: "s1", ProjectPath: "/srv/shop", Trigger: "schedule", StartedAt: 1793415600, RunAs: "deploy"})
+	h.synced(agent)
+	if r := run("s1"); r.Status != "running" || r.RunAs != "deploy" || r.NodeID != nodeID || r.TriggerKind != "schedule" {
+		t.Fatalf("started %+v", r)
+	}
+	ok := BackupResult{
+		RunID: "s1", ProjectPath: "/srv/shop", Trigger: "schedule", Status: "ok", StartedAt: 1793415600,
+		DurationMS: 84210, File: "shop-20261031T030000Z.zip", LocalPath: "/srv/backups/shop-20261031T030000Z.zip",
+		Size: 52428800, Database: "mysql", Upload: BackupUpload{Status: "failed", Key: "shop/x.zip", Error: "AccessDenied"},
+	}
+	// Another node can't finish this node's run.
+	other.send(MsgBackupResult, "", BackupResult{RunID: "s1", Status: "failed", Error: "not yours"})
+	h.synced(other)
+	agent.send(MsgBackupResult, "", ok)
+	// A repeated result is ignored.
+	agent.send(MsgBackupResult, "", BackupResult{RunID: "s1", Status: "failed", Error: "again"})
+	h.synced(agent)
+	if r := run("s1"); r.Status != "ok" || r.Size != 52428800 || r.DatabaseType != "mysql" || r.UploadError != "AccessDenied" ||
+		r.RunAs != "deploy" || !r.FinishedAt.Valid || r.Error != "" {
+		t.Fatalf("finished %+v", r)
+	}
+
+	// A rejected backup has no backup_started; an unknown status is a failure.
+	agent.send(MsgBackupResult, "", BackupResult{RunID: "r1", ProjectPath: "/srv/blog", Trigger: "manual", Status: "rejected", Error: "config.vpspilot.json declares no backups"})
+	agent.send(MsgBackupResult, "", BackupResult{RunID: "u1", ProjectPath: "/srv/blog", Trigger: "odd", Status: "bored"})
+	h.synced(agent)
+	if r := run("r1"); r.Status != "rejected" || r.TriggerKind != "manual" || r.Error == "" {
+		t.Fatalf("rejected %+v", r)
+	}
+	if r := run("u1"); r.Status != "failed" || r.TriggerKind != "schedule" || r.Error != `agent sent unknown status "bored"` {
+		t.Fatalf("unknown status %+v", r)
+	}
+}
