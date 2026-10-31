@@ -1,4 +1,7 @@
 mod backupchild;
+// Used by backups (next commits); only the tests use it for now.
+#[allow(dead_code)]
+mod backuprun;
 mod backupzip;
 mod client;
 mod commands;
