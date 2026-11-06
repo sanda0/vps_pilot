@@ -216,6 +216,7 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 		}
 
 		// Insert CPU stats
+		cpuFailed := false
 		for i, cpuUsage := range sysStat.CPUUsage {
 			err = repo.TimeseriesQueries.WithTx(tx).InsertSystemStats(ctx, db.InsertSystemStatsParams{
 				Timestamp: now,
@@ -227,8 +228,12 @@ func StoreSystemStats(ctx context.Context, repo *db.Repo, statChan chan Msg) {
 			if err != nil {
 				fmt.Println("Error inserting CPU stat:", err)
 				tx.Rollback()
+				cpuFailed = true
 				break
 			}
+		}
+		if cpuFailed {
+			continue
 		}
 
 		// Insert memory stat
