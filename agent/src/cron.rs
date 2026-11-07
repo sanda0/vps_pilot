@@ -77,6 +77,30 @@ impl CronSchedule {
     }
 }
 
+/// The local time of the minute that starts at `ts` (Unix seconds), with a
+/// key that orders local minutes. The key goes backwards when clocks do.
+#[allow(dead_code)] // Used by the scheduler, in the next change.
+pub fn local_minute(ts: u64) -> Option<(u64, LocalMinute)> {
+    let t = ts as nix::libc::time_t;
+    // SAFETY: localtime_r only writes the tm it is given.
+    let mut tm: nix::libc::tm = unsafe { std::mem::zeroed() };
+    if unsafe { nix::libc::localtime_r(&t, &mut tm) }.is_null() {
+        return None;
+    }
+    let local = LocalMinute {
+        minute: tm.tm_min as u32,
+        hour: tm.tm_hour as u32,
+        day: tm.tm_mday as u32,
+        month: tm.tm_mon as u32 + 1,
+        weekday: tm.tm_wday as u32,
+    };
+    let year = (tm.tm_year as i64 + 1900).max(0) as u64;
+    let key = [local.month, local.day, local.hour, local.minute]
+        .iter()
+        .fold(year, |k, &v| k * 100 + u64::from(v));
+    Some((key, local))
+}
+
 /// One field: `*`, `a`, `a-b`, `*/n` or `a-b/n`, or a comma-separated
 /// list of those. Returns the matched values as bits.
 fn field(s: &str, name: &str, min: u32, max: u32) -> Result<u64, String> {
@@ -187,6 +211,18 @@ mod tests {
         assert!(runs("@weekly", at(0, 0, 8, 11, 0)));
         assert!(!runs("@weekly", at(0, 0, 9, 11, 1)));
         assert!(runs("@monthly", at(0, 0, 1, 7, 4)));
+    }
+
+    #[test]
+    fn local_minutes_count_up() {
+        // Saturday 2026-10-31 10:00 UTC; any zone is within a day of it.
+        let t = 1_793_440_800;
+        let (key, local) = local_minute(t).unwrap();
+        let (next, after) = local_minute(t + 60).unwrap();
+        assert_eq!((after.minute + 60 - local.minute) % 60, 1);
+        assert!(next > key && key / 100_000_000 == 2026);
+        assert!((1..=31).contains(&local.day) && local.weekday < 7);
+        assert!(matches!((local.month, local.day), (10, 30 | 31) | (11, 1)));
     }
 
     #[test]

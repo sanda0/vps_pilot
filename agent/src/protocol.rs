@@ -36,6 +36,8 @@ pub const MSG_LOG_END: &str = "log_end";
 pub const MSG_BACKUP_RUN: &str = "backup_run";
 pub const MSG_BACKUP_STARTED: &str = "backup_started";
 pub const MSG_BACKUP_RESULT: &str = "backup_result";
+#[allow(dead_code)] // Sent by cron jobs, in the next change.
+pub const MSG_CRON_RESULT: &str = "cron_result";
 
 /// Frame envelope.
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -171,6 +173,9 @@ pub enum ExitStatus {
     Cancelled,
     Rejected,
     Failed,
+    /// Only in `cron_result`: still running, or too many running.
+    #[allow(dead_code)] // Sent by cron jobs, in the next change.
+    Skipped,
 }
 
 /// Sent by the agent in `command_exit`, once per `command_run`.
@@ -442,4 +447,22 @@ mod tests {
             assert!(read_frame(&mut buf.as_slice()).await.is_err());
         }
     }
+}
+
+/// Sent by the agent in `cron_result`, once per scheduled run.
+#[allow(dead_code)] // Sent by cron jobs, in the next change.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CronResult {
+    pub run_id: String,
+    pub project_path: String,
+    pub command: String,
+    pub schedule: String,
+    pub scheduled_at: u64,
+    pub status: ExitStatus,
+    pub exit_code: Option<i32>,
+    pub run_as: String,
+    pub duration_ms: u64,
+    pub output: String,
+    pub truncated: bool,
+    pub error: String,
 }
