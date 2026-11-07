@@ -4,6 +4,7 @@ mod backups;
 mod backupzip;
 mod client;
 mod commands;
+mod cron;
 mod discovery;
 mod dump;
 mod envfile;

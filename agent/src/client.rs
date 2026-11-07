@@ -346,6 +346,7 @@ mod tests {
             commands: vec![],
             logs: vec![],
             backups: None,
+            cron: vec![],
         };
         let error = crate::discovery::ProjectError {
             path: "/opt/x".into(),
