@@ -1,6 +1,8 @@
-//! Turns a command's stdout and stderr into `command_output` messages:
-//! UTF-8 text in chunks of at most `chunk` bytes, numbered across both
-//! streams, and nothing after `max` bytes. See "Output" in docs/PROTOCOL.md.
+//! Where a command's stdout and stderr go. `Emitter` turns them into
+//! `command_output` messages: UTF-8 text in chunks of at most `chunk` bytes,
+//! numbered across both streams, and nothing after `max` bytes (see "Output"
+//! in docs/PROTOCOL.md). `Tail` keeps only the last `max` bytes of both, for
+//! a cron job's result (see "Cron jobs").
 
 use tokio::sync::mpsc;
 
@@ -61,6 +63,90 @@ impl Emitter {
             // A closed channel means the session is over; the run is
             // being torn down with it.
             let _ = self.out.send(msg).await;
+        }
+    }
+}
+
+/// The last `max` bytes of stdout and stderr together, in arrival order.
+pub struct Tail {
+    max: usize,
+    buf: Vec<u8>,
+    pending: [Vec<u8>; 2],
+    pub truncated: bool,
+}
+
+impl Tail {
+    pub fn new(max: usize) -> Self {
+        Tail {
+            max,
+            buf: Vec::new(),
+            pending: [Vec::new(), Vec::new()],
+            truncated: false,
+        }
+    }
+
+    /// Adds what was read from `stream`. A character split across reads is
+    /// held back until it's complete, so the streams don't garble it.
+    pub fn push(&mut self, stream: Stream, bytes: &[u8], eof: bool) {
+        let pending = &mut self.pending[stream as usize];
+        pending.extend_from_slice(bytes);
+        let keep = if eof { 0 } else { incomplete_tail(pending) };
+        let complete = pending.len() - keep;
+        self.buf.extend(pending.drain(..complete));
+        // Cut now and then rather than on every read.
+        if self.buf.len() > 2 * self.max {
+            self.cut();
+        }
+    }
+
+    /// The kept output as UTF-8, invalid bytes replaced by U+FFFD, and
+    /// whether anything was dropped.
+    pub fn finish(mut self) -> (String, bool) {
+        for stream in [Stream::Stdout, Stream::Stderr] {
+            self.push(stream, &[], true);
+        }
+        self.cut();
+        (
+            String::from_utf8_lossy(&self.buf).into_owned(),
+            self.truncated,
+        )
+    }
+
+    fn cut(&mut self) {
+        if self.buf.len() <= self.max {
+            return;
+        }
+        let mut start = self.buf.len() - self.max;
+        // Start on a character, not in the middle of one.
+        let limit = (start + 3).min(self.buf.len());
+        while start < limit && self.buf[start] & 0xC0 == 0x80 {
+            start += 1;
+        }
+        self.buf.drain(..start);
+        self.truncated = true;
+    }
+}
+
+/// Where `commands::run` sends output.
+pub enum Sink {
+    Stream(Emitter),
+    Tail(Tail),
+}
+
+impl Sink {
+    pub async fn push(&mut self, stream: Stream, bytes: &[u8], eof: bool) {
+        match self {
+            Sink::Stream(e) => e.push(stream, bytes, eof).await,
+            Sink::Tail(t) => t.push(stream, bytes, eof),
+        }
+    }
+
+    /// The kept output (empty when it was streamed), and whether any
+    /// output was dropped.
+    pub fn finish(self) -> (String, bool) {
+        match self {
+            Sink::Stream(e) => (String::new(), e.truncated),
+            Sink::Tail(t) => t.finish(),
         }
     }
 }
@@ -148,6 +234,26 @@ mod tests {
         let got: Vec<_> = drain(&mut rx).into_iter().map(|o| o.data).collect();
         assert_eq!(got, ["ab", "€c", "defg"]);
         assert!(e.truncated);
+    }
+
+    #[test]
+    fn tail_keeps_the_end_in_order() {
+        let mut t = Tail::new(8);
+        let euro = "€".as_bytes();
+        t.push(Stream::Stdout, &[b'a', euro[0]], false);
+        t.push(Stream::Stderr, b"E", false);
+        t.push(Stream::Stdout, &euro[1..], false);
+        assert!(!t.truncated);
+        assert_eq!(t.finish(), ("aE€".into(), false));
+
+        // The last 8 bytes start inside "€", so the cut moves past it.
+        let mut t = Tail::new(8);
+        t.push(Stream::Stdout, "0123456789€uvwxyz".as_bytes(), false);
+        assert_eq!(t.finish(), ("uvwxyz".into(), true));
+        let mut t = Tail::new(8);
+        t.push(Stream::Stdout, b"0123456789abcdefghij", true);
+        assert!(t.buf.len() <= 16);
+        assert_eq!(t.finish(), ("cdefghij".into(), true));
     }
 
     #[test]

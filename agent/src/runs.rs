@@ -125,16 +125,11 @@ async fn execute(
     let exit = match prepared {
         Ok((cmd, who)) => {
             info!(run_id = run.run_id, project = %run.project_path.display(), command = run.command, user = who.name, "running command");
-            commands::run(
-                &run.run_id,
-                &run.project_path,
-                &cmd,
-                who,
-                &limits,
-                cancel,
-                out.clone(),
-            )
-            .await
+            let output = commands::Output::Stream(out.clone());
+            let dir = &run.project_path;
+            commands::run(&run.run_id, dir, &cmd, who, &limits, cancel, output)
+                .await
+                .0
         }
         Err(reason) => CommandExit::not_started(&run.run_id, ExitStatus::Rejected, reason),
     };
