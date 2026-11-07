@@ -20,7 +20,6 @@ const QUEUE: usize = 50;
 /// Output kept per run: the last 64 KiB.
 const MAX_OUTPUT: usize = 64 * 1024;
 
-#[allow(dead_code)] // Started from main, in the next change.
 /// Starts the cron task. `projects` is the latest search; `slots` is
 /// shared with Run. Results arrive on the receiver and wait there while no
 /// session reads it.

@@ -51,6 +51,12 @@ impl Handle {
     pub fn projects(&self, projects: &[ProjectConfig]) {
         self.projects.send_replace(projects.to_vec());
     }
+
+    /// Follows the projects from the latest search, including the one this
+    /// task makes before the first session. Cron jobs use it.
+    pub fn watch_projects(&self) -> watch::Receiver<Vec<ProjectConfig>> {
+        self.projects.subscribe()
+    }
 }
 
 /// Starts the backups task. Its messages for the hub arrive on the

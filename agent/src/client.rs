@@ -98,6 +98,7 @@ pub async fn run_session(
     collector: &mut Collector,
     backups: &backups::Handle,
     backup_out: &mut mpsc::Receiver<Msg>,
+    cron_out: &mut mpsc::Receiver<Msg>,
 ) -> Result<(), SessionError> {
     let state = State::load(&cfg.state_path)?;
     let fingerprint = match (&state, &cfg.join) {
@@ -233,6 +234,7 @@ pub async fn run_session(
             },
             Some(msg) = outbox.recv() => protocol::write_frame(&mut wr, &msg).await?,
             Some(msg) = backup_out.recv() => protocol::write_frame(&mut wr, &msg).await?,
+            Some(msg) = cron_out.recv() => protocol::write_frame(&mut wr, &msg).await?,
             () = runs.reap() => {}
             () = logs.reap() => {}
             _ = ticker.tick() => {
