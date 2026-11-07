@@ -29,6 +29,7 @@ use crate::protocol::{
 };
 use crate::runs::Runs;
 use crate::scanner;
+use crate::slots::Slots;
 use crate::state::State;
 use crate::tls;
 
@@ -67,6 +68,8 @@ pub struct Config {
     pub project_dirs: Vec<PathBuf>,
     pub allow_any_project_path: bool,
     pub command_timeout: Duration,
+    /// Shared with cron jobs, which outlive sessions.
+    pub slots: Slots,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -95,6 +98,7 @@ pub async fn run_session(
     collector: &mut Collector,
     backups: &backups::Handle,
     backup_out: &mut mpsc::Receiver<Msg>,
+    cron_out: &mut mpsc::Receiver<Msg>,
 ) -> Result<(), SessionError> {
     let state = State::load(&cfg.state_path)?;
     let fingerprint = match (&state, &cfg.join) {
@@ -182,7 +186,7 @@ pub async fn run_session(
         timeout: cfg.command_timeout,
         max_output: MAX_COMMAND_OUTPUT,
     };
-    let mut runs = Runs::new(limits, out_tx.clone());
+    let mut runs = Runs::new(limits, out_tx.clone(), cfg.slots.clone());
     let mut logs = Logs::new("/proc/self/exe".into(), LOG_FOLLOW_LIMIT, out_tx);
 
     let mut ticker = tokio::time::interval(cfg.interval);
@@ -230,6 +234,7 @@ pub async fn run_session(
             },
             Some(msg) = outbox.recv() => protocol::write_frame(&mut wr, &msg).await?,
             Some(msg) = backup_out.recv() => protocol::write_frame(&mut wr, &msg).await?,
+            Some(msg) = cron_out.recv() => protocol::write_frame(&mut wr, &msg).await?,
             () = runs.reap() => {}
             () = logs.reap() => {}
             _ = ticker.tick() => {

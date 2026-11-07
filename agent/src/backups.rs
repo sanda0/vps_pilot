@@ -51,6 +51,12 @@ impl Handle {
     pub fn projects(&self, projects: &[ProjectConfig]) {
         self.projects.send_replace(projects.to_vec());
     }
+
+    /// Follows the projects from the latest search, including the one this
+    /// task makes before the first session. Cron jobs use it.
+    pub fn watch_projects(&self) -> watch::Receiver<Vec<ProjectConfig>> {
+        self.projects.subscribe()
+    }
 }
 
 /// Starts the backups task. Its messages for the hub arrive on the
@@ -247,8 +253,9 @@ fn now() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-/// A random UUID (version 4) for a scheduled backup's run_id.
-fn new_id() -> String {
+/// A random UUID (version 4) for a run_id the agent chooses: a scheduled
+/// backup's or a cron job's.
+pub fn new_id() -> String {
     let mut b = [0u8; 16];
     if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
         let _ = std::io::Read::read_exact(&mut f, &mut b);

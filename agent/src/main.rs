@@ -5,6 +5,7 @@ mod backupzip;
 mod client;
 mod commands;
 mod cron;
+mod cronjobs;
 mod discovery;
 mod dump;
 mod envfile;
@@ -21,6 +22,7 @@ mod s3;
 mod scanner;
 mod schedule;
 mod sigv4;
+mod slots;
 mod state;
 mod tls;
 
@@ -184,7 +186,9 @@ async fn main() -> ExitCode {
         project_dirs: args.projects_dirs,
         allow_any_project_path: args.allow_any_project_path,
         command_timeout: Duration::from_secs(args.command_timeout),
+        slots: slots::Slots::default(),
     };
+    let command_timeout = cfg.command_timeout;
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
     // Backups outlive sessions: they run on schedule while the hub is
@@ -196,10 +200,13 @@ async fn main() -> ExitCode {
         project_dirs: cfg.project_dirs.clone(),
         allow_any_project_path: cfg.allow_any_project_path,
     });
+    // Cron jobs outlive sessions too, and share Run's limits.
+    let projects = backups.watch_projects();
+    let mut cron_out = cronjobs::spawn(command_timeout, cfg.slots.clone(), projects);
 
     loop {
         tokio::select! {
-            result = client::run_session(&cfg, &mut collector, &backups, &mut backup_out) => match result {
+            result = client::run_session(&cfg, &mut collector, &backups, &mut backup_out, &mut cron_out) => match result {
                 Err(SessionError::AuthFailed(reason)) => {
                     error!("hub rejected this agent: {reason}");
                     return ExitCode::from(EXIT_AUTH_FAILED);

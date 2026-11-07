@@ -14,7 +14,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::{Notify, mpsc};
 use tokio::time::{Instant, sleep, sleep_until};
 
-use crate::output::Emitter;
+use crate::output::{Emitter, Sink, Tail};
 use crate::protocol::{CommandExit, ExitStatus, Msg, Stream};
 
 const PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
@@ -151,8 +151,16 @@ impl Drop for Group {
     }
 }
 
-/// Runs `command` with `/bin/sh -c` in `dir` and sends its output to `out`.
-/// Returns the `command_exit` payload; the caller sends it.
+/// What to do with a command's output.
+pub enum Output {
+    /// Send it to the hub as `command_output` messages.
+    Stream(mpsc::Sender<Msg>),
+    /// Keep the last `Limits::max_output` bytes and return them.
+    Tail,
+}
+
+/// Runs `command` with `/bin/sh -c` in `dir`. Returns the `command_exit`
+/// payload, which the caller sends, and the output kept by `Output::Tail`.
 pub async fn run(
     run_id: &str,
     dir: &Path,
@@ -160,8 +168,8 @@ pub async fn run(
     run_as: RunAs,
     limits: &Limits,
     cancel: Arc<Notify>,
-    out: mpsc::Sender<Msg>,
-) -> CommandExit {
+    output: Output,
+) -> (CommandExit, String) {
     let mut cmd = owner_command(Path::new("/bin/sh"), dir, &run_as);
     cmd.arg("-c")
         .arg(command)
@@ -172,14 +180,18 @@ pub async fn run(
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(e) => {
-            return CommandExit::not_started(run_id, ExitStatus::Failed, format!("start: {e}"));
+            let exit = CommandExit::not_started(run_id, ExitStatus::Failed, format!("start: {e}"));
+            return (exit, String::new());
         }
     };
     let mut group = Group::new(&child);
     let (mut stdout, mut stderr) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
     let (mut out_buf, mut err_buf) = (vec![0u8; CHUNK], vec![0u8; CHUNK]);
     let (mut out_open, mut err_open) = (true, true);
-    let mut emitter = Emitter::new(run_id, out, CHUNK, limits.max_output);
+    let mut sink = match output {
+        Output::Stream(out) => Sink::Stream(Emitter::new(run_id, out, CHUNK, limits.max_output)),
+        Output::Tail => Sink::Tail(Tail::new(limits.max_output)),
+    };
     let deadline = started + limits.timeout;
     let mut exited = None;
     let mut drain_until = deadline;
@@ -192,12 +204,12 @@ pub async fn run(
             n = stdout.read(&mut out_buf), if out_open => {
                 let n = n.unwrap_or(0);
                 out_open = n > 0;
-                emitter.push(Stream::Stdout, &out_buf[..n], !out_open).await;
+                sink.push(Stream::Stdout, &out_buf[..n], !out_open).await;
             }
             n = stderr.read(&mut err_buf), if err_open => {
                 let n = n.unwrap_or(0);
                 err_open = n > 0;
-                emitter.push(Stream::Stderr, &err_buf[..n], !err_open).await;
+                sink.push(Stream::Stderr, &err_buf[..n], !err_open).await;
             }
             st = child.wait(), if exited.is_none() => {
                 exited = Some(st);
@@ -218,8 +230,8 @@ pub async fn run(
                 Some(Err(e)) => {
                     let mut exit =
                         CommandExit::not_started(run_id, ExitStatus::Failed, e.to_string());
-                    exit.run_as = run_as.name;
-                    return exit;
+                    (exit.run_as, exit.truncated) = (run_as.name, sink.finish().1);
+                    return (exit, String::new());
                 }
                 None => None,
             }
@@ -229,15 +241,17 @@ pub async fn run(
             None
         }
     };
-    CommandExit {
+    let (text, truncated) = sink.finish();
+    let exit = CommandExit {
         run_id: run_id.to_string(),
         status,
         exit_code,
         run_as: run_as.name,
         duration_ms: started.elapsed().as_millis() as u64,
-        truncated: emitter.truncated,
+        truncated,
         error: String::new(),
-    }
+    };
+    (exit, text)
 }
 
 /// The exit code, or 128 + n when killed by signal n (as a shell reports it).
@@ -254,7 +268,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let me = RunAs::owner(nix::unistd::getuid().as_raw()).unwrap();
         let (tx, mut rx) = mpsc::channel(64);
-        let exit = run("r1", dir.path(), command, me, &limits, cancel, tx).await;
+        let output = Output::Stream(tx);
+        let (exit, _) = run("r1", dir.path(), command, me, &limits, cancel, output).await;
         let mut text = String::new();
         while let Ok(msg) = rx.try_recv() {
             text.push_str(msg.data.unwrap()["data"].as_str().unwrap());
@@ -313,6 +328,18 @@ mod tests {
         assert!(exit.truncated && text.len() < 100_000);
     }
 
+    #[tokio::test]
+    async fn keeps_the_tail_of_both_streams() {
+        let dir = tempfile::tempdir().unwrap();
+        let me = RunAs::owner(nix::unistd::getuid().as_raw()).unwrap();
+        let cmd = "echo one; sleep 0.1; echo two >&2; sleep 0.1; echo three";
+        let mut l = limits(10_000);
+        l.max_output = 10;
+        let (exit, text) = run("r1", dir.path(), cmd, me, &l, Arc::default(), Output::Tail).await;
+        assert_eq!((exit.exit_code, text.as_str()), (Some(0), "two\nthree\n"));
+        assert!(exit.truncated);
+    }
+
     /// Needs root: `sudo cargo test -- --ignored`.
     #[tokio::test]
     #[ignore]
@@ -323,14 +350,15 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (tx, mut rx) = mpsc::channel(64);
         let cmd = "echo $(id -u) $(id -g) $(id -G) $USER";
-        let exit = run(
+        let output = Output::Stream(tx);
+        let (exit, _) = run(
             "r1",
             dir.path(),
             cmd,
             who,
             &limits(10_000),
             Arc::default(),
-            tx,
+            output,
         )
         .await;
         let msg = rx.try_recv().unwrap();
