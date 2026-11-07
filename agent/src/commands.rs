@@ -156,8 +156,6 @@ pub enum Output {
     /// Send it to the hub as `command_output` messages.
     Stream(mpsc::Sender<Msg>),
     /// Keep the last `Limits::max_output` bytes and return them.
-    // Used by cron jobs, which come in a later change.
-    #[allow(dead_code)]
     Tail,
 }
 

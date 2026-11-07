@@ -36,7 +36,7 @@ pub const MSG_LOG_END: &str = "log_end";
 pub const MSG_BACKUP_RUN: &str = "backup_run";
 pub const MSG_BACKUP_STARTED: &str = "backup_started";
 pub const MSG_BACKUP_RESULT: &str = "backup_result";
-#[allow(dead_code)] // Sent by cron jobs, in the next change.
+#[allow(dead_code)] // Sent by the scheduler, in the next change.
 pub const MSG_CRON_RESULT: &str = "cron_result";
 
 /// Frame envelope.
@@ -174,7 +174,6 @@ pub enum ExitStatus {
     Rejected,
     Failed,
     /// Only in `cron_result`: still running, or too many running.
-    #[allow(dead_code)] // Sent by cron jobs, in the next change.
     Skipped,
 }
 
@@ -450,7 +449,6 @@ mod tests {
 }
 
 /// Sent by the agent in `cron_result`, once per scheduled run.
-#[allow(dead_code)] // Sent by cron jobs, in the next change.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CronResult {
     pub run_id: String,
