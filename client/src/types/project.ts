@@ -3,6 +3,13 @@ export interface ProjectCommand {
   command: string;
 }
 
+// A cron entry (v0.6): one of the project's commands and when the agent
+// runs it, in the server's time zone.
+export interface ProjectCronJob {
+  command: string;
+  schedule: string;
+}
+
 export interface ProjectBackupDatabase {
   connection: string;
   host: string;
@@ -48,6 +55,7 @@ export interface Project {
   commands: ProjectCommand[];
   logs: string[];
   backups?: ProjectBackup;
+  cron?: ProjectCronJob[]; // missing from hubs before v0.6
   discovered_at: string;
   updated_at: string;
 }
