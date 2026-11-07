@@ -18,7 +18,11 @@ them under **Projects**.
   "tech": ["laravel", "mysql"],
   "commands": [
     { "name": "build", "command": "npm run build" },
-    { "name": "migrate", "command": "php artisan migrate --force" }
+    { "name": "migrate", "command": "php artisan migrate --force" },
+    { "name": "scheduler", "command": "php artisan schedule:run" }
+  ],
+  "cron": [
+    { "command": "scheduler", "schedule": "* * * * *" }
   ],
   "logs": ["storage/logs"],
   "backups": {
@@ -57,6 +61,7 @@ Only `name` is required. `{ "name": "blog" }` is a valid config.
 | `name` | string | Required. Shown in the dashboard. |
 | `tech` | list of strings | Free-form tags, for example `"laravel"` or `"node"`. |
 | `commands` | list of `{ name, command }` | The only commands the dashboard can run, by `name` (see [Run a command](#run-a-command)). Each needs both fields, and names must be unique. |
+| `cron` | list of `{ command, schedule }` | Commands the agent runs on a schedule (see [Cron jobs](#cron-jobs)). `command` is the `name` of an entry in `commands`, listed once. |
 | `logs` | list of paths | Log folders, relative to the project directory, that the dashboard can read (see [Read logs](#read-logs)). |
 | `backups.env_file` | path | The project's env file. It goes into each backup, and the `database` and `s3` variables are read from it. |
 | `backups.zip_file_name` | string | Base name of the zip: letters, digits, `.`, `-` and `_`. Defaults to the project's `name`, with other characters replaced by `_`. |
@@ -70,8 +75,9 @@ Only `name` is required. `{ "name": "blog" }` is a valid config.
 
 A file larger than 64 KiB, invalid JSON, a missing `name`, an incomplete
 command or a duplicate command name makes the config unusable. So do an
-invalid `schedule`, `at` or `retention_days`, or an incomplete `s3`. The agent
-reports it as a problem instead of a project.
+invalid `schedule`, `at` or `retention_days`, or an incomplete `s3`, and a
+`cron` entry with an unknown or repeated command or an invalid schedule. The
+agent reports it as a problem instead of a project.
 
 ## Run a command
 
@@ -143,6 +149,86 @@ project page lists them, newest first. Click one to see its output.
 
 Running commands needs agent v0.3.0 or later. On older agents, **Run** shows
 an error asking you to upgrade.
+
+## Cron jobs
+
+A project can have the agent run some of its `commands` on a schedule, in
+place of a crontab entry:
+
+```json
+"commands": [
+  { "name": "prune", "command": "php artisan model:prune" },
+  { "name": "sitemap", "command": "php artisan sitemap:generate" }
+],
+"cron": [
+  { "command": "prune", "schedule": "0 3 * * *" },
+  { "command": "sitemap", "schedule": "@hourly" }
+]
+```
+
+`command` names an entry in `commands`, so the command itself is written once,
+and **Run** runs it now. The dashboard can't add, change or start a cron job:
+only the config file can.
+
+### Schedules
+
+A schedule is five fields, `minute hour day-of-month month day-of-week`, in
+the server's time zone:
+
+| Field | Values |
+| --- | --- |
+| minute | `0`–`59` |
+| hour | `0`–`23` |
+| day of month | `1`–`31` |
+| month | `1`–`12` |
+| day of week | `0`–`7`; Sunday is `0` or `7` |
+
+Each field is `*`, a number, a range (`1-5`), a step (`*/15`, `9-17/2`) or a
+comma-separated list of those. Names such as `MON` or `JAN` aren't accepted.
+When both the day of month and the day of week are set, a day matching either
+one counts, as in system cron. `@hourly`, `@daily`, `@weekly` (Sundays) and
+`@monthly` (the 1st) run at minute 0, and the last three at midnight.
+
+| Schedule | Runs |
+| --- | --- |
+| `* * * * *` | every minute |
+| `*/15 * * * *` | every 15 minutes |
+| `0 3 * * *` | every day at 03:00 |
+| `30 9 * * 1-5` | weekdays at 09:30 |
+| `0 0 1 * *` | on the 1st of each month at midnight |
+
+### How cron jobs run
+
+- The agent runs them itself, so they run even when the hub is unreachable.
+- Each run is like **Run**: the agent re-reads the config with the same
+  checks, and runs the command [as the config file's
+  owner](#who-the-command-runs-as), with the same environment and
+  `--command-timeout`.
+- A run missed while the agent was stopped, or the server asleep, is skipped,
+  as in system cron. When the clocks go back, the repeated hour doesn't run
+  jobs twice.
+- If the command is still running, from its last scheduled run or from
+  **Run**, or 4 commands are already running on the server, that run is
+  skipped.
+- Stdout and stderr are kept together, and only their last 64 KiB, since a
+  cron job's error is usually at the end. Output isn't streamed.
+
+### The Cron jobs card
+
+The project page's **Cron jobs** card lists each job with its schedule (in
+words where it's common), the command and its last run: status, when, how
+long and as whom, with the error and the output. **History** shows its recent
+runs. The hub keeps the last 50 runs of each job.
+
+| Status | Meaning |
+| --- | --- |
+| Exit 0, Exit *n* | The command ran and exited with that code. |
+| Timed out | Killed after `--command-timeout`. |
+| Skipped | Not started: still running, or 4 commands were running. |
+| Rejected | The agent refused to start it, for example because the config is now group-writable. The reason is shown. |
+| Failed | The command couldn't be started. |
+
+Cron jobs need agent and hub v0.6.0 or later. Older agents ignore `cron`.
 
 ## Read logs
 

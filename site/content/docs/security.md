@@ -67,6 +67,12 @@ only records the outcome. The S3 keys and database password are read from the
 env file on the server: the config holds only their variable names, so the
 hub never sees them. See [Back up](/docs/projects/#back-up).
 
+Cron jobs give the hub nothing new. The agent runs them on the schedules in
+`config.vpspilot.json`, and each one names a command already in `commands`.
+The hub has no message to add, change or start a cron job; it only receives
+the results. Each run gets the same checks as **Run** and runs as the config
+file's owner. See [Cron jobs](/docs/projects/#cron-jobs).
+
 Manual project paths follow the same idea. The agent only accepts them inside
 its own project directories (after resolving `..` and symlinks), unless the
 server owner starts it with `--allow-any-project-path`.
