@@ -83,6 +83,23 @@ type CommandRunOutput struct {
 	Data   string `json:"data"`
 }
 
+type CronRun struct {
+	ID          string        `json:"id"`
+	NodeID      int64         `json:"node_id"`
+	ProjectPath string        `json:"project_path"`
+	Command     string        `json:"command"`
+	Schedule    string        `json:"schedule"`
+	ScheduledAt int64         `json:"scheduled_at"`
+	Status      string        `json:"status"`
+	ExitCode    sql.NullInt64 `json:"exit_code"`
+	RunAs       string        `json:"run_as"`
+	DurationMs  int64         `json:"duration_ms"`
+	Output      string        `json:"output"`
+	Truncated   int64         `json:"truncated"`
+	Error       string        `json:"error"`
+	ReceivedAt  int64         `json:"received_at"`
+}
+
 type DiskStat struct {
 	Timestamp int64   `json:"timestamp"`
 	NodeID    int64   `json:"node_id"`
@@ -159,6 +176,7 @@ type Project struct {
 	Backups      string `json:"backups"`
 	DiscoveredAt int64  `json:"discovered_at"`
 	UpdatedAt    int64  `json:"updated_at"`
+	Cron         string `json:"cron"`
 }
 
 type SystemStat struct {

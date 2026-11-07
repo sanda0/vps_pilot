@@ -41,7 +41,7 @@ func newTestHub(t *testing.T) *testHub {
 	h.runs = NewRuns(context.Background(), h.repo, h.registry)
 	h.logs = NewLogs(h.registry)
 	h.backups = NewBackups(context.Background(), h.repo, h.registry)
-	registerHandlers(h.router, h.chans, h.runs, h.logs, h.backups)
+	registerHandlers(h.router, h.chans, h.runs, h.logs, h.backups, NewCron(h.repo))
 	return h
 }
 

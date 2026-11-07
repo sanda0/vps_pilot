@@ -47,6 +47,7 @@ func (s *projectService) UpsertFromAgent(req *dto.AgentProjectSyncRequest) (*dto
 		Commands: dto.MarshalCommands(req.Commands),
 		Logs:     dto.MarshalLogs(req.Logs),
 		Backups:  dto.MarshalBackups(req.Backups),
+		Cron:     "[]",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert project: %w", err)
@@ -80,6 +81,7 @@ func (s *projectService) BulkSyncFromAgent(req *dto.AgentProjectsBulkSyncRequest
 			Commands: dto.MarshalCommands(p.Commands),
 			Logs:     dto.MarshalLogs(p.Logs),
 			Backups:  dto.MarshalBackups(p.Backups),
+			Cron:     "[]",
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert project %q: %w", p.Path, err)

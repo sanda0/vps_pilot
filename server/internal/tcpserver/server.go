@@ -32,12 +32,12 @@ func StartTcpServer(ctx context.Context, repo *db.Repo, registry *Registry, runs
 	go MontiorAlerts(ctx, repo, chans.monitor)
 
 	router := NewRouter()
-	registerHandlers(router, chans, runs, logs, backups)
+	registerHandlers(router, chans, runs, logs, backups, NewCron(repo))
 
 	router.Serve(ctx, repo, registry, listener)
 }
 
-func registerHandlers(router *Router, chans statChans, runs *Runs, logs *Logs, backups *Backups) {
+func registerHandlers(router *Router, chans statChans, runs *Runs, logs *Logs, backups *Backups, cron *Cron) {
 	// Middleware
 	router.Use(RequireHandshake(MsgConnected, MsgEnroll))
 
@@ -54,4 +54,5 @@ func registerHandlers(router *Router, chans statChans, runs *Runs, logs *Logs, b
 	router.Handle(MsgLogEnd, logs.HandleEnd)
 	router.Handle(MsgBackupStarted, backups.HandleStarted)
 	router.Handle(MsgBackupResult, backups.HandleResult)
+	router.Handle(MsgCronResult, cron.HandleResult)
 }

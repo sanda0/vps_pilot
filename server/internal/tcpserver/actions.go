@@ -133,6 +133,10 @@ func SyncProjects(ctx context.Context, repo *db.Repo, nodeID int64, payload Proj
 		techJSON, _ := json.Marshal(p.Tech)
 		commandsJSON, _ := json.Marshal(p.Commands)
 		logsJSON, _ := json.Marshal(p.Logs)
+		cronJSON := []byte("[]")
+		if len(p.Cron) > 0 {
+			cronJSON, _ = json.Marshal(p.Cron)
+		}
 
 		var backupsJSON []byte
 		if p.Backups != nil {
@@ -149,6 +153,7 @@ func SyncProjects(ctx context.Context, repo *db.Repo, nodeID int64, payload Proj
 			Commands: string(commandsJSON),
 			Logs:     string(logsJSON),
 			Backups:  string(backupsJSON),
+			Cron:     string(cronJSON),
 		})
 		if err != nil {
 			fmt.Printf("Error upserting project %q (node %d): %v\n", p.Path, nodeID, err)
