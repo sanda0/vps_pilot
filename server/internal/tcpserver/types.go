@@ -105,6 +105,7 @@ const (
 	FeatureCommands = "commands" // handles command_run, since v0.3
 	FeatureLogs     = "logs"     // handles log_list and log_open, since v0.4
 	FeatureBackups  = "backups"  // runs backups and handles backup_run, since v0.5
+	FeatureCron     = "cron"     // runs cron jobs and sends cron_result, since v0.6
 )
 
 func (s *SystemInfo) FromBytes(data []byte) error {
@@ -168,6 +169,8 @@ const (
 	MsgBackupRun     = "backup_run"     // hub → agent, Data = BackupRun
 	MsgBackupStarted = "backup_started" // agent → hub, Data = BackupStarted
 	MsgBackupResult  = "backup_result"  // agent → hub, Data = BackupResult
+
+	MsgCronResult = "cron_result" // agent → hub, Data = CronResult
 )
 
 // CommandRun asks the agent to run a command by name. Never a command string.
@@ -303,4 +306,21 @@ type BackupResult struct {
 	Database    string       `json:"database"`
 	Upload      BackupUpload `json:"upload"`
 	Error       string       `json:"error"`
+}
+
+// CronResult is sent once per scheduled run of a cron job, also for one that
+// was skipped or rejected.
+type CronResult struct {
+	RunID       string `json:"run_id"`
+	ProjectPath string `json:"project_path"`
+	Command     string `json:"command"`
+	Schedule    string `json:"schedule"`
+	ScheduledAt int64  `json:"scheduled_at"`
+	Status      string `json:"status"` // exited, timeout, skipped, rejected or failed
+	ExitCode    *int64 `json:"exit_code"`
+	RunAs       string `json:"run_as"`
+	DurationMS  int64  `json:"duration_ms"`
+	Output      string `json:"output"`
+	Truncated   bool   `json:"truncated"`
+	Error       string `json:"error"`
 }
