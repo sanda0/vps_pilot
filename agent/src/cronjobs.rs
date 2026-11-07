@@ -204,7 +204,14 @@ mod tests {
 
         let r = execute(&path, &job, 60, &slots, &limits).await;
         assert_eq!((r.status, r.exit_code), (ExitStatus::Exited, Some(2)));
-        assert_eq!((r.output.as_str(), r.scheduled_at), ("hi\noops\n", 60));
+        // Both streams are kept. Their order isn't fixed: they are two
+        // pipes, read as their data arrives.
+        assert!(
+            ["hi\noops\n", "oops\nhi\n"].contains(&r.output.as_str()),
+            "{:?}",
+            r.output
+        );
+        assert_eq!(r.scheduled_at, 60);
         assert_eq!((r.schedule.as_str(), r.run_id.len()), ("@daily", 36));
 
         let busy = slots.take(&path, "hello").unwrap();
