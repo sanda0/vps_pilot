@@ -36,7 +36,6 @@ pub const MSG_LOG_END: &str = "log_end";
 pub const MSG_BACKUP_RUN: &str = "backup_run";
 pub const MSG_BACKUP_STARTED: &str = "backup_started";
 pub const MSG_BACKUP_RESULT: &str = "backup_result";
-#[allow(dead_code)] // Sent by the scheduler, in the next change.
 pub const MSG_CRON_RESULT: &str = "cron_result";
 
 /// Frame envelope.

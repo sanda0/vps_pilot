@@ -60,8 +60,6 @@ impl CronSchedule {
         })
     }
 
-    // Used by the scheduler, which comes in the next change.
-    #[allow(dead_code)]
     pub fn matches(&self, t: LocalMinute) -> bool {
         let day = self.days & (1 << t.day) != 0;
         let weekday = self.weekdays & (1 << t.weekday) != 0;
@@ -79,7 +77,6 @@ impl CronSchedule {
 
 /// The local time of the minute that starts at `ts` (Unix seconds), with a
 /// key that orders local minutes. The key goes backwards when clocks do.
-#[allow(dead_code)] // Used by the scheduler, in the next change.
 pub fn local_minute(ts: u64) -> Option<(u64, LocalMinute)> {
     let t = ts as nix::libc::time_t;
     // SAFETY: localtime_r only writes the tm it is given.
