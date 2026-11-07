@@ -63,6 +63,7 @@ func newCronTestServer(t *testing.T) *gin.Engine {
 	h := NewCronHandler(services.NewCronService(context.Background(), repo))
 	r := gin.New()
 	r.GET("/projects/:id/cron", h.Jobs)
+	r.GET("/projects/:id/cron/runs", h.Runs)
 	return r
 }
 
@@ -80,5 +81,28 @@ func TestCronJobsAPI(t *testing.T) {
 	}
 	if w := do(r, "GET", "/projects/nope/cron", ""); w.Code != http.StatusNotFound {
 		t.Fatalf("unknown project: %d %s", w.Code, w.Body)
+	}
+}
+
+func TestCronRunsAPI(t *testing.T) {
+	r := newCronTestServer(t)
+	w := do(r, "GET", "/projects/p1/cron/runs?command=prune&limit=2&offset=1", "")
+	body := w.Body.String()
+	if w.Code != http.StatusOK || !strings.Contains(body, `"limit":2,"offset":1`) ||
+		strings.Contains(body, `"id":"r2"`) || strings.Index(body, `"id":"r1"`) > strings.Index(body, `"id":"r0"`) ||
+		!strings.Contains(body, `"status":"failed","exit_code":1`) || !strings.Contains(body, `"output":"out\n"`) {
+		t.Fatalf("runs: %d %s", w.Code, body)
+	}
+	// Past the most the hub keeps, the page size falls back to 20.
+	if w := do(r, "GET", "/projects/p1/cron/runs?command=prune&limit=500", ""); !strings.Contains(w.Body.String(), `"limit":20`) {
+		t.Fatalf("limit: %s", w.Body)
+	}
+	for path, want := range map[string]int{
+		"/projects/nope/cron/runs?command=prune": http.StatusNotFound,
+		"/projects/p1/cron/runs":                 http.StatusBadRequest,
+	} {
+		if w := do(r, "GET", path, ""); w.Code != want {
+			t.Errorf("GET %s: %d %s, want %d", path, w.Code, w.Body, want)
+		}
 	}
 }

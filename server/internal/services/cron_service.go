@@ -9,10 +9,13 @@ import (
 	"github.com/sanda0/vps_pilot/internal/dto"
 )
 
-// CronService lists a project's cron jobs. The agent runs
+var ErrCronCommandRequired = errors.New("command is required")
+
+// CronService lists a project's cron jobs and their runs. The agent runs
 // the jobs; the hub only shows what it reported.
 type CronService interface {
 	ListJobs(projectID string) ([]dto.CronJobDto, error)
+	ListRuns(projectID, command string, limit, offset int64) ([]dto.CronRunDto, error)
 }
 
 type cronService struct {
@@ -57,6 +60,27 @@ func (s *cronService) ListJobs(projectID string) ([]dto.CronJobDto, error) {
 			run := dto.NewCronRunDto(last[0])
 			out[i].LastRun = &run
 		}
+	}
+	return out, nil
+}
+
+// ListRuns returns a job's runs, newest first. Runs of a job since removed
+// from the config are still listed until they're pruned.
+func (s *cronService) ListRuns(projectID, command string, limit, offset int64) ([]dto.CronRunDto, error) {
+	if command == "" {
+		return nil, ErrCronCommandRequired
+	}
+	p, err := s.project(projectID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.runs(p, command, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.CronRunDto, len(rows))
+	for i, r := range rows {
+		out[i] = dto.NewCronRunDto(r)
 	}
 	return out, nil
 }

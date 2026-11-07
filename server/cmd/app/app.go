@@ -115,6 +115,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			projects.POST("/:id/backups", backupHandler.Start)
 			projects.GET("/:id/backups", backupHandler.List)
 			projects.GET("/:id/cron", cronHandler.Jobs)
+			projects.GET("/:id/cron/runs", cronHandler.Runs)
 		}
 		runs := dashbaord.Group("/runs")
 		{
