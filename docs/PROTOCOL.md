@@ -399,7 +399,7 @@ Each field is `*`, a value, a range `a-b`, a step `*/n` or `a-b/n`, or a comma-s
   "kernel_version": "6.8.0-45-generic",
   "cpus": 4,
   "total_memory": 8221474816,
-  "agent_version": "v0.4.0",
+  "agent_version": "v0.6.0",
   "features": ["commands", "logs", "backups", "cron"]
 }
 ```

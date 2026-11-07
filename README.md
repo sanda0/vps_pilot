@@ -1,7 +1,7 @@
 # VPS Pilot
 
 VPS Pilot is a **server monitoring and management platform** designed for private VPS servers.  
-It provides real-time monitoring, alerting, and project management (run declared commands, read logs, back up) — all from a single dashboard. Agents dial out to the hub, so your servers need no open ports.
+It provides real-time monitoring, alerting, and project management (run declared commands, read logs, back up, cron jobs) — all from a single dashboard. Agents dial out to the hub, so your servers need no open ports.
 
 ---
 
@@ -40,6 +40,7 @@ It provides real-time monitoring, alerting, and project management (run declared
 - **Run** a command declared in the file from the project page, with live output and a history of every run. The agent runs it as the owner of `config.vpspilot.json`
 - **Read** the files in the log folders the file declares from the project page, and follow one live. The agent reads them as the owner of `config.vpspilot.json`
 - **Back up** the folders, env file and database dump the file declares into a zip on the server, on a schedule set in the file or with **Back up now**, and optionally upload it to S3-compatible storage. The agent backs up as the owner of `config.vpspilot.json`
+- **Cron jobs**: the agent runs the commands the file lists under `cron` on their schedules, as the owner of `config.vpspilot.json`, even while the hub is down. The project page shows each job's last run, status and output
 
 **Sample `config.vpspilot.json`:**
 ```json
@@ -49,7 +50,11 @@ It provides real-time monitoring, alerting, and project management (run declared
   "logs": ["storage/logs"],
   "commands": [
     { "name": "node build", "command": "npm run build" },
-    { "name": "php build", "command": "composer install" }
+    { "name": "php build", "command": "composer install" },
+    { "name": "scheduler", "command": "php artisan schedule:run" }
+  ],
+  "cron": [
+    { "command": "scheduler", "schedule": "* * * * *" }
   ],
   "backups": {
     "env_file": ".env",
@@ -86,10 +91,10 @@ The `database` and `s3` keys are the *names* of variables in `env_file`, so pass
 
 ---
 
-### ⏲️ Cron Jobs Management (Planned)
-- Cron jobs declared per project in `config.vpspilot.json`, run by the agent
-- The last run of each job and its output in the dashboard
-- **Status:** planned for v0.6.0
+### ⏲️ Cron Jobs
+- Each `cron` entry names one of the project's `commands` and a five-field schedule (or `@hourly`, `@daily`, `@weekly`, `@monthly`) in the server's time zone
+- The agent runs the jobs itself, with the same checks as **Run**, and skips a run that would overlap the same command
+- The project's **Cron jobs** card shows each job's schedule, last run, status and output, and its recent runs. The dashboard can't add, change or start a job
 
 ---
 
@@ -410,7 +415,7 @@ ls server/cmd/app/dist/
 - [x] Run named project commands (declared in the config file only) with audit log
 - [x] Log tailing for declared log folders
 - [x] Project backups (database + directories)
-- [ ] Cron jobs declared per project
+- [x] Cron jobs declared per project
 - [x] Install script + systemd unit for the agent
 - [ ] Docker Compose deployment
 - [ ] Multi-user support with roles
