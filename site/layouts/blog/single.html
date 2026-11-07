@@ -1,0 +1,16 @@
+{{ define "main" }}
+<div class="container blog">
+  <article class="prose">
+    <h1>{{ .Title }}</h1>
+    {{- partial "blog-meta.html" . }}
+    {{- with .Description }}
+    <p class="docs-lead">{{ . }}</p>
+    {{- end }}
+    {{ .Content }}
+    <footer class="docs-footer">
+      <a class="edit-link" href="{{ site.Params.editBase }}{{ .File.Path }}" rel="noopener">Edit this post on GitHub</a>
+      <a href="{{ "/blog/" | relURL }}">All posts</a>
+    </footer>
+  </article>
+</div>
+{{ end }}

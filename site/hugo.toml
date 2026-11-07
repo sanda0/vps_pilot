@@ -6,7 +6,13 @@ baseURL = "https://vpspilot.dev/"
 locale = "en"
 title = "VPS Pilot"
 enableRobotsTXT = true
-disableKinds = ["taxonomy", "term", "rss"]
+disableKinds = ["taxonomy", "term"]
+
+# RSS only for the blog (content/blog/_index.md asks for it).
+[outputs]
+  home = ["html"]
+  section = ["html"]
+  page = ["html"]
 
 [module.hugoVersion]
   min = "0.167.0"
@@ -37,6 +43,10 @@ disableKinds = ["taxonomy", "term", "rss"]
     name = "Docs"
     url = "/docs/"
     weight = 10
+  [[menus.main]]
+    name = "Blog"
+    url = "/blog/"
+    weight = 15
   [[menus.main]]
     name = "Changelog"
     url = "/changelog/"
