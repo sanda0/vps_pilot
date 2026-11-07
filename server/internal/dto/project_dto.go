@@ -13,6 +13,13 @@ type ProjectCommand struct {
 	Command string `json:"command"`
 }
 
+// ProjectCronJob is a cron entry (v0.6): one of the project's commands and
+// when the agent runs it.
+type ProjectCronJob struct {
+	Command  string `json:"command"`
+	Schedule string `json:"schedule"`
+}
+
 // ProjectBackupDatabase holds DB connection info for backups
 type ProjectBackupDatabase struct {
 	Connection   string `json:"connection"`
@@ -80,6 +87,7 @@ type ProjectResponse struct {
 	Commands     []ProjectCommand `json:"commands"`
 	Logs         []string         `json:"logs"`
 	Backups      *ProjectBackup   `json:"backups"`
+	Cron         []ProjectCronJob `json:"cron"`
 	DiscoveredAt time.Time        `json:"discovered_at"`
 	UpdatedAt    time.Time        `json:"updated_at"`
 }
@@ -95,6 +103,7 @@ func ConvertToProjectResponse(p *db.Project) *ProjectResponse {
 		Commands:     parseCommands(p.Commands),
 		Logs:         parseStringSlice(p.Logs),
 		Backups:      parseBackup(p.Backups),
+		Cron:         ParseCron(p.Cron),
 		DiscoveredAt: time.Unix(p.DiscoveredAt, 0),
 		UpdatedAt:    time.Unix(p.UpdatedAt, 0),
 	}
@@ -113,6 +122,7 @@ func ConvertToProjectWithNodeResponse(row *db.GetProjectWithNodeRow) *ProjectRes
 		Commands:     parseCommands(row.Commands),
 		Logs:         parseStringSlice(row.Logs),
 		Backups:      parseBackup(row.Backups),
+		Cron:         ParseCron(row.Cron),
 		DiscoveredAt: time.Unix(row.DiscoveredAt, 0),
 		UpdatedAt:    time.Unix(row.UpdatedAt, 0),
 	}
@@ -133,6 +143,7 @@ func ConvertToProjectListResponse(rows []db.ListProjectsWithNodesRow) []*Project
 			Commands:     parseCommands(row.Commands),
 			Logs:         parseStringSlice(row.Logs),
 			Backups:      parseBackup(row.Backups),
+			Cron:         ParseCron(row.Cron),
 			DiscoveredAt: time.Unix(row.DiscoveredAt, 0),
 			UpdatedAt:    time.Unix(row.UpdatedAt, 0),
 		}
@@ -196,6 +207,18 @@ func parseCommands(raw string) []ProjectCommand {
 	var out []ProjectCommand
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
 		return []ProjectCommand{}
+	}
+	return out
+}
+
+// ParseCron reads a project's stored cron jobs.
+func ParseCron(raw string) []ProjectCronJob {
+	out := []ProjectCronJob{}
+	if raw != "" {
+		json.Unmarshal([]byte(raw), &out)
+	}
+	if out == nil {
+		out = []ProjectCronJob{}
 	}
 	return out
 }

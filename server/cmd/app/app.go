@@ -37,6 +37,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	commandRunService := services.NewCommandRunService(ctx, repo, runner)
 	logService := services.NewLogService(ctx, repo, logs)
 	backupService := services.NewBackupService(ctx, repo, backups)
+	cronService := services.NewCronService(ctx, repo)
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
@@ -47,6 +48,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	commandRunHandler := handlers.NewCommandRunHandler(commandRunService)
 	logHandler := handlers.NewLogHandler(logService)
 	backupHandler := handlers.NewBackupHandler(backupService)
+	cronHandler := handlers.NewCronHandler(cronService)
 
 	server := gin.Default()
 
@@ -112,6 +114,8 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			projects.GET("/:id/logs/ws", logHandler.Watch)
 			projects.POST("/:id/backups", backupHandler.Start)
 			projects.GET("/:id/backups", backupHandler.List)
+			projects.GET("/:id/cron", cronHandler.Jobs)
+			projects.GET("/:id/cron/runs", cronHandler.Runs)
 		}
 		runs := dashbaord.Group("/runs")
 		{
