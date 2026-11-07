@@ -5,6 +5,7 @@ import { NodeOption, ProjectPath, ProjectScan } from "@/types/project_scan";
 import { CommandOutput, CommandRun } from "@/types/command_run";
 import { LogFiles } from "@/types/log";
 import { BackupRun } from "@/types/backup";
+import { CronJob, CronRun } from "@/types/cron";
 
 const api = axios.create({
   baseURL: "/api/v1",
@@ -171,6 +172,23 @@ export const backupsApi = {
   start: async (projectId: string) => {
     const response = await api.post<{ data: BackupRun }>(`/projects/${projectId}/backups`);
     return response.data.data;
+  },
+};
+
+// A project's cron jobs, run by the node's agent; the hub only records them.
+export const cronApi = {
+  // Each job with its latest run.
+  jobs: async (projectId: string) => {
+    const response = await api.get<{ data: CronJob[] }>(`/projects/${projectId}/cron`);
+    return response.data.data ?? [];
+  },
+
+  // One job's runs, newest first. The hub keeps the last 50.
+  runs: async (projectId: string, command: string, limit = 20) => {
+    const response = await api.get<{ data: CronRun[] }>(`/projects/${projectId}/cron/runs`, {
+      params: { command, limit },
+    });
+    return response.data.data ?? [];
   },
 };
 
