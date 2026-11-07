@@ -6,6 +6,7 @@ import { ProjectCommands } from "@/components/project-commands";
 import { ProjectInfo } from "@/components/project-info";
 import { ProjectLogs } from "@/components/project-logs";
 import { ProjectBackups } from "@/components/project-backups";
+import { ProjectCron } from "@/components/project-cron";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +22,7 @@ import {
   Terminal,
   ScrollText,
   Archive,
+  Clock,
   Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -173,6 +175,29 @@ export default function ProjectDetailsPage() {
           </CardHeader>
           <CardContent>
             <ProjectCommands project={project} />
+          </CardContent>
+        </Card>
+
+        {/* Cron jobs */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Cron jobs
+            </CardTitle>
+            <CardDescription>
+              Commands the node's agent runs on the schedules in config.vpspilot.json, as the
+              owner of the config file. Run one now from Commands.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {project.cron && project.cron.length > 0 ? (
+              <ProjectCron project={project} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No cron jobs defined
+              </p>
+            )}
           </CardContent>
         </Card>
 
