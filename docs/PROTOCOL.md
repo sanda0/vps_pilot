@@ -95,6 +95,7 @@ A node can have only one live connection. A second successful `connected` closes
 | `backup_run` | hub → agent | `BackupRun`, see [Back up](#back-up) |
 | `backup_started` | agent → hub | `BackupStarted` |
 | `backup_result` | agent → hub | `BackupResult` |
+| `cron_result` | agent → hub | `CronResult`, see [Cron jobs](#cron-jobs) |
 
 Unknown types are ignored by both sides.
 
@@ -324,6 +325,67 @@ The agent checks the schedule every minute. It remembers when each project was l
 | `failed` | No zip was kept: a path check, the env file, the dump, writing the zip or the timeout failed. `error` says which |
 | `rejected` | Not started, see [Before backing up](#before-backing-up). No `backup_started` is sent first |
 
+## Cron jobs
+
+A project can run some of its [commands](#run-commands) on a schedule. The agent runs them itself, even when the hub is unreachable, and sends one `cron_result` per run. The hub sends nothing: it can't add, change or start a cron job. **Run** in the dashboard starts the same command at any time, as a normal `command_run`.
+
+```
+agent → hub   cron_result   data = { run_id, project_path, command, status, … }   (one per scheduled run)
+```
+
+An agent supports this only if its `SystemInfo.features` contains `"cron"`. The hub uses it only to tell the dashboard whether the agent runs cron jobs; there is nothing to send.
+
+### What the config declares
+
+```json
+"commands": [
+  { "name": "prune", "command": "php artisan model:prune" },
+  { "name": "sitemap", "command": "php artisan sitemap:generate" }
+],
+"cron": [
+  { "command": "prune", "schedule": "0 3 * * *" },
+  { "command": "sitemap", "schedule": "@hourly" }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `command` | The `name` of an entry in `commands`. A command can appear in `cron` once. |
+| `schedule` | When to run it, in the server's local time zone. See below. |
+
+`schedule` is five fields, `minute hour day-of-month month day-of-week`:
+
+| Field | Values |
+| --- | --- |
+| minute | `0`–`59` |
+| hour | `0`–`23` |
+| day of month | `1`–`31` |
+| month | `1`–`12` |
+| day of week | `0`–`7`, Sunday is `0` or `7` |
+
+Each field is `*`, a value, a range `a-b`, a step `*/n` or `a-b/n`, or a comma-separated list of those. Names (`MON`, `JAN`) are not accepted. When both day of month and day of week are restricted (not `*`), a day matching either one runs the job, as in system cron. `@hourly`, `@daily`, `@weekly` and `@monthly` mean `0 * * * *`, `0 0 * * *`, `0 0 * * 0` and `0 0 1 * *`.
+
+`cron` is checked when the config is read: an unknown `command`, a command listed twice or an invalid `schedule` makes the config unusable, like an incomplete command, and the agent reports it as a problem instead of a project.
+
+### Running
+
+- **Schedule.** At the start of each minute, the agent runs every job whose `schedule` matches that minute. Runs missed while the agent was stopped, or while the clock jumped forward, are skipped, as in system cron. A local time that happens twice when clocks go back runs once.
+- **Checks.** Before each run, the agent re-reads `config.vpspilot.json` and applies the [checks for commands](#before-running): the job must still be in `cron` and its command in `commands`. If they fail, the run is `rejected`.
+- **Overlap.** If the same command in the same project is still running, from cron or from **Run**, or 4 commands are already running on the node, the run is `skipped`.
+- **As the config file's owner**, with the same environment, process group, kill and timeout (`--command-timeout`) as [running commands](#running).
+- **Output.** Stdout and stderr are captured together, in the order they arrive, and sent with the result, not streamed. Only the last 64 KiB are kept, since a cron job's error is usually at the end; `truncated` is set when output was dropped.
+- **Delivery.** Results the agent couldn't send are kept, up to 50, and sent after it reconnects. They are lost if the agent restarts. The hub de-duplicates by `run_id`, and keeps the last 50 runs of each job.
+
+### Statuses
+
+| `status` | Meaning | `exit_code` |
+| --- | --- | --- |
+| `exited` | The command ran and exited | its exit code (`128 + n` if killed by signal `n`) |
+| `timeout` | Killed after the timeout | `null` |
+| `skipped` | Not started: still running, or too many commands running | `null` |
+| `rejected` | Not started, see **Checks** above | `null` |
+| `failed` | Couldn't be started (e.g. spawn or `setuid` failed) | `null` |
+
 ## Payloads
 
 `SystemInfo`
@@ -338,11 +400,11 @@ The agent checks the schedule every minute. It remembers when each project was l
   "cpus": 4,
   "total_memory": 8221474816,
   "agent_version": "v0.4.0",
-  "features": ["commands", "logs", "backups"]
+  "features": ["commands", "logs", "backups", "cron"]
 }
 ```
 
-`hostname` names the node on first enrollment. `total_memory` is in bytes. `agent_version` and `features` were added in v0.3. When they are missing, the hub treats the agent as v0.2 with no features. `features` lists what the agent can do beyond streaming stats and projects. The values are `commands` ([Run commands](#run-commands), v0.3), `logs` ([Read logs](#read-logs), v0.4) and `backups` ([Back up](#back-up), v0.5).
+`hostname` names the node on first enrollment. `total_memory` is in bytes. `agent_version` and `features` were added in v0.3. When they are missing, the hub treats the agent as v0.2 with no features. `features` lists what the agent can do beyond streaming stats and projects. The values are `commands` ([Run commands](#run-commands), v0.3), `logs` ([Read logs](#read-logs), v0.4), `backups` ([Back up](#back-up), v0.5) and `cron` ([Cron jobs](#cron-jobs), v0.6).
 
 `CommandRun`
 
@@ -413,7 +475,8 @@ The agent checks the schedule every minute. It remembers when each project was l
       "tech": ["laravel"],
       "commands": [{ "name": "build", "command": "npm run build" }],
       "logs": ["storage/logs"],
-      "backups": { "env_file": ".env", "dir": ["storage/app"] }
+      "backups": { "env_file": ".env", "dir": ["storage/app"] },
+      "cron": [{ "command": "build", "schedule": "0 3 * * *" }]
     }
   ],
   "errors": [
@@ -504,3 +567,24 @@ The agent checks the schedule every minute. It remembers when each project was l
 ```
 
 `file`, `local_path` and `size` (bytes) are set when `status` is `ok`. `database` is the dump type, or empty without `database`. `upload.status` is `ok`, `failed` or `skipped` (no `s3`, or the backup didn't succeed). `error` is a short reason for `failed` and `rejected` (e.g. `mysqldump not found`, `DB_PASSWORD is not set in .env`), and empty otherwise.
+
+`CronResult`
+
+```json
+{
+  "run_id": "7e0f…",
+  "project_path": "/var/www/shop",
+  "command": "prune",
+  "schedule": "0 3 * * *",
+  "scheduled_at": 1793156400,
+  "status": "exited",
+  "exit_code": 0,
+  "run_as": "deploy",
+  "duration_ms": 1830,
+  "output": "Pruned 120 records.\n",
+  "truncated": false,
+  "error": ""
+}
+```
+
+`run_id` is a UUID chosen by the agent. `scheduled_at` is the minute the run was due, in Unix seconds. `schedule` is the expression as written in the config. `output` holds the last 64 KiB of stdout and stderr together, as UTF-8 with invalid bytes replaced by U+FFFD. `run_as`, `duration_ms` and `output` are empty or 0 when the command never started. `error` is a short reason for `skipped`, `rejected` and `failed` (e.g. `already running`, `config.vpspilot.json is world-writable`), and empty otherwise.
