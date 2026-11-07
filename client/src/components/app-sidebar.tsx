@@ -1,7 +1,6 @@
 import * as React from "react"
 import {
   FolderGit2,
-  ReplaceAll,
   Server,
   Settings2,
 } from "lucide-react"
@@ -37,11 +36,6 @@ const data = {
       title: "Projects",
       url: "/projects",
       icon: FolderGit2
-    },
-    {
-      title: "Cron Jobs",
-      url: "#",
-      icon: ReplaceAll
     },
     {
       title: "Settings",
