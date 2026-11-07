@@ -159,6 +159,7 @@ type Project struct {
 	Backups      string `json:"backups"`
 	DiscoveredAt int64  `json:"discovered_at"`
 	UpdatedAt    int64  `json:"updated_at"`
+	Cron         string `json:"cron"`
 }
 
 type SystemStat struct {

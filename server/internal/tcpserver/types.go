@@ -45,6 +45,13 @@ type ProjectBackupS3 struct {
 	RetentionDays *int   `json:"retention_days,omitempty"`
 }
 
+// ProjectCronJob is a cron entry (v0.6): the name of one of the project's
+// commands and when the agent runs it.
+type ProjectCronJob struct {
+	Command  string `json:"command"`
+	Schedule string `json:"schedule"` // five-field cron or @hourly, @daily, @weekly, @monthly
+}
+
 // ProjectConfig is the in-memory representation of a single config.vpspilot.json
 type ProjectConfig struct {
 	Name     string           `json:"name"`
@@ -53,6 +60,7 @@ type ProjectConfig struct {
 	Commands []ProjectCommand `json:"commands"`
 	Logs     []string         `json:"logs"`
 	Backups  *ProjectBackup   `json:"backups"`
+	Cron     []ProjectCronJob `json:"cron"` // missing before v0.6
 }
 
 // ProjectSyncPayload is what the agent sends inside Msg.Data when Msg.Msg == "projects"

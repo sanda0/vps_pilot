@@ -57,7 +57,7 @@ func (q *Queries) DeleteProjectsByNode(ctx context.Context, nodeID int64) (int64
 }
 
 const getProject = `-- name: GetProject :one
-SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at, cron
 FROM projects
 WHERE id = ?
 `
@@ -76,13 +76,14 @@ func (q *Queries) GetProject(ctx context.Context, id string) (Project, error) {
 		&i.Backups,
 		&i.DiscoveredAt,
 		&i.UpdatedAt,
+		&i.Cron,
 	)
 	return i, err
 }
 
 const getProjectWithNode = `-- name: GetProjectWithNode :one
 SELECT
-    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at,
+    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at, p.cron,
     n.name AS node_name,
     n.ip   AS node_ip
 FROM projects p
@@ -101,6 +102,7 @@ type GetProjectWithNodeRow struct {
 	Backups      string         `json:"backups"`
 	DiscoveredAt int64          `json:"discovered_at"`
 	UpdatedAt    int64          `json:"updated_at"`
+	Cron         string         `json:"cron"`
 	NodeName     sql.NullString `json:"node_name"`
 	NodeIp       sql.NullString `json:"node_ip"`
 }
@@ -119,6 +121,7 @@ func (q *Queries) GetProjectWithNode(ctx context.Context, id string) (GetProject
 		&i.Backups,
 		&i.DiscoveredAt,
 		&i.UpdatedAt,
+		&i.Cron,
 		&i.NodeName,
 		&i.NodeIp,
 	)
@@ -126,7 +129,7 @@ func (q *Queries) GetProjectWithNode(ctx context.Context, id string) (GetProject
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at, cron
 FROM projects
 ORDER BY updated_at DESC
 LIMIT ? OFFSET ?
@@ -157,6 +160,7 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 			&i.Backups,
 			&i.DiscoveredAt,
 			&i.UpdatedAt,
+			&i.Cron,
 		); err != nil {
 			return nil, err
 		}
@@ -172,7 +176,7 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 }
 
 const listProjectsByNode = `-- name: ListProjectsByNode :many
-SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+SELECT id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at, cron
 FROM projects
 WHERE node_id = ?
 ORDER BY updated_at DESC
@@ -205,6 +209,7 @@ func (q *Queries) ListProjectsByNode(ctx context.Context, arg ListProjectsByNode
 			&i.Backups,
 			&i.DiscoveredAt,
 			&i.UpdatedAt,
+			&i.Cron,
 		); err != nil {
 			return nil, err
 		}
@@ -221,7 +226,7 @@ func (q *Queries) ListProjectsByNode(ctx context.Context, arg ListProjectsByNode
 
 const listProjectsWithNodes = `-- name: ListProjectsWithNodes :many
 SELECT
-    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at,
+    p.id, p.node_id, p.name, p.path, p.tech, p.commands, p.logs, p.backups, p.discovered_at, p.updated_at, p.cron,
     n.name AS node_name,
     n.ip   AS node_ip
 FROM projects p
@@ -246,6 +251,7 @@ type ListProjectsWithNodesRow struct {
 	Backups      string         `json:"backups"`
 	DiscoveredAt int64          `json:"discovered_at"`
 	UpdatedAt    int64          `json:"updated_at"`
+	Cron         string         `json:"cron"`
 	NodeName     sql.NullString `json:"node_name"`
 	NodeIp       sql.NullString `json:"node_ip"`
 }
@@ -270,6 +276,7 @@ func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWit
 			&i.Backups,
 			&i.DiscoveredAt,
 			&i.UpdatedAt,
+			&i.Cron,
 			&i.NodeName,
 			&i.NodeIp,
 		); err != nil {
@@ -287,16 +294,17 @@ func (q *Queries) ListProjectsWithNodes(ctx context.Context, arg ListProjectsWit
 }
 
 const upsertProject = `-- name: UpsertProject :one
-INSERT INTO projects (node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+INSERT INTO projects (node_id, name, path, tech, commands, logs, backups, cron, discovered_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
 ON CONFLICT (node_id, path) DO UPDATE SET
     name       = excluded.name,
     tech       = excluded.tech,
     commands   = excluded.commands,
     logs       = excluded.logs,
     backups    = excluded.backups,
+    cron       = excluded.cron,
     updated_at = strftime('%s', 'now')
-RETURNING id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at
+RETURNING id, node_id, name, path, tech, commands, logs, backups, discovered_at, updated_at, cron
 `
 
 type UpsertProjectParams struct {
@@ -307,6 +315,7 @@ type UpsertProjectParams struct {
 	Commands string `json:"commands"`
 	Logs     string `json:"logs"`
 	Backups  string `json:"backups"`
+	Cron     string `json:"cron"`
 }
 
 func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (Project, error) {
@@ -318,6 +327,7 @@ func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (P
 		arg.Commands,
 		arg.Logs,
 		arg.Backups,
+		arg.Cron,
 	)
 	var i Project
 	err := row.Scan(
@@ -331,6 +341,7 @@ func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) (P
 		&i.Backups,
 		&i.DiscoveredAt,
 		&i.UpdatedAt,
+		&i.Cron,
 	)
 	return i, err
 }
