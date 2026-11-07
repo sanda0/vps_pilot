@@ -3,7 +3,6 @@
 //! `command_cancel`. Dropping `Runs` (the session ended) kills every run.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::sync::{Notify, mpsc};
@@ -13,29 +12,28 @@ use tracing::{info, warn};
 use crate::commands::{self, Limits, RunAs};
 use crate::project::ProjectConfig;
 use crate::protocol::{CommandExit, CommandRun, ExitStatus, MSG_COMMAND_EXIT, Msg};
-
-/// Most commands running at once on this node.
-const MAX_RUNNING: usize = 4;
+use crate::slots::{Slot, Slots};
 
 struct Running {
     task: Id,
-    project: PathBuf,
-    command: String,
     cancel: Arc<Notify>,
 }
 
 pub struct Runs {
     limits: Arc<Limits>,
     out: mpsc::Sender<Msg>,
+    slots: Slots,
     tasks: JoinSet<()>,
     running: HashMap<String, Running>,
 }
 
 impl Runs {
-    pub fn new(limits: Limits, out: mpsc::Sender<Msg>) -> Self {
+    /// `slots` is shared with cron jobs.
+    pub fn new(limits: Limits, out: mpsc::Sender<Msg>, slots: Slots) -> Self {
         Runs {
             limits: Arc::new(limits),
             out,
+            slots,
             tasks: JoinSet::new(),
             running: HashMap::new(),
         }
@@ -54,36 +52,29 @@ impl Runs {
         let known = projects
             .iter()
             .any(|p| std::path::Path::new(&p.path) == run.project_path);
-        let busy = self
-            .running
-            .values()
-            .any(|r| r.project == run.project_path && r.command == run.command);
-        let reason = if !known {
-            Some("not a project found by this agent".to_string())
-        } else if busy {
-            Some(format!("{:?} is already running", run.command))
-        } else if self.running.len() >= MAX_RUNNING {
-            Some(format!("{MAX_RUNNING} commands are already running"))
+        let slot = if known {
+            self.slots.take(&run.project_path, &run.command)
         } else {
-            None
+            Err("not a project found by this agent".to_string())
         };
-        if let Some(reason) = reason {
-            let exit = CommandExit::not_started(&run.run_id, ExitStatus::Rejected, reason);
-            send_exit(&self.out, exit).await;
-            return;
-        }
+        let slot = match slot {
+            Ok(slot) => slot,
+            Err(reason) => {
+                let exit = CommandExit::not_started(&run.run_id, ExitStatus::Rejected, reason);
+                send_exit(&self.out, exit).await;
+                return;
+            }
+        };
 
         let cancel = Arc::new(Notify::new());
         let (limits, out) = (self.limits.clone(), self.out.clone());
         let task = self
             .tasks
-            .spawn(execute(run.clone(), limits, cancel.clone(), out));
+            .spawn(execute(run.clone(), slot, limits, cancel.clone(), out));
         self.running.insert(
             run.run_id,
             Running {
                 task: task.id(),
-                project: run.project_path,
-                command: run.command,
                 cancel,
             },
         );
@@ -106,8 +97,11 @@ impl Runs {
     }
 }
 
+/// Holds `_slot` until the run ends, or its task is aborted with the
+/// session.
 async fn execute(
     run: CommandRun,
+    _slot: Slot,
     limits: Arc<Limits>,
     cancel: Arc<Notify>,
     out: mpsc::Sender<Msg>,
@@ -187,7 +181,7 @@ mod tests {
             timeout: Duration::from_secs(10),
             max_output: 1 << 20,
         };
-        let mut runs = Runs::new(limits, tx);
+        let mut runs = Runs::new(limits, tx, Slots::default());
 
         runs.start(run("r1", &path, "hello"), &projects).await;
         let exit = next_exit(&mut rx).await;

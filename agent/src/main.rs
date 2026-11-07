@@ -21,6 +21,7 @@ mod s3;
 mod scanner;
 mod schedule;
 mod sigv4;
+mod slots;
 mod state;
 mod tls;
 
@@ -184,6 +185,7 @@ async fn main() -> ExitCode {
         project_dirs: args.projects_dirs,
         allow_any_project_path: args.allow_any_project_path,
         command_timeout: Duration::from_secs(args.command_timeout),
+        slots: slots::Slots::default(),
     };
     let backoff = Duration::from_secs(args.backoff);
     let mut collector = Collector::new();
