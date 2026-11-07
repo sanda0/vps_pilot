@@ -40,11 +40,13 @@ cloud account.
   a project declares, live, and load earlier lines.
 - **[Backups](/docs/projects/#back-up).** Zip what a project declares, on a
   schedule or with Back up now, and upload it to S3-compatible storage.
+- **[Cron jobs](/docs/projects/#cron-jobs).** Run a project's commands on the
+  schedules its config declares, and see each job's last run and output.
 - **Nodes.** Add a server with a join token, re-enroll it on a new machine
   without losing its history, or revoke its key.
 
 {{< callout soon >}}
-Cron jobs are planned.
+A Docker Compose setup and multiple users with roles are planned.
 {{< /callout >}}
 
 ## The rule that shapes everything

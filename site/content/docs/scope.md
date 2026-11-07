@@ -17,7 +17,7 @@ lets you do the few things each project allows, and nothing more.
 | Run commands | Run a command *named* in `config.vpspilot.json` and stream its output | Available |
 | Read logs | Tail the log folders a project declares | Available |
 | Back up | Zip the declared folders, the env file and a database dump | Available |
-| Schedule | Cron jobs declared per project, with the last run and its output | Coming soon |
+| Schedule | Cron jobs declared per project, with the last run and its output | Available |
 
 ## What it doesn't do
 

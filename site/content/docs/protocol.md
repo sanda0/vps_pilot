@@ -350,7 +350,7 @@ missing, the hub treats the agent as having no features. The features are
   "kernel_version": "6.8.0-45-generic",
   "cpus": 4,
   "total_memory": 8221474816,
-  "agent_version": "v0.5.0",
+  "agent_version": "v0.6.0",
   "features": ["commands", "logs", "backups", "cron"]
 }
 ```

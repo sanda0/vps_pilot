@@ -6,6 +6,8 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+## v0.6.0 - 2026-11-07
+
 ### Upgrade notes
 - Upgrading the hub adds a `cron` column to `projects` and the `cron_runs`
   table to the operational database on start.
@@ -25,6 +27,10 @@ User-facing changes to VPS Pilot. The format follows
   catch up. The **Cron jobs** card on the project page shows each job's
   schedule, last run, status and output, and its recent runs. The hub keeps
   the last 50 runs of each job and can't add, change or start a job.
+
+### Removed
+- The sidebar's **Cron Jobs** item, a placeholder that linked nowhere. Cron
+  jobs are on each project's page.
 
 ### Fixed
 - The hub no longer logs a second, misleading error after it fails to store
