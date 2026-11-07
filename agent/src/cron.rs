@@ -3,9 +3,6 @@
 //! `@hourly`, `@daily`, `@weekly` and `@monthly`. See "Cron jobs" in
 //! docs/PROTOCOL.md.
 
-// Wired into the config check and the scheduler in the next changes.
-#![allow(dead_code)]
-
 /// A parsed schedule. Each field is a bit set of the values it matches.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CronSchedule {
@@ -63,6 +60,8 @@ impl CronSchedule {
         })
     }
 
+    // Used by the scheduler, which comes in the next change.
+    #[allow(dead_code)]
     pub fn matches(&self, t: LocalMinute) -> bool {
         let day = self.days & (1 << t.day) != 0;
         let weekday = self.weekdays & (1 << t.weekday) != 0;

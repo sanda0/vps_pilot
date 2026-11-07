@@ -10,6 +10,8 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+use crate::cron::CronSchedule;
+
 pub const CONFIG_FILE: &str = "config.vpspilot.json";
 
 /// Config files larger than this are rejected.
@@ -31,12 +33,22 @@ pub struct ProjectConfig {
     pub logs: Vec<String>,
     #[serde(default)]
     pub backups: Option<ProjectBackup>,
+    /// Commands the agent runs on a schedule, by name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cron: Vec<ProjectCronJob>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProjectCommand {
     pub name: String,
     pub command: String,
+}
+
+/// A `cron` entry: the name of one of `commands` and when to run it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProjectCronJob {
+    pub command: String,
+    pub schedule: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -283,6 +295,18 @@ impl ProjectConfig {
         if let Some(backups) = &self.backups {
             backups.validate()?;
         }
+        // cron is new in v0.6, so rejecting the config doesn't break anyone.
+        let mut scheduled = HashSet::new();
+        for job in &self.cron {
+            if self.command(&job.command).is_none() {
+                bail!("cron command {:?} is not in \"commands\"", job.command);
+            }
+            if !scheduled.insert(job.command.as_str()) {
+                bail!("cron command {:?} is listed twice", job.command);
+            }
+            CronSchedule::parse(&job.schedule)
+                .map_err(|e| anyhow::anyhow!("cron command {:?}: {e}", job.command))?;
+        }
         Ok(())
     }
 }
@@ -349,6 +373,38 @@ mod tests {
                 {"name": "build", "command": "make all"}]}"#,
         ] {
             assert!(load_str(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn loads_cron_jobs() {
+        let config = load_str(
+            r#"{"name": "shop",
+                "commands": [{"name": "prune", "command": "php artisan model:prune"}],
+                "cron": [{"command": "prune", "schedule": "*/5 * * * 1-5"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(config.cron[0].schedule, "*/5 * * * 1-5");
+        let sent = serde_json::to_value(&config).unwrap();
+        assert_eq!(sent["cron"][0]["command"], "prune");
+        let plain = serde_json::to_value(load_str(r#"{"name": "a"}"#).unwrap()).unwrap();
+        assert!(plain.get("cron").is_none());
+    }
+
+    #[test]
+    fn rejects_invalid_cron_jobs() {
+        for bad in [
+            r#"[{"command": "deploy", "schedule": "@daily"}]"#,
+            r#"[{"command": "prune", "schedule": "61 * * * *"}]"#,
+            r#"[{"command": "prune", "schedule": "@daily"},
+                {"command": "prune", "schedule": "@hourly"}]"#,
+            r#"[{"command": "prune"}]"#,
+        ] {
+            let json = format!(
+                r#"{{"name": "app", "commands": [{{"name": "prune", "command": "make prune"}}],
+                    "cron": {bad}}}"#
+            );
+            assert!(load_str(&json).is_err(), "{bad}");
         }
     }
 
