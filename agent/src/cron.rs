@@ -21,6 +21,19 @@ pub struct CronSchedule {
     any_weekday: bool,
 }
 
+/// A minute of local time, as `matches` needs it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LocalMinute {
+    pub minute: u32,
+    pub hour: u32,
+    /// 1 ..= 31
+    pub day: u32,
+    /// 1 ..= 12
+    pub month: u32,
+    /// 0 ..= 6, Sunday is 0
+    pub weekday: u32,
+}
+
 impl CronSchedule {
     pub fn parse(expr: &str) -> Result<Self, String> {
         let expanded = match expr.trim() {
@@ -48,6 +61,20 @@ impl CronSchedule {
             any_day: day.starts_with('*'),
             any_weekday: weekday.starts_with('*'),
         })
+    }
+
+    pub fn matches(&self, t: LocalMinute) -> bool {
+        let day = self.days & (1 << t.day) != 0;
+        let weekday = self.weekdays & (1 << t.weekday) != 0;
+        let day_ok = if self.any_day || self.any_weekday {
+            day && weekday
+        } else {
+            day || weekday
+        };
+        self.minutes & (1 << t.minute) != 0
+            && self.hours & (1 << t.hour) != 0
+            && self.months & (1 << t.month) != 0
+            && day_ok
     }
 }
 
@@ -104,6 +131,64 @@ fn number(s: &str, name: &str) -> Result<u32, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn at(minute: u32, hour: u32, day: u32, month: u32, weekday: u32) -> LocalMinute {
+        LocalMinute {
+            minute,
+            hour,
+            day,
+            month,
+            weekday,
+        }
+    }
+
+    fn runs(expr: &str, t: LocalMinute) -> bool {
+        CronSchedule::parse(expr).unwrap().matches(t)
+    }
+
+    #[test]
+    fn plain_fields() {
+        assert!(runs("0 3 * * *", at(0, 3, 15, 6, 2)));
+        assert!(!runs("0 3 * * *", at(1, 3, 15, 6, 2)));
+        assert!(!runs("0 3 * * *", at(0, 4, 15, 6, 2)));
+        assert!(runs("* * * * *", at(59, 23, 31, 12, 6)));
+    }
+
+    #[test]
+    fn lists_ranges_and_steps() {
+        let e = "*/15 9-17 * * 1-5";
+        assert!(runs(e, at(45, 17, 3, 11, 5)));
+        assert!(!runs(e, at(50, 9, 3, 11, 5)));
+        assert!(!runs(e, at(0, 9, 7, 11, 6)));
+        assert!(runs("5,10-20/5 * * * *", at(15, 0, 1, 1, 0)));
+        assert!(!runs("5,10-20/5 * * * *", at(16, 0, 1, 1, 0)));
+    }
+
+    #[test]
+    fn sunday_is_0_or_7() {
+        assert!(runs("0 0 * * 7", at(0, 0, 1, 11, 0)));
+        assert!(runs("0 0 * * 5-7", at(0, 0, 1, 11, 0)));
+        assert!(!runs("0 0 * * 7", at(0, 0, 1, 11, 6)));
+    }
+
+    #[test]
+    fn day_of_month_or_week_when_both_restricted() {
+        // The 1st, or any Monday.
+        assert!(runs("0 0 1 * 1", at(0, 0, 1, 11, 3)));
+        assert!(runs("0 0 1 * 1", at(0, 0, 9, 11, 1)));
+        assert!(!runs("0 0 1 * 1", at(0, 0, 9, 11, 2)));
+        // A * day of week means only the day of month counts.
+        assert!(!runs("0 0 1 * *", at(0, 0, 9, 11, 1)));
+    }
+
+    #[test]
+    fn macros() {
+        assert!(runs("@hourly", at(0, 13, 4, 2, 3)));
+        assert!(runs("@daily", at(0, 0, 4, 2, 3)));
+        assert!(runs("@weekly", at(0, 0, 8, 11, 0)));
+        assert!(!runs("@weekly", at(0, 0, 9, 11, 1)));
+        assert!(runs("@monthly", at(0, 0, 1, 7, 4)));
+    }
 
     #[test]
     fn rejects_bad_expressions() {
