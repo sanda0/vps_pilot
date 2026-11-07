@@ -1,0 +1,5 @@
+<p class="blog-meta">
+  <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>
+  · {{ with .Params.author }}{{ . }}{{ else }}<a href="{{ site.Params.authorURL }}" rel="noopener">{{ site.Params.author }}</a>{{ end }}
+  · {{ .ReadingTime }} min read
+</p>

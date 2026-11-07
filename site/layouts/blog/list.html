@@ -1,0 +1,16 @@
+{{- /* The blog: posts newest first. */ -}}
+{{ define "main" }}
+<div class="container blog">
+  <h1>{{ .Title }}</h1>
+  <p class="docs-lead">{{ .Description }}</p>
+  <ol class="blog-list">
+    {{- range .Pages.ByDate.Reverse }}
+    <li class="blog-item">
+      <h2><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+      {{- partial "blog-meta.html" . }}
+      {{- with .Description }}<p>{{ . }}</p>{{ end }}
+    </li>
+    {{- end }}
+  </ol>
+</div>
+{{ end }}

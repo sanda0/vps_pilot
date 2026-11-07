@@ -1218,3 +1218,53 @@ h3:hover .heading-anchor,
     margin-left: 0;
   }
 }
+
+/* Blog: a list of posts, and one post at reading width. */
+.blog {
+  max-width: 46rem;
+  padding-top: 3rem;
+  padding-bottom: 4rem;
+}
+
+.blog-list {
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blog-item + .blog-item {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.blog-item h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.blog-item h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.blog-item h2 a:hover {
+  text-decoration: underline;
+}
+
+.blog-meta {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.blog-meta a {
+  color: inherit;
+}
+
+.blog .docs-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+}
