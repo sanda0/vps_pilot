@@ -1,160 +1,193 @@
 ---
 title: Monitoring a VPS without opening a single inbound port
 date: 2026-11-07
-description: The VPS Pilot agent dials out to the hub over TLS, so the servers you monitor accept no new connections at all. Here's how enrollment works with a one-time join token, and why that beats exposing an agent port.
+description: The VPS Pilot agent dials out to a hub you host, over TLS, so the servers you monitor accept no new connections. Here's how one pasted token authenticates both ends, what the connection can carry, and what it costs.
 ---
 
-Most monitoring setups ask every server to listen. Prometheus's
-`node_exporter` serves metrics on port 9100 and waits to be scraped. Netdata's
-agent serves its dashboard on 19999. Zabbix's agent, in passive mode, waits
-on 10050. To monitor a server, you open a port on it.
+A lot of self-hosted monitoring still asks every server to listen. Prometheus
+scrapes `node_exporter` on port 9100, Netdata serves its dashboard on 19999,
+and a passive Zabbix agent waits on 10050. To watch a server, you open a port
+on it and then spend effort making sure only the right machine can use it.
 
-VPS Pilot works the other way round. The agent on each server opens one
-connection *out* to the hub and keeps it. The servers you monitor accept no
-new connections at all: their firewall can deny every inbound packet except
-SSH, and monitoring keeps working.
+Dialing out instead isn't new. Datadog's agent, Netdata Cloud, Zabbix in
+active mode and Grafana Alloy pushing with `remote_write` all send data out
+rather than wait for a scrape. What I wanted for
+[VPS Pilot](https://vpspilot.dev/) was that model with three extra
+properties:
 
-This post explains how that works, how the hub and the agent prove who they
-are to each other with a single pasted token, and what you give up.
+- the hub is **yours**: one Go binary with SQLite on a machine you run, no
+  third-party cloud;
+- enrolling a server takes **one pasted string**, with no certificate
+  authority or domain name required;
+- the same connection carries **requests back** from the hub (run a command,
+  read a log, take a backup) without turning into a remote shell.
 
-## What's wrong with an agent port
+This post is about how those fit together, and what they cost.
 
-An open port on every server is a cost you pay on every server:
+## The cost of an agent port
 
-- **It's attack surface.** Internet-wide scanners find a new listening port
-  quickly.
-  The agent behind it often runs as root, and a metrics endpoint tells a
-  stranger your kernel version, your process names and how busy you are.
-- **It needs firewall rules.** You allow the monitoring server's IP address on
-  each machine. When that address changes, you update every server, and a
-  rule you forget is a port left open to the world.
-- **It needs its own security.** Many exporters serve plain HTTP with no
-  authentication unless you add TLS and passwords to each one.
-- **It doesn't reach everything.** A machine behind NAT, a home lab or a
-  provider's private network can't be scraped from outside.
+An open port on each server is paid for on each server:
 
-## Turn the connection around
+- It's reachable by anyone who can route to it, and the agent behind it
+  often runs as root. Even a read-only metrics endpoint tells a stranger your
+  kernel version and what you run.
+- You keep a firewall rule on every machine allowing the monitoring server's
+  address, and update all of them when that address changes.
+- Each exporter needs its own TLS and authentication, which many leave off by
+  default.
+- A machine behind NAT or on a private network can't be scraped from outside
+  at all.
 
-The VPS Pilot agent connects to the hub's agent port (`55001` by default)
-over TLS 1.3 and keeps that one connection open. Everything travels over it:
+None of this is hard on one server. It's the multiplication that hurts.
 
-- the agent's stats every five seconds, and the projects it finds;
-- the hub's requests: run a command a project declares, read a log file,
-  back up now.
+## Turning the connection around
 
-The hub never connects to a server. On each server, a firewall like this is
-all you need:
+The agent opens one TCP connection to the hub's agent port (`55001` by
+default), does a TLS 1.3 handshake, and keeps the connection open:
+
+```text
+  server (no inbound ports)                    hub (one port open)
+  +--------------------+                       +--------------------+
+  | agent              |--- TCP + TLS 1.3 ---->| :55001             |
+  |                    |   opened by agent     |                    |
+  | stats every 5 s ---|---------------------->| store, chart,      |
+  |                    |                       | alert              |
+  | run "build" <------|-----------------------| requests ride the  |
+  |                    |                       | same connection    |
+  +--------------------+                       +--------------------+
+```
+
+Stats go up every five seconds; the hub's requests come down the same
+connection. The hub never connects to a server, so a server's firewall can
+be as strict as this:
 
 ```sh
 sudo ufw default deny incoming
-sudo ufw default allow outgoing
 sudo ufw allow OpenSSH
 sudo ufw enable
 ```
 
-If the connection drops, the agent tries again every 10 seconds. The hub
-knows each node by its agent ID, not its IP address, so a server that changes
-address, or sits behind NAT, just reconnects as itself.
+If the connection drops, the agent retries every 10 seconds. The hub
+identifies a node by its agent ID, never its IP address, so a server that
+changes address or sits behind NAT reconnects as itself.
 
-Only one machine needs an open port: the hub.
+## One string, two proofs
 
-## Proving who's who, with one string
-
-A connection that starts from the server needs trust in both directions. The
-hub has to know the agent is one you added, and the agent has to know it's
-talking to your hub and not to someone in the middle. VPS Pilot does both
-with a join token.
-
-### The join token
-
-In the dashboard, **Nodes → Add node** creates a token like this:
+A connection opened by the server needs trust in both directions. The hub
+must know the agent is one you added. The agent must know it reached your hub
+and not something in the middle. The join token carries both:
 
 ```text
 vpsp1.<secret>.<fingerprint>
 ```
 
-It works once and expires after an hour. The hub stores only a SHA-256 hash
-of the secret. You paste it into the install command on the server:
+The dashboard creates it (**Nodes → Add node**). It works once and expires
+after an hour, and the hub stores only a SHA-256 hash of the secret. You
+paste it into the install command on the server:
 
 ```sh
 curl -fsSL https://vpspilot.dev/install-agent.sh \
   | sudo VPS_PILOT_TOKEN=vpsp1.… sh -s -- --hub hub.example.com:55001
 ```
 
-On its first run, the agent sends the secret to the hub. The hub checks it,
-marks it used, and answers with an **agent ID** and a **node key** (32 random
-bytes). The agent saves them in its state file, readable only by its owner,
-and the install script removes the token from the server. From then on, the
-agent authenticates with its ID and key, and the hub compares a hash of the
-key in constant time.
+### The secret proves the agent
 
-The token is never needed again. One that leaks from your shell history after
-it was used is worth nothing.
+On the first run, the agent sends only the secret part. The hub checks it,
+marks it used, and issues long-term credentials:
 
-### Pinning the hub's certificate
+```text
+agent → hub   enroll      token = <secret>               data = system info
+hub → agent   enrolled    data = { agent_id, node_key, node_id }
+```
+
+The node key is 32 random bytes. The agent writes it to a state file with
+mode `0600`, and the install script deletes the token from the server. Every
+later connection authenticates with the ID and key instead:
+
+```text
+agent → hub   connected   token = "<agent_id>:<node_key>"
+```
+
+The hub keeps only a hash of the key and compares it in constant time. A join
+token that leaks after use, say from shell history, is worthless.
+
+### The fingerprint proves the hub
 
 The third part of the token is the SHA-256 fingerprint of the hub's TLS
-certificate. The hub creates a self-signed certificate (ECDSA P-256) the
-first time it starts, so there's no certificate authority and no domain name
-involved.
+certificate. By default the hub creates a self-signed ECDSA P-256 certificate
+on first start.
 
-The agent doesn't trust certificate authorities or check host names. It
-pins that fingerprint, and the TLS handshake proves the hub holds the
-matching private key. Someone who intercepts the connection, or takes over
-the hub's DNS name, can't present that certificate, so the agent refuses to
-talk to them. You can point agents at the hub by IP address if you like.
+The agent ignores certificate authorities and host names. It pins that
+fingerprint, and the TLS handshake proves the hub holds the matching private
+key. Someone who intercepts the connection, or takes over the hub's DNS
+record, can't present that certificate. You can point agents at the hub by IP
+address.
 
-So the one string you paste carries both proofs: the secret proves the agent
-to the hub, and the fingerprint proves the hub to the agent.
+Why not Let's Encrypt? It would add a dependency on a domain name, renewals
+and a public CA, for a channel where both ends are yours. Pinning is simpler,
+with one sharp edge, covered under the costs below. If you'd rather use your
+own certificate, the hub takes one, and the agent pins that instead.
 
-### Keeping the hub's port boring
+## What a stranger gets from the hub's port
 
-The hub's port is open to the internet, so it's built to give strangers
-nothing:
+The hub's port is the one thing exposed, so it's built to give strangers
+little:
 
-- A connection has 10 seconds to authenticate, TLS handshake included, or
-  it's closed. Until then, the hub ignores every message except enrolling
-  and connecting.
-- A frame larger than 1 MiB drops the connection.
-- Rejections say only `invalid credentials`, so they don't reveal which part
-  was wrong.
-- A node has one live connection at most. Revoking its key in the dashboard
-  disconnects it at once. The agent then exits with code 3, and its systemd
-  unit doesn't restart it, so it doesn't keep knocking.
+- 10 seconds to authenticate, TLS handshake included, or the connection is
+  closed. Until then the hub ignores everything except `enroll` and
+  `connected`.
+- Frames over 1 MiB drop the connection.
+- Rejections say only `invalid credentials`, not which part was wrong.
+- One live connection per node. Revoking a key in the dashboard disconnects
+  that node at once. The agent then exits with code 3, and its systemd unit
+  is set not to restart on that code, so it doesn't keep knocking.
 
 ## Dialing out isn't handing over a shell
 
-A connection the server opened still carries requests from the hub, so the
-next question is what the hub can ask for. The answer is: only what the
-server's owner wrote down.
+The obvious worry: if requests come down the connection, a compromised hub
+can do anything on every server. It can't, because the hub never sends a
+command, only a name.
 
-Each project on a server has a `config.vpspilot.json`. To run `build`, the
-hub sends the agent the word `"build"`, never a command. The agent looks the
-name up in the file on the server and runs what's written there, as the
-file's owner. Logs, backups and cron jobs follow the same rule. Even someone
-who took over your hub couldn't run anything that isn't already in a file you
-wrote. The [security docs](/docs/security/) go through it in detail.
+Each project on a server has a `config.vpspilot.json` written by the server's
+owner. To run `build`, the hub sends the word `"build"`. The agent re-reads
+the file, looks the name up, and runs what's written there, as the file's
+owner rather than as the agent's user. It refuses a config that is a symlink
+or writable by group or others. Log reads, backups and cron jobs follow the
+same rule. The worst a compromised hub can do is trigger commands you already
+wrote into a file on that server. The [security docs](/docs/security/) have
+the details.
 
-## What you give up
+## Why not just use a VPN?
 
-Dialing out isn't free:
+WireGuard or Tailscale solve reachability: put the hub and the servers on one
+network and scraping works without public ports. That's a good setup, and
+VPS Pilot runs fine over one; then even the hub's port needn't be public.
 
-- **The hub must be reachable** from your servers, on one port. If your
-  firewall allows it, limit port 55001 to your servers' addresses, and put
-  the dashboard behind a reverse proxy with HTTPS.
-- **If the hub is down, you see nothing live.** Stats from that time are
-  lost. The agents reconnect on their own, and cron jobs and backups keep
-  running on the servers, with their results queued until the hub is back.
-- **Back up the hub's `tls/` folder.** If its certificate is lost, the
+Dialing out means you don't need one. For a freelancer with five VPSs at
+three providers, "install an agent, paste a token" is less to run than a mesh
+VPN plus a scraper. If you already have the VPN, use it.
+
+## What it costs
+
+- **The hub must be reachable** from your servers, on one port. Limit 55001
+  to your servers' addresses if your firewall allows, and keep the dashboard
+  behind a reverse proxy with HTTPS.
+- **The hub is now the valuable target.** It holds every node's key hash and
+  can reach every agent. The name-only rule bounds the damage, but protect it
+  like the one machine that matters.
+- **If the hub is down, you see nothing live.** Stats from that window are
+  lost; the agent doesn't buffer them. Cron jobs and backups keep running on
+  the servers, and up to 50 of their results queue until the hub is back.
+- **Back up the hub's `tls/` folder.** Lose the certificate and the
   fingerprint changes, and every agent refuses to connect until you
-  re-enroll it.
+  re-enroll it. That's the sharp edge of pinning.
 
-For a handful of VPSs, that trade is easy: one port on one machine you
-protect, instead of a port on every machine you run.
+For a handful of servers, I think that trade is worth it: one port on one
+machine you look after, instead of a port on every machine you run.
 
-## Try it
+## Try it or read the protocol
 
-The [quick start](/docs/quick-start/) gets a hub running and your first server
-connected in a few minutes, and the [agent docs](/docs/agent/) cover the
-install script, the `.deb` and systemd. The [protocol](/docs/protocol/) is
-documented too, if you'd like to see every message on the wire.
+The [quick start](/docs/quick-start/) gets a hub up and a server connected in
+a few minutes. The [protocol](/docs/protocol/) is documented message by
+message, if you'd rather read the wire format first. The code is on
+[GitHub](https://github.com/sanda0/vps_pilot) under the AGPL.
