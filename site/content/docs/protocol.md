@@ -120,6 +120,7 @@ next `connected` gets `auth_failed`.
 | `backup_run` | hub → agent | `BackupRun`, see [Back up](#back-up) |
 | `backup_started` | agent → hub | `BackupStarted` |
 | `backup_result` | agent → hub | `BackupResult` |
+| `cron_result` | agent → hub | `CronResult`, see [Cron jobs](#cron-jobs) |
 
 ## Projects
 
@@ -296,12 +297,49 @@ result still replaces that.
 | `failed` | No zip was kept; `error` says why |
 | `rejected` | Not started; `error` says why |
 
+## Cron jobs
+
+A project's `cron` lists commands, by name from its `commands`, and five-field
+schedules (or `@hourly`, `@daily`, `@weekly`, `@monthly`) in the server's time
+zone. The agent runs them itself and sends one result per run. The hub sends
+nothing for cron and can't start a job; **Run** sends an ordinary
+`command_run`.
+
+```text
+agent → hub   cron_result   { run_id, project_path, command, status, … }  (one per scheduled run)
+```
+
+Only agents whose `SystemInfo.features` contains `"cron"` run cron jobs. The
+agent checks `cron` when it reads the config: an unknown or repeated command,
+or an invalid schedule, makes the config unusable.
+
+At the start of each minute, the agent runs every job whose schedule matches.
+Minutes it slept through are skipped, and when clocks go back the repeated
+minutes don't run again. Each run re-reads the config with the checks for
+commands, and is `rejected` if the job is no longer in `cron`. It's `skipped`
+if the same command in the project is still running, from cron or from
+`command_run`, or 4 commands are running. It runs as the config file's owner
+with the environment and timeout of a command.
+
+Stdout and stderr are captured together and sent with the result, not
+streamed; only the last 64 KiB are kept. The agent keeps up to 50 results it
+couldn't send and sends them after it reconnects. The hub de-duplicates by
+`run_id` and keeps the last 50 runs of each job.
+
+| `status` | Meaning |
+| --- | --- |
+| `exited` | The command ran; `exit_code` is its code (128 + n if killed by signal n) |
+| `timeout` | Killed after the timeout |
+| `skipped` | Not started: still running, or too many commands running |
+| `rejected` | Not started: a check failed; `error` says which |
+| `failed` | Couldn't be started |
+
 ## Payloads
 
 `SystemInfo`. `hostname` names the node on first enrollment; `total_memory`
 is in bytes. `agent_version` and `features` were added in v0.3; when they're
 missing, the hub treats the agent as having no features. The features are
-`commands` (v0.3), `logs` (v0.4) and `backups` (v0.5).
+`commands` (v0.3), `logs` (v0.4), `backups` (v0.5) and `cron` (v0.6).
 
 ```json
 {
@@ -313,7 +351,7 @@ missing, the hub treats the agent as having no features. The features are
   "cpus": 4,
   "total_memory": 8221474816,
   "agent_version": "v0.5.0",
-  "features": ["commands", "logs", "backups"]
+  "features": ["commands", "logs", "backups", "cron"]
 }
 ```
 
@@ -351,7 +389,8 @@ directory.
       "tech": ["laravel"],
       "commands": [{ "name": "build", "command": "npm run build" }],
       "logs": ["storage/logs"],
-      "backups": { "env_file": ".env", "dir": ["storage/app"] }
+      "backups": { "env_file": ".env", "dir": ["storage/app"] },
+      "cron": [{ "command": "build", "schedule": "0 3 * * *" }]
     }
   ],
   "errors": [
@@ -454,6 +493,29 @@ seconds.
   "size": 52428800,
   "database": "mysql",
   "upload": { "status": "ok", "key": "shop/shop_backup-20261031T030000Z.zip", "error": "" },
+  "error": ""
+}
+```
+
+`CronResult`. `run_id` is a UUID chosen by the agent; `scheduled_at` is the
+minute the run was due, in Unix seconds; `schedule` is as written in the
+config. `output` is the last 64 KiB of stdout and stderr together. `run_as`,
+`duration_ms` and `output` are empty when the command never started, and
+`error` is a short reason for `skipped`, `rejected` and `failed`.
+
+```json
+{
+  "run_id": "7e0f…",
+  "project_path": "/var/www/shop",
+  "command": "prune",
+  "schedule": "0 3 * * *",
+  "scheduled_at": 1793156400,
+  "status": "exited",
+  "exit_code": 0,
+  "run_as": "deploy",
+  "duration_ms": 1830,
+  "output": "Pruned 120 records.\n",
+  "truncated": false,
   "error": ""
 }
 ```

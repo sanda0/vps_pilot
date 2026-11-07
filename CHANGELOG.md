@@ -6,6 +6,30 @@ User-facing changes to VPS Pilot. The format follows
 
 ## Unreleased
 
+### Upgrade notes
+- Upgrading the hub adds a `cron` column to `projects` and the `cron_runs`
+  table to the operational database on start.
+- Cron jobs need agent v0.6.0 or later. Older agents ignore `cron`, so their
+  projects show no cron jobs; everything else keeps working.
+- A v0.6.0 agent treats a config with an invalid `cron` entry (an unknown or
+  repeated command, or a bad schedule) as unusable, like an incomplete
+  command.
+
+### Added
+- Cron jobs: a project's `config.vpspilot.json` can list `cron` entries, each
+  naming one of its `commands` and a five-field schedule (or `@hourly`,
+  `@daily`, `@weekly`, `@monthly`) in the server's time zone. The agent runs
+  them itself, as the config file's owner with the same checks as **Run**,
+  even while the hub is unreachable. A run that would overlap the same
+  command is skipped, and runs missed while the agent was stopped don't
+  catch up. The **Cron jobs** card on the project page shows each job's
+  schedule, last run, status and output, and its recent runs. The hub keeps
+  the last 50 runs of each job and can't add, change or start a job.
+
+### Fixed
+- The hub no longer logs a second, misleading error after it fails to store
+  a node's CPU stats.
+
 ## v0.5.0 - 2026-10-31
 
 ### Upgrade notes
