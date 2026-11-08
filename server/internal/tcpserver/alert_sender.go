@@ -22,6 +22,10 @@ type AlertMsg struct {
 	Timestamp    time.Time
 }
 
+// alertWebhookTimeout bounds webhook requests so an endpoint that accepts the
+// connection but never responds cannot block the alerting goroutine.
+var alertWebhookTimeout = 10 * time.Second
+
 func SendDiscordAlert(webhookURL string, alert AlertMsg) error {
 	// Format the alert message
 	message := fmt.Sprintf(
@@ -41,7 +45,8 @@ func SendDiscordAlert(webhookURL string, alert AlertMsg) error {
 	}
 
 	// Send the POST request to the Discord webhook
-	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: alertWebhookTimeout}
+	resp, err := client.Post(webhookURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -171,7 +176,8 @@ func SendSlackAlert(webhookURL string, alert AlertMsg) error {
 	}
 
 	// Send the POST request to the Slack webhook
-	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(body))
+	client := &http.Client{Timeout: alertWebhookTimeout}
+	resp, err := client.Post(webhookURL, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
