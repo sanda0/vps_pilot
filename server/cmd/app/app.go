@@ -41,7 +41,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 
 	//init handlers
 	userHandler := handlers.NewAuthHandler(userService)
-	nodeHander := handlers.NewNodeHandler(nodeService)
+	nodeHandler := handlers.NewNodeHandler(nodeService)
 	alertHandler := handlers.NewAlertHandler(alertService)
 	projectHandler := handlers.NewProjectHandler(projectService)
 	projectScanHandler := handlers.NewProjectScanHandler(projectScanService)
@@ -73,27 +73,27 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	}
 
 	//dashboard routes
-	dashbaord := api.Group("/")
-	dashbaord.Use(middleware.JwtAuthMiddleware())
+	dashboard := api.Group("/")
+	dashboard.Use(middleware.JwtAuthMiddleware())
 	{
-		dashbaord.GET("/profile", userHandler.Profile)
+		dashboard.GET("/profile", userHandler.Profile)
 
-		nodes := dashbaord.Group("/nodes")
+		nodes := dashboard.Group("/nodes")
 		{
-			nodes.GET("", nodeHander.GetNodes)
-			nodes.PUT("/change-name", nodeHander.UpdateName)
-			nodes.GET("/:id", nodeHander.GetNode)
-			nodes.GET("/ws/system-stat", nodeHander.SystemStatWSHandler)
+			nodes.GET("", nodeHandler.GetNodes)
+			nodes.PUT("/change-name", nodeHandler.UpdateName)
+			nodes.GET("/:id", nodeHandler.GetNode)
+			nodes.GET("/ws/system-stat", nodeHandler.SystemStatWSHandler)
 			nodes.GET("/:id/projects", projectHandler.ListProjectsByNode)
-			nodes.POST("/join-tokens", nodeHander.CreateJoinToken)
-			nodes.DELETE("/:id/key", nodeHander.RevokeNodeKey)
+			nodes.POST("/join-tokens", nodeHandler.CreateJoinToken)
+			nodes.DELETE("/:id/key", nodeHandler.RevokeNodeKey)
 			nodes.GET("/:id/project-settings", projectScanHandler.Get)
 			nodes.PUT("/:id/project-settings", projectScanHandler.UpdateSettings)
 			nodes.POST("/:id/rescan-projects", projectScanHandler.Rescan)
 			nodes.POST("/:id/project-paths", projectScanHandler.AddPath)
 			nodes.DELETE("/:id/project-paths/:pathId", projectScanHandler.DeletePath)
 		}
-		alerts := dashbaord.Group("/alerts")
+		alerts := dashboard.Group("/alerts")
 		{
 			alerts.GET("/:id", alertHandler.GetAlert)
 			alerts.POST("", alertHandler.CreateAlert)
@@ -103,7 +103,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			alerts.DELETE("/:id", alertHandler.DeleteAlert)
 			alerts.PUT("", alertHandler.UpdateAlert)
 		}
-		projects := dashbaord.Group("/projects")
+		projects := dashboard.Group("/projects")
 		{
 			projects.GET("", projectHandler.ListProjects)
 			projects.GET("/:id", projectHandler.GetProject)
@@ -117,7 +117,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 			projects.GET("/:id/cron", cronHandler.Jobs)
 			projects.GET("/:id/cron/runs", cronHandler.Runs)
 		}
-		runs := dashbaord.Group("/runs")
+		runs := dashboard.Group("/runs")
 		{
 			runs.GET("/:runId", commandRunHandler.Get)
 			runs.POST("/:runId/cancel", commandRunHandler.Cancel)
