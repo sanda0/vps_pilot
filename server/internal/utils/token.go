@@ -25,14 +25,6 @@ func ExtractTokenFromHeader(c *gin.Context) string {
 
 }
 
-// func ExtractTokenFromHeader(c *gin.Context) string {
-// 	bearerToken := c.Request.Header.Get("Authorization")
-// 	if len(bearerToken) > 7 && bearerToken[:7] == "Bearer " {
-// 		return bearerToken[7:]
-// 	}
-// 	return ""
-// }
-
 func GenerateToken(user_id int32) (string, error) {
 	// Get token lifespan from env or use default (60 minutes)
 	token_lifespan := 60 // default 60 minutes
