@@ -9,6 +9,7 @@ import (
 
 type AuthHandler interface {
 	Login(c *gin.Context)
+	Logout(c *gin.Context)
 	Profile(c *gin.Context)
 }
 
@@ -61,6 +62,13 @@ func (a *authHandler) Login(c *gin.Context) {
 
 	c.JSON(200, gin.H{"data": userResponse})
 
+}
+
+// Logout implements AuthHandler. The session cookie is HttpOnly, so only the
+// server can clear it; the dashboard calls this even when its token expired.
+func (a *authHandler) Logout(c *gin.Context) {
+	utils.WriteTokenToCookie(c, "")
+	c.JSON(200, gin.H{"message": "logged out"})
 }
 
 func NewAuthHandler(userService services.UserService) AuthHandler {

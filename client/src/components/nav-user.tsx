@@ -1,5 +1,10 @@
 "use client"
 
+import { useNavigate } from "react-router"
+import { useAtom } from "jotai"
+import api from "@/lib/api"
+import { userAtom, User } from "@/atoms/user"
+
 import {
   BadgeCheck,
   Bell,
@@ -38,6 +43,20 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const navigate = useNavigate()
+  const [, setUserAtom] = useAtom<User | null>(userAtom)
+
+  const handleLogout = async () => {
+    try {
+      // The session cookie is HttpOnly, so only the hub can clear it.
+      await api.post("/auth/logout")
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUserAtom(null)
+      navigate("/login")
+    }
+  }
 
   return (
     <SidebarMenu>
@@ -90,7 +109,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

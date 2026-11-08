@@ -70,6 +70,7 @@ func Run(ctx context.Context, repo *db.Repo, port string, enroll services.AgentE
 	auth := api.Group("/auth")
 	{
 		auth.POST("/login", userHandler.Login)
+		auth.POST("/logout", userHandler.Logout)
 	}
 
 	//dashboard routes
