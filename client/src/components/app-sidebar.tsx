@@ -19,13 +19,7 @@ import {
 import { userAtom, User } from "@/atoms/user"
 import { useAtom } from "jotai"
 
-// This is sample data.
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Nodes",
@@ -54,10 +48,8 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const [user] = useAtom<User | null>(userAtom)
-  data.user.email = user?.email || data.user.email
-  data.user.name = user?.username || data.user.name
-
-
+  const userName = user?.username?.trim() || user?.email?.trim() || ""
+  const userEmail = user?.email?.trim() || ""
   
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -78,7 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{ name: userName, email: userEmail }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
