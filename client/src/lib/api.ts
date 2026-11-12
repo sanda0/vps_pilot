@@ -15,6 +15,21 @@ const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response?.status === 401 &&
+      error.config?.url !== "/auth/login" &&
+      window.location.pathname !== "/login"
+    ) {
+      window.location.assign("/login");
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 // Projects API. Projects themselves come from agents (`projects` messages);
 // the dashboard can only point an agent at extra directories (projectScanApi).
 export const projectsApi = {
