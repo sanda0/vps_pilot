@@ -25,42 +25,49 @@ func ExtractTokenFromHeader(c *gin.Context) string {
 
 }
 
-func GenerateToken(user_id int32) (string, error) {
-	// Get token lifespan from env or use default (60 minutes)
-	token_lifespan := 60 // default 60 minutes
-	if lifespanStr := os.Getenv("TOKEN_LIFESPAN"); lifespanStr != "" {
-		if lifespan, err := strconv.Atoi(lifespanStr); err == nil {
-			token_lifespan = lifespan
-		} else {
-			log.Printf("Warning: Invalid TOKEN_LIFESPAN value '%s', using default %d minutes\n", lifespanStr, token_lifespan)
-		}
-	} else {
-		log.Printf("Warning: TOKEN_LIFESPAN not set, using default %d minutes\n", token_lifespan)
-	}
+const (
+	defaultTokenLifespan = 60 // minutes
+	defaultTokenSecret   = "default-secret-change-in-production"
+)
 
-	// Get token secret from env or use default (for development only)
-	tokenSecret := os.Getenv("TOKEN_SECRET")
-	if tokenSecret == "" {
-		tokenSecret = "default-secret-change-in-production"
+// tokenLifespan returns TOKEN_LIFESPAN in minutes, or the default when it is
+// unset or not an integer. It does not log; see WarnTokenConfig.
+func tokenLifespan() int {
+	if lifespan, err := strconv.Atoi(os.Getenv("TOKEN_LIFESPAN")); err == nil {
+		return lifespan
+	}
+	return defaultTokenLifespan
+}
+
+// WarnTokenConfig logs once, at hub startup, when TOKEN_LIFESPAN or TOKEN_SECRET
+// fall back to their defaults.
+func WarnTokenConfig() {
+	if lifespanStr := os.Getenv("TOKEN_LIFESPAN"); lifespanStr == "" {
+		log.Printf("Warning: TOKEN_LIFESPAN not set, using default %d minutes\n", defaultTokenLifespan)
+	} else if _, err := strconv.Atoi(lifespanStr); err != nil {
+		log.Printf("Warning: Invalid TOKEN_LIFESPAN value '%s', using default %d minutes\n", lifespanStr, defaultTokenLifespan)
+	}
+	if os.Getenv("TOKEN_SECRET") == "" {
 		log.Println("Warning: TOKEN_SECRET not set, using default (INSECURE - set TOKEN_SECRET in production)")
 	}
+}
 
+func GenerateToken(user_id int32) (string, error) {
 	claims := jwt.MapClaims{}
 	claims["authorized"] = true
 	claims["user_id"] = user_id
-	claims["exp"] = time.Now().Add(time.Minute * time.Duration(token_lifespan)).Unix()
+	claims["exp"] = time.Now().Add(time.Minute * time.Duration(tokenLifespan())).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return token.SignedString([]byte(tokenSecret))
+	return token.SignedString([]byte(getTokenSecret()))
 
 }
 
 func getTokenSecret() string {
-	tokenSecret := os.Getenv("TOKEN_SECRET")
-	if tokenSecret == "" {
-		return "default-secret-change-in-production"
+	if tokenSecret := os.Getenv("TOKEN_SECRET"); tokenSecret != "" {
+		return tokenSecret
 	}
-	return tokenSecret
+	return defaultTokenSecret
 }
 
 func TokenValid(c *gin.Context) error {

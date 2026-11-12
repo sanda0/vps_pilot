@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,6 +40,38 @@ func TestTokenRoundTrip(t *testing.T) {
 	}
 	if id, err := ExtractTokenID(c); err != nil || id != 42 {
 		t.Fatalf("got user %d, err %v; want 42", id, err)
+	}
+}
+
+// An invalid TOKEN_LIFESPAN must fall back to 60 minutes without logging a
+// warning on every token: config warnings belong to startup, not to each login.
+func TestGenerateTokenInvalidLifespanNoLogSpam(t *testing.T) {
+	t.Setenv("TOKEN_SECRET", "test-secret")
+	t.Setenv("TOKEN_LIFESPAN", "soon")
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prev) })
+
+	before := time.Now()
+	token, err := GenerateToken(7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() > 0 {
+		t.Errorf("GenerateToken logged config warnings: %q", buf.String())
+	}
+	claims := jwt.MapClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(token, claims); err != nil {
+		t.Fatal(err)
+	}
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		t.Fatalf("missing exp claim: %v", claims)
+	}
+	lifespan := time.Unix(int64(exp), 0).Sub(before)
+	if lifespan < 59*time.Minute || lifespan > 61*time.Minute {
+		t.Errorf("token lifespan %v; want about 60m", lifespan)
 	}
 }
 
